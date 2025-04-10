@@ -26,7 +26,8 @@ using System.IO;
         public Image grayImage;
         public GameObject canvas;
         public float cameraSpeed = 4f; // カメラが円柱の軸に沿って移動する速度 (m/s) // 摄像机沿圆柱轴线移动的速度，m/s
-        public Material BrightnessMaterial; // 在 Inspector 里赋值 Material
+        public Material Image1BrightnessMaterial; // 在 Inspector 里赋值 Material
+        public Material Image2BrightnessMaterial; // 在 Inspector 里赋值 Material
 
     private float trialTime = 1 * 180 * 1000f;//实验的总时间
         public float captureIntervalDistance; // 撮影間隔の距離 (m) // 拍摄间隔距离，m
@@ -263,19 +264,21 @@ using System.IO;
             Debug.Log("beforeImage1RawImage.color.r" + Image1RawImage.color.r + "  " + Image1RawImage.color.g + "  " + Image1RawImage.color.b + "  " + Image1RawImage.color.a);
             if (frameNum % 2 == 0)
                 {
-                    Image1RawImage.color = new Color(Image1RawImage.color.r, Image1RawImage.color.g, Image1RawImage.color.b, nextImageRatio);
-                    Image2RawImage.color = new Color(Image2RawImage.color.r, Image2RawImage.color.g, Image2RawImage.color.b, previousImageRatio);
-               // Image1RawImage.color = new Color(Image1RawImage.color.r * nextImageRatio, Image1RawImage.color.g * nextImageRatio, Image1RawImage.color.b * nextImageRatio, Image1RawImage.color.a);
-               // Image2RawImage.color = new Color(Image2RawImage.color.r * previousImageRatio, Image2RawImage.color.g * previousImageRatio, Image2RawImage.color.b * previousImageRatio, Image2RawImage.color.a);
+                   // Image1RawImage.color = new Color(Image1RawImage.color.r, Image1RawImage.color.g, Image1RawImage.color.b, nextImageRatio);
+                    //Image2RawImage.color = new Color(Image2RawImage.color.r, Image2RawImage.color.g, Image2RawImage.color.b, previousImageRatio);
+                    // 通过 `Material` 修改 Shader 变量 `_Brightness`    
+                    Image1BrightnessMaterial.SetFloat("_Brightness", nextImageRatio);
+                    Image2BrightnessMaterial.SetFloat("_Brightness", previousImageRatio);
             }
                 else
                 {
-                    Image1RawImage.color = new Color(Image1RawImage.color.r, Image1RawImage.color.g, Image1RawImage.color.b, previousImageRatio);
-                    Image2RawImage.color = new Color(Image2RawImage.color.r, Image2RawImage.color.g, Image2RawImage.color.b, nextImageRatio);
+                    //Image1RawImage.color = new Color(Image1RawImage.color.r, Image1RawImage.color.g, Image1RawImage.color.b, previousImageRatio);
+                   // Image2RawImage.color = new Color(Image2RawImage.color.r, Image2RawImage.color.g, Image2RawImage.color.b, nextImageRatio);
+                    // 通过 `Material` 修改 Shader 变量 `_Brightness`
+                    Image1BrightnessMaterial.SetFloat("_Brightness", previousImageRatio);
+                    Image2BrightnessMaterial.SetFloat("_Brightness", nextImageRatio);
 
-                //Image1RawImage.color = new Color(Image1RawImage.color.r * previousImageRatio, Image1RawImage.color.g * previousImageRatio, Image1RawImage.color.b * previousImageRatio, Image1RawImage.color.a);
-               // Image2RawImage.color = new Color(Image2RawImage.color.r * nextImageRatio, Image2RawImage.color.g * nextImageRatio, Image2RawImage.color.b * nextImageRatio, Image2RawImage.color.a);
-            }
+                }
 
             Debug.Log("Image1RawImage.color.r"+ Image1RawImage.color.r+"  "+ Image1RawImage.color.g +"  "+ Image1RawImage.color.b +"  " + Image1RawImage.color.a);
                 // Canvasに親オブジェクトを設定し、元のローカル位置、回転、およびスケールを保持 // 设置父对象为 Canvas，并保持原始的本地位置、旋转和缩放
@@ -339,10 +342,17 @@ using System.IO;
             Image1RawImage = Image1Transform.GetComponent<RawImage>();
             Image2RawImage = Image2Transform.GetComponent<RawImage>();
 
-            // RawImageコンポーネントを無効にする // 禁用 RawImage 组件
-            continuousImageRawImage.enabled = false;
+            Image1RawImage.material = Image1BrightnessMaterial;
+            Image2RawImage.material = Image2BrightnessMaterial;
+        Image1BrightnessMaterial.SetTexture("_MainTex", Image1RawImage.texture);
+        Image2BrightnessMaterial.SetTexture("_MainTex", Image2RawImage.texture);
+
+        // RawImageコンポーネントを無効にする // 禁用 RawImage 组件
+        continuousImageRawImage.enabled = false;  
             Image1RawImage.enabled = false;
             Image2RawImage.enabled = false;
+
+            
         }
         void Wabble()
         {
