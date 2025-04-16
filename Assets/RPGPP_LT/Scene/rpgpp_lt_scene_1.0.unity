@@ -25194,9 +25194,7 @@ MonoBehaviour:
   captureCamera2: {fileID: 737476481}
   grayImage: {fileID: 21723212}
   canvas: {fileID: 997586640}
-  cameraSpeed: 4
-  Image1BrightnessMaterial: {fileID: 2100000, guid: 3072434790198674a95f301ce1ef3f93, type: 2}
-  Image2BrightnessMaterial: {fileID: 2100000, guid: 3072434790198674a95f301ce1ef3f93, type: 2}
+  cameraSpeed: 0.1
   captureIntervalDistance: 0
   updateInterval: 0
   frameNum: 0
