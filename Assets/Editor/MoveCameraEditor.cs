@@ -1,4 +1,4 @@
-﻿using UnityEditor;
+﻿/*using UnityEditor;
 using UnityEngine;
 
 [CustomEditor(typeof(MoveCamera))]
@@ -85,3 +85,4 @@ public class MoveCameraEditor : Editor
         Handles.DrawAAPolyLine(2f, points);
     }
 }
+*/
