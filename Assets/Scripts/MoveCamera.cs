@@ -69,7 +69,7 @@ public class MoveCamera : MonoBehaviour
         public float A_min = 0f;
 
         [Range(0f, 5f)]
-        public float A_max = 2.0f;
+        public float A_max = 3.0f;
     public float t = 0f;
 
 
@@ -149,16 +149,16 @@ public class MoveCamera : MonoBehaviour
                 //captureCamera0.transform.position = targetPosition;
 
                 t += Time.fixedDeltaTime;
-                // センサー値（0〜1）を取得し制限
+                // つまみセンサー値（0〜1）を取得し
                 float knobValue = Mathf.Clamp01(SerialReader.lastSensorValue);
 
-                // Aを計算
+                // Amplitudeを計算
                 float A = A_min + knobValue * (A_max - A_min);
 
-                // 現在の速度を計算
-                float v = Mathf.Max(0f, v0 + A * Mathf.Sin(omega * t));
-            // float v = v0 + A * (Mathf.Sin(omega * t) * 0.5f + 0.5f);
-
+            // 現在の速度を計算
+            //float v = Mathf.Max(0f, v0 + A * Mathf.Sin(omega * t));
+           // float v = v0 + A * (Mathf.Sin(omega * t) * 0.5f + 0.5f);
+            float v = v0 + A * (Mathf.Sin(omega * t) * 0.5f );
 
             captureCamera0.transform.position += direction* v * Time.deltaTime;
 

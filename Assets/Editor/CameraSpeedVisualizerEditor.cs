@@ -25,8 +25,9 @@ public class MoveCameraEditor : Editor
 
         float A = script.A_min + knobValue * (script.A_max - script.A_min);
         float time = Time.time;
-        float v = Mathf.Max(0f, script.v0 + A * Mathf.Sin(script.omega * script.t)); 
-
+        //float v = Mathf.Max(0f, script.v0 + A * Mathf.Sin(script.omega * script.t));
+        // float v = script.v0 + A * (Mathf.Sin(script.omega * script.t) * 0.5f + 0.5f);
+        float v = script.v0 + A * (Mathf.Sin(script.omega * script.t) * 0.5f );
         // 添加当前速度到历史记录
         if (Application.isPlaying)
         {
