@@ -16,22 +16,63 @@ public class MoveCameraEditor : Editor
         DrawDefaultInspector();
 
         MoveCamera script = (MoveCamera)target;
-
-        float knobValue = 0.5f;
-        if (Application.isPlaying && script.SerialReader != null)
+        //ResponsePatternブロックを挿入
+        GUILayout.Space(10);
+        GUILayout.Label("📷 ResponsePattern", EditorStyles.boldLabel);
+        EditorGUILayout.BeginHorizontal();
+        MoveCamera.ResponsePattern[] rmodes = (MoveCamera.ResponsePattern[])System.Enum.GetValues(typeof(MoveCamera.ResponsePattern));
+        for (int i = 0; i < rmodes.Length; i++)
         {
-            knobValue = Mathf.Clamp01(script.SerialReader.lastSensorValue);
-        }
+            bool isSelected = script.responsePattern == rmodes[i];
+            GUIStyle style = new GUIStyle(GUI.skin.button);
+            style.margin = new RectOffset(4, 4, 4, 4);
+            style.padding = new RectOffset(10, 10, 5, 5);
 
-        float A = script.A_min + knobValue * (script.A_max - script.A_min);
-        float time = Time.time;
-        //float v = Mathf.Max(0f, script.v0 + A * Mathf.Sin(script.omega * script.t));
-        // float v = script.v0 + A * (Mathf.Sin(script.omega * script.t) * 0.5f + 0.5f);
-        float v = script.v0 + A * (Mathf.Sin(script.omega * script.t) * 0.5f );
+            if (isSelected)
+            {
+                style.fontStyle = FontStyle.Bold;
+                style.normal.textColor = Color.black;
+                style.normal.background = MakeColoredTexture(new Color(0.6f, 1f, 0.6f)); // 蓝色底
+            }
+
+            if (GUILayout.Toggle(isSelected, rmodes[i].ToString(), style))
+            {
+                script.responsePattern = rmodes[i];
+            }
+        }
+        EditorGUILayout.EndHorizontal();
+
+        // 🔽 StepNumberブロックを挿入
+        GUILayout.Space(10);
+        GUILayout.Label("📷 StepNumber", EditorStyles.boldLabel);
+        EditorGUILayout.BeginHorizontal();
+        MoveCamera.StepNumber[] modes = (MoveCamera.StepNumber[])System.Enum.GetValues(typeof(MoveCamera.StepNumber));
+        for (int i = 0; i < modes.Length; i++)
+        {
+            bool isSelected = script.stepNumber == modes[i];
+            GUIStyle style = new GUIStyle(GUI.skin.button);
+            style.margin = new RectOffset(4, 4, 4, 4);
+            style.padding = new RectOffset(10, 10, 5, 5);
+
+            if (isSelected)
+            {
+                style.fontStyle = FontStyle.Bold;
+                style.normal.textColor = Color.black;
+                style.normal.background = MakeColoredTexture(new Color(0.6f, 1f, 0.6f)); // 蓝色底
+            }
+
+            if (GUILayout.Toggle(isSelected, modes[i].ToString(), style))
+            {
+                script.stepNumber = modes[i];
+            }
+        }
+        EditorGUILayout.EndHorizontal();
+
+        //描画速度波形
         // 添加当前速度到历史记录
         if (Application.isPlaying)
         {
-            velocityHistory.Enqueue(v);
+            velocityHistory.Enqueue(script.v);
             while (velocityHistory.Count > graphWidth)
             {
                 velocityHistory.Dequeue();
@@ -52,8 +93,8 @@ public class MoveCameraEditor : Editor
         graphTexture.SetPixels(pixels);
 
         // 获取最大最小速度值（自动缩放）
-        float maxV = Mathf.Max(script.v0 + script.A_max, v);
-        float minV = Mathf.Min(script.v0 - script.A_max, v);
+        float maxV = Mathf.Max(script.v0 + script.A_max, script.v);
+        float minV = Mathf.Min(script.v0 - script.A_max, script.v);
 
         // 坐标轴 Y=0线
         int zeroY = Mathf.RoundToInt(Mathf.InverseLerp(minV, maxV, 0f) * graphHeight);
@@ -81,10 +122,11 @@ public class MoveCameraEditor : Editor
         GUILayout.Label(graphTexture);
 
         // 显示实时值
+        float time = Time.time;
         if (Application.isPlaying)
         {
             EditorGUILayout.LabelField("⏱ 時間:", time.ToString("F2") + " 秒");
-            EditorGUILayout.LabelField("📌 速度 v(t):", v.ToString("F3"));
+            EditorGUILayout.LabelField("📌 速度 v(t):", script.v.ToString("F3"));
             Repaint(); // 每帧更新
         }
     }
@@ -108,4 +150,15 @@ public class MoveCameraEditor : Editor
             if (e2 < dx) { err += dx; y0 += sy; }
         }
     }
+
+    private Texture2D MakeColoredTexture(Color col)
+    {
+        Texture2D tex = new Texture2D(1, 1);
+        tex.SetPixel(0, 0, col);
+        tex.Apply();
+        return tex;
+    }
+
+
+
 }
