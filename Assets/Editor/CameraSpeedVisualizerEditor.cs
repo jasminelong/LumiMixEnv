@@ -93,8 +93,8 @@ public class MoveCameraEditor : Editor
         graphTexture.SetPixels(pixels);
 
         // 获取最大最小速度值（自动缩放）
-        float maxV = Mathf.Max(script.v0 + script.A_max, script.v);
-        float minV = Mathf.Min(script.v0 - script.A_max, script.v);
+        float maxV = Mathf.Max(script.V0 + script.A_max, script.v);
+        float minV = Mathf.Min(script.V0 - script.A_max, script.v);
 
         // 坐标轴 Y=0线
         int zeroY = Mathf.RoundToInt(Mathf.InverseLerp(minV, maxV, 0f) * graphHeight);

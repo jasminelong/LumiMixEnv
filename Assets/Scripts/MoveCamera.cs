@@ -15,8 +15,8 @@ public class MoveCamera : MonoBehaviour
         }
         public enum ResponsePattern
         {
-            velocity,
-            amplitude,
+            Velocity,
+            Amplitude,
         }
         public enum StepNumber
         {
@@ -63,10 +63,8 @@ public class MoveCamera : MonoBehaviour
         private Quaternion rightMoveRotation = Quaternion.Euler(0, 48.5f, 0);
         private Quaternion forwardMoveRotation = Quaternion.Euler(0, 146.8f, 0);
         public float v;
-        private float A1;
-        private float A2;
-        private float A3;
-    public SerialReader SerialReader;
+
+        public SerialReader SerialReader;
         // Start is called before the first frame update
 
         // 数据保留的时长（例如，只保留最近10秒的数据） 輝度値の変化の表示
@@ -82,8 +80,7 @@ public class MoveCamera : MonoBehaviour
         public int trialNumber;
 
         [Header("🔧 基本パラメータ（調整可能）")]
-        [Range(0f, 5f)]
-        public float v0 = 1.0f;  // 基本速度
+
    
         [Range(0.1f, 10f)]
         public float omega = 2 * Mathf.PI; // 角速度（頻度）
@@ -95,7 +92,17 @@ public class MoveCamera : MonoBehaviour
         public float A_max = 3.0f;
         public float t = 0f;
 
+        [Range(0f, 5f)]
+        public float V0 = 1.0f;  // 基本速度
 
+        [Range(0f, 5f)]
+        public float A1;
+
+        [Range(0f, 5f)]
+        public float A2;
+
+        [Range(0f, 5f)]
+        public float A3;
 
     void Start()
         {
@@ -133,19 +140,19 @@ public class MoveCamera : MonoBehaviour
                     captureCamera0.transform.position = new Vector3(4f, 28f, 130f);
                     break;
             }
-            if (responsePattern == ResponsePattern.amplitude && PlayerPrefs.HasKey("LastKnobValue"))
+            if (responsePattern == ResponsePattern.Amplitude && PlayerPrefs.HasKey("V0"))
             {
-                v0 = PlayerPrefs.GetFloat("LastKnobValue");
+                V0 = PlayerPrefs.GetFloat("V0");
             }
-            if (responsePattern == ResponsePattern.amplitude && PlayerPrefs.HasKey("A1"))
+            if (responsePattern == ResponsePattern.Amplitude && PlayerPrefs.HasKey("A1"))
             {
                 A1 = PlayerPrefs.GetFloat("A1");
             }
-            if (responsePattern == ResponsePattern.amplitude && PlayerPrefs.HasKey("A2"))
+            if (responsePattern == ResponsePattern.Amplitude && PlayerPrefs.HasKey("A2"))
             {
                 A2 = PlayerPrefs.GetFloat("A2");
             }
-            if (responsePattern == ResponsePattern.amplitude && PlayerPrefs.HasKey("A3"))
+            if (responsePattern == ResponsePattern.Amplitude && PlayerPrefs.HasKey("A3"))
             {
                 A3 = PlayerPrefs.GetFloat("A3");
             }
@@ -194,34 +201,36 @@ public class MoveCamera : MonoBehaviour
                     float Amplitude;
                     // Amplitudeを計算
                     Amplitude = knobValue * (A_max - A_min);
-                    if (responsePattern == ResponsePattern.velocity)
+                    if (responsePattern == ResponsePattern.Velocity)
                     {
                         v = knobValue*2;
-                        v0 = knobValue*2;
+                        V0 = knobValue*2;
                     }
                     else if( (int)stepNumber == 1)
                     {
 
                         A1 = Amplitude;
                         // 現在の速度を計算
-                        v = v0 + A1 * (Mathf.Sin(omega * t));
+                        v = V0 + A1 * (Mathf.Sin(omega * t));
                     }
                     else if ((int)stepNumber == 2)
                     {
 
                         A2 = Amplitude;
                         // 現在の速度を計算
-                        v = v0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Sin(omega * t));
-                     }
-                    else if ((int)stepNumber == 3)
+                        v = V0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Sin(omega * t));
+                //v = V0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Sin(2 * omega * t));
+            }
+            else if ((int)stepNumber == 3)
                     {
 
                         A3 = Amplitude;
                         // 現在の速度を計算
-                        v = v0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Sin(omega * t)) + A3 * (Mathf.Sin(omega * t));
-                     }
+                        v = V0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Sin(omega * t)) + A3 * (Mathf.Sin(omega * t));
+                //v = V0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Sin(2 * omega * t)) + A3 * (Mathf.Sin(3 * omega * t));
+            }
 
-                    captureCamera0.transform.position += direction* v * Time.deltaTime;
+            captureCamera0.transform.position += direction* v * Time.deltaTime;
                     data.Add($"{timeMs:F3}, {SerialReader.lastSensorValue}, {responsePattern}, {(int)stepNumber}, {Amplitude}, {v}");
             }
         }
@@ -321,7 +330,7 @@ public class MoveCamera : MonoBehaviour
         }
         void QuitGame()
         {
-        //if (responsePattern == ResponsePattern.velocity )
+        //if (responsePattern == ResponsePattern.Velocity )
         //{
 /*        PlayerPrefs.SetFloat("LastKnobValue", SerialReader.lastSensorValue);
         PlayerPrefs.Save(); // 立即写入磁盘（非必须，但推荐）*/
@@ -336,14 +345,14 @@ public class MoveCamera : MonoBehaviour
 
     void OnApplicationQuit()
         {
-            PlayerPrefs.SetFloat("LastKnobValue", SerialReader.lastSensorValue);
+            PlayerPrefs.SetFloat("V0", V0);
             PlayerPrefs.SetFloat("A1", A1);
             PlayerPrefs.SetFloat("A2", A2);
             PlayerPrefs.SetFloat("A3", A3);
             PlayerPrefs.Save();
 
-        // 現在の日付を取得 // 获取当前日期
-        string date = System.DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            // 現在の日付を取得 // 获取当前日期
+            string date = System.DateTime.Now.ToString("yyyyMMdd_HHmmss");
 
             // ファイル名を構築 // 构建文件名
             string fileName = $"{date}_{experimentalCondition}_{participantName}_trialNumber{trialNumber}.csv";
