@@ -23,8 +23,9 @@ public class MoveCamera : MonoBehaviour
             Option0 = 0,
             Option1 = 1,
             Option2 = 2,
-            Option3 = 3
-        }
+            Option3 = 3,
+        Option4 = 4,
+    }
         public Camera captureCamera0; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
         public Camera captureCamera1; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
         public Camera captureCamera2; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
@@ -104,6 +105,8 @@ public class MoveCamera : MonoBehaviour
         [Range(0f, 5f)]
         public float A3;
 
+    [Range(0f, 5f)]
+    public float A4;
     void Start()
         {
             startTime = Time.time;
@@ -218,16 +221,29 @@ public class MoveCamera : MonoBehaviour
 
                         A2 = Amplitude;
                         // 現在の速度を計算
-                        v = V0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Sin(omega * t));
-                //v = V0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Sin(2 * omega * t));
+                        //v = V0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Sin(omega * t));
+                        //v = V0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Cos(omega * t));
+                        v = V0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Cos( omega * t));
             }
             else if ((int)stepNumber == 3)
-                    {
+                            {
 
-                        A3 = Amplitude;
-                        // 現在の速度を計算
-                        v = V0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Sin(omega * t)) + A3 * (Mathf.Sin(omega * t));
+                                A3 = Amplitude;
+                // 現在の速度を計算
+                //v = V0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Sin(omega * t)) + A3 * (Mathf.Sin(omega * t));
                 //v = V0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Sin(2 * omega * t)) + A3 * (Mathf.Sin(3 * omega * t));
+                v = V0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Cos(1 * omega * t)) + A3 * (Mathf.Sin(2 * omega * t));
+                //v = V0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Cos(omega * t)) + A3 * (Mathf.Sin(3* omega * t));
+            }
+            else if ((int)stepNumber == 4)
+            {
+
+                A4 = Amplitude;
+                // 現在の速度を計算
+                //v = V0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Sin(omega * t)) + A3 * (Mathf.Sin(omega * t));
+                //v = V0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Sin(2 * omega * t)) + A3 * (Mathf.Sin(3 * omega * t));
+                v = V0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Cos(1 * omega * t)) + A3 * (Mathf.Sin(2 * omega * t)) + A4 * (Mathf.Cos(2 * omega * t));
+                //v = V0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Cos(omega * t)) + A3 * (Mathf.Sin(3* omega * t));
             }
 
             captureCamera0.transform.position += direction* v * Time.deltaTime;
