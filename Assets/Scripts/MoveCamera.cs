@@ -64,6 +64,7 @@ public class MoveCamera : MonoBehaviour
     private Vector3 targetPosition;      // FixedUpdate 的目标位置
     private Quaternion rightMoveRotation = Quaternion.Euler(0, 48.5f, 0);
     private Quaternion forwardMoveRotation = Quaternion.Euler(0, 146.8f, 0);
+    private int currentStep = 0;
     public float v;
 
     public SerialReader SerialReader;
@@ -110,7 +111,7 @@ public class MoveCamera : MonoBehaviour
     public float A4;
     void Start()
     {
-        startTime = Time.time;
+        
         // 垂直同期を無効にする // 关闭垂直同步
         QualitySettings.vSyncCount = 0;
         // 目標フレームレートを60フレーム/秒に設定 // 设置目标帧率为60帧每秒
@@ -127,25 +128,7 @@ public class MoveCamera : MonoBehaviour
         Vector3 worldForwardDirection = forwardMoveRotation * Vector3.forward;
 
         GetRawImage();
-        switch (directionPattern)
-        {
-            case DirectionPattern.forward:
-                direction = worldForwardDirection;
-                captureCamera2.transform.rotation = Quaternion.Euler(0, 146.8f, 0);
-                captureCamera1.transform.rotation = Quaternion.Euler(0, 146.8f, 0);
-                captureCamera2.transform.position = new Vector3(30.5f, 28f, 160.4f);
-                captureCamera1.transform.position = new Vector3(30.5f, 28f, 160.4f);
-                break;
-            case DirectionPattern.right:
-                direction = worldRightDirection;
-                captureCamera2.transform.rotation = Quaternion.Euler(0, 48.5f, 0);
-                captureCamera1.transform.rotation = Quaternion.Euler(0, 48.5f, 0);
-                captureCamera0.transform.rotation = Quaternion.Euler(0, 48.5f, 0);
-                captureCamera2.transform.position = new Vector3(4f, 28f, 130f);
-                captureCamera1.transform.position = new Vector3(4f, 28f, 130f);
-                captureCamera0.transform.position = new Vector3(4f, 28f, 130f);
-                break;
-        }
+        InitialSetup();
         if (responsePattern == ResponsePattern.Amplitude && PlayerPrefs.HasKey("V0"))
         {
             V0 = PlayerPrefs.GetFloat("V0");
@@ -188,11 +171,58 @@ public class MoveCamera : MonoBehaviour
         Continuous();
         LuminanceMixture();
     }
+    void InitialSetup()
+    {
+        startTime = Time.time;
+        switch (directionPattern)
+        {
+            case DirectionPattern.forward:
+                direction = worldForwardDirection;
+                captureCamera2.transform.rotation = Quaternion.Euler(0, 146.8f, 0);
+                captureCamera1.transform.rotation = Quaternion.Euler(0, 146.8f, 0);
+                captureCamera2.transform.position = new Vector3(30.5f, 28f, 160.4f);
+                captureCamera1.transform.position = new Vector3(30.5f, 28f, 160.4f);
+                break;
+            case DirectionPattern.right:
+                direction = worldRightDirection;
+                captureCamera2.transform.rotation = Quaternion.Euler(0, 48.5f, 0);
+                captureCamera1.transform.rotation = Quaternion.Euler(0, 48.5f, 0);
+                captureCamera0.transform.rotation = Quaternion.Euler(0, 48.5f, 0);
+                captureCamera2.transform.position = new Vector3(4f, 28f, 130f);
+                captureCamera1.transform.position = new Vector3(4f, 28f, 130f);
+                captureCamera0.transform.position = new Vector3(4f, 28f, 130f);
+                break;
+        }
+    }
+    void OnNextStep()
+    {
+        currentStep++;
+
+        switch (currentStep)
+        {
+            case 1:
+                stepNumber = StepNumber.Option1;
+                break;
+            case 2:
+                stepNumber = StepNumber.Option2;
+                break;
+            case 3:
+                stepNumber = StepNumber.Option3;
+                break;
+            case 4:
+                stepNumber = StepNumber.Option4;
+                nextButton.gameObject.SetActive(false); 
+                break;
+            default:
+                break;
+        }
+        InitialSetup();
+    }
+    
     void Continuous()
     {
         if (timeMs <= trialTime)
         {
-
             continuousImageRawImage.enabled = true;
             // カメラが移動する目標位置を計算 // 计算摄像机沿圆锥轴线移动的目标位置right 
             //Vector3 targetPosition = captureCamera0.transform.position + direction * cameraSpeed * Time.fixedDeltaTime;
