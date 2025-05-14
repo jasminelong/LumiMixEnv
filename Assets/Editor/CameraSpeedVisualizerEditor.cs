@@ -16,6 +16,20 @@ public class MoveCameraEditor : Editor
         DrawDefaultInspector();
 
         MoveCamera script = (MoveCamera)target;
+        // 表示 A1 ~ A4
+        EditorGUILayout.LabelField("Amplitude Sliders (A1 ~ A4)", EditorStyles.boldLabel);
+        for (int i = 1; i < script.amplitudes.Length; i++)
+        {
+            float value = script.GetAmplitude(i);
+            float newValue = EditorGUILayout.Slider($"A{i}", value, 0f, 5f);
+            if (newValue != value)
+            {
+                Undo.RecordObject(script, "Change Amplitude");
+                script.SetAmplitude(i, newValue);
+                EditorUtility.SetDirty(script);
+            }
+        }
+
         //ResponsePatternブロックを挿入
         GUILayout.Space(10);
         GUILayout.Label("📷 ResponsePattern", EditorStyles.boldLabel);
@@ -41,6 +55,8 @@ public class MoveCameraEditor : Editor
             }
         }
         EditorGUILayout.EndHorizontal();
+
+
 
         // 🔽 StepNumberブロックを挿入
         GUILayout.Space(10);

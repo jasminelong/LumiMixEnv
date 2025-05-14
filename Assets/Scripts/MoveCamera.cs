@@ -4,6 +4,10 @@ using UnityEngine;
 using UnityEngine.UI;
 using System;
 using System.IO;
+using TMPro;
+using UnityEngine.SceneManagement;
+
+
 
 
 public class MoveCamera : MonoBehaviour
@@ -30,11 +34,10 @@ public class MoveCamera : MonoBehaviour
     public Camera captureCamera1; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
     public Camera captureCamera2; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
     public GameObject canvas;
-    public Button nextButton;
+    public Button nextStepButton;
     public float cameraSpeed = 1f; // カメラが円柱の軸に沿って移動する速度 (m/s) // 摄像机沿圆柱轴线移动的速度，m/s
 
 
-    private float trialTime = 1 * 180 * 1000f;//实验的总时间
     public float captureIntervalDistance; // 撮影間隔の距離 (m) // 拍摄间隔距离，m
 
     private Transform continuousImageTransform;
@@ -51,6 +54,7 @@ public class MoveCamera : MonoBehaviour
     public int frameNum = 0;
     public string participantName;
     private string experimentalCondition;
+    private TextMeshProUGUI nextStepButtonTextComponent;
 
     public float fps = 1f; // 他のfps // 其他的fps
     public DirectionPattern directionPattern; // イメージの提示パターン // 图像提示的模式
@@ -66,7 +70,7 @@ public class MoveCamera : MonoBehaviour
     private Quaternion forwardMoveRotation = Quaternion.Euler(0, 146.8f, 0);
     private int currentStep = 0;
     public float v;
-
+    public float[] amplitudes = new float[5];  
     public SerialReader SerialReader;
     // Start is called before the first frame update
 
@@ -79,8 +83,7 @@ public class MoveCamera : MonoBehaviour
 
     [Header("🔧記録するデータ")]
     public StepNumber stepNumber;
-    public float response;
-    public int trialNumber;
+    public int trialNumber = 1;
 
     [Header("🔧 基本パラメータ（調整可能）")]
 
@@ -98,60 +101,41 @@ public class MoveCamera : MonoBehaviour
     [Range(0f, 5f)]
     public float V0 = 1.0f;  // 基本速度
 
-    [Range(0f, 5f)]
-    public float A1;
-
-    [Range(0f, 5f)]
-    public float A2;
-
-    [Range(0f, 5f)]
-    public float A3;
-
-    [Range(0f, 5f)]
-    public float A4;
     void Start()
     {
-        
+
         // 垂直同期を無効にする // 关闭垂直同步
         QualitySettings.vSyncCount = 0;
         // 目標フレームレートを60フレーム/秒に設定 // 设置目标帧率为60帧每秒
         Time.fixedDeltaTime = 1.0f / 60.0f;
 
-         nextButton.gameObject.SetActive(false); // 最初は非表示のボタン
-         nextButton.onClick.AddListener(OnNextStep); // ボタンがクリックされたときの処理を追加 // 添加按钮点击时的处理
+        nextStepButtonTextComponent = nextStepButton.GetComponentInChildren<TextMeshProUGUI>();
+        nextStepButton.onClick.AddListener(OnNextStep); // ボタンがクリックされたときの処理を追加 // 添加按钮点击时的处理
+        if (PlayerPrefs.HasKey("TrialNumber"))
+        {
+            Debug.Log("restart" + PlayerPrefs.GetInt("TrialNumber"));
+            if (PlayerPrefs.GetInt("TrialNumber") > 0)
+            {
+                trialNumber = PlayerPrefs.GetInt("TrialNumber");
+            }else if (PlayerPrefs.GetInt("TrialNumber") > 3)
+            {
+                trialNumber = 1;
+            }
+        }
+ 
         // captureCamera.enabled = false; // 初期状態でキャプチャカメラを無効にする // 初始化时禁用捕获摄像机
 
         updateInterval = 1 / fps; // 各フレームの表示間隔時間を計算 // 计算每一帧显示的间隔时间
         captureIntervalDistance = cameraSpeed / fps; // 各フレームの間隔距離を計算 // 计算每帧之间的间隔距离
 
-        Vector3 worldRightDirection = rightMoveRotation * Vector3.right;
-        Vector3 worldForwardDirection = forwardMoveRotation * Vector3.forward;
-
         GetRawImage();
         InitialSetup();
-        if (responsePattern == ResponsePattern.Amplitude && PlayerPrefs.HasKey("V0"))
-        {
-            V0 = PlayerPrefs.GetFloat("V0");
-        }
-        if (responsePattern == ResponsePattern.Amplitude && PlayerPrefs.HasKey("A1"))
-        {
-            A1 = PlayerPrefs.GetFloat("A1");
-        }
-        if (responsePattern == ResponsePattern.Amplitude && PlayerPrefs.HasKey("A2"))
-        {
-            A2 = PlayerPrefs.GetFloat("A2");
-        }
-        if (responsePattern == ResponsePattern.Amplitude && PlayerPrefs.HasKey("A3"))
-        {
-            A3 = PlayerPrefs.GetFloat("A3");
-        }
 
-        data.Add("Time, Knob, ResponsePattern, StepNumber, Amplitude, Velocity");
-        frameNum++;
         continuousImageRawImage.enabled = true;
         Image1RawImage.enabled = true;
         Image2RawImage.enabled = true;
         captureCamera2.transform.position += direction * captureIntervalDistance;
+        data.Add("Time, Knob, ResponsePattern, StepNumber, Amplitude, Velocity");
         experimentalCondition = "SpeedData_" + "fps" + fps.ToString() + "_"
                              + "ParticipantName_" + participantName.ToString() + "_"
                              + "TrialNumber_" + trialNumber.ToString() + "_"
@@ -162,18 +146,61 @@ public class MoveCamera : MonoBehaviour
         SerialReader = GetComponent<SerialReader>();
 
     }
+    void Update()
+    {   
+if (Input.GetKeyDown(KeyCode.Space))
+    {
+        bool toFullscreen = !Screen.fullScreen;
 
+        // 设置全屏模式
+        Screen.fullScreenMode = FullScreenMode.ExclusiveFullScreen;
+
+        // 切换为当前显示器最大分辨率 + 全屏/窗口
+        Screen.SetResolution(Display.main.systemWidth, Display.main.systemHeight, toFullscreen);
+
+        Debug.Log("切换全屏状态：" + toFullscreen);
+    }
+        /// マウス入力は1フレームのみ検出されるため、Update() で処理する必要があります。
+        // マウスの左ボタンが押されたときの処理 // 处理鼠标左键按下时的操作
+
+        if (Input.GetMouseButtonDown(0))
+        {
+            //Debug.Log("Mouse Clicked");
+            // ボタンがクリックされたときの処理を追加 // 添加按钮点击时的处理
+            nextStepButton.gameObject.SetActive(true);
+            Time.timeScale = 0f;
+            switch((int)stepNumber)
+            {
+                case 0:
+                case 1:
+                case 2:
+                case 3:
+                    nextStepButtonTextComponent.text = "Next Step Amplitude" + ((int)stepNumber + 1).ToString();
+                    break;
+                case 4:
+                    trialNumber++;
+                    nextStepButtonTextComponent.text = "Entering the " + trialNumber + " experiment";
+                    break;
+            }
+        }
+    }
     // Update is called once per frame
-
     void FixedUpdate()
     {
         timeMs = (Time.time - startTime) * 1000;
         Continuous();
         LuminanceMixture();
+
     }
+
     void InitialSetup()
     {
+        frameNum = 1;
         startTime = Time.time;
+        timeMs = (Time.time - startTime) * 1000;
+        nextStepButton.gameObject.SetActive(false);
+        Vector3 worldRightDirection = rightMoveRotation * Vector3.right;
+        Vector3 worldForwardDirection = forwardMoveRotation * Vector3.forward;
         switch (directionPattern)
         {
             case DirectionPattern.forward:
@@ -196,8 +223,9 @@ public class MoveCamera : MonoBehaviour
     }
     void OnNextStep()
     {
+        Time.timeScale = 1f;
         currentStep++;
-
+        responsePattern = ResponsePattern.Amplitude;
         switch (currentStep)
         {
             case 1:
@@ -211,154 +239,109 @@ public class MoveCamera : MonoBehaviour
                 break;
             case 4:
                 stepNumber = StepNumber.Option4;
-                nextButton.gameObject.SetActive(false); 
                 break;
-            default:
+            case 5:
+                SceneManager.LoadScene(SceneManager.GetActiveScene().name);
                 break;
         }
-        InitialSetup();
+        nextStepButton.gameObject.SetActive(false);
     }
-    
+
     void Continuous()
     {
-        if (timeMs <= trialTime)
+
+        continuousImageRawImage.enabled = true;
+        // カメラが移動する目標位置を計算 // 计算摄像机沿圆锥轴线移动的目标位置right 
+        //Vector3 targetPosition = captureCamera0.transform.position + direction * cameraSpeed * Time.fixedDeltaTime;
+        //予備実験
+        //Vector3 targetPosition = captureCamera0.transform.position + direction * (SerialReader.lastSensorValue + 1f) * cameraSpeed * Time.fixedDeltaTime;
+        //captureCamera0.transform.position = targetPosition;
+
+        t += Time.fixedDeltaTime;
+
+        // つまみセンサー値（0〜1）を取得し
+        float knobValue = Mathf.Clamp01(SerialReader.lastSensorValue);
+        // Amplitudeを計算
+        float amplitude = knobValue * (A_max - A_min);
+        
+        int step = (int)stepNumber;
+        
+        if (responsePattern == ResponsePattern.Velocity)
         {
-            continuousImageRawImage.enabled = true;
-            // カメラが移動する目標位置を計算 // 计算摄像机沿圆锥轴线移动的目标位置right 
-            //Vector3 targetPosition = captureCamera0.transform.position + direction * cameraSpeed * Time.fixedDeltaTime;
-            //予備実験
-            //Vector3 targetPosition = captureCamera0.transform.position + direction * (SerialReader.lastSensorValue + 1f) * cameraSpeed * Time.fixedDeltaTime;
-            //captureCamera0.transform.position = targetPosition;
-
-            t += Time.fixedDeltaTime;
-
-            // つまみセンサー値（0〜1）を取得し
-            float knobValue = Mathf.Clamp01(SerialReader.lastSensorValue);
-            float Amplitude;
-            // Amplitudeを計算
-            Amplitude = knobValue * (A_max - A_min);
-            if (responsePattern == ResponsePattern.Velocity)
+            V0 = knobValue * 2f;
+            v = V0;
+        }else if (responsePattern == ResponsePattern.Amplitude)
+        {
+            // 現在のstepのAmplitudeを計算
+            if (step >= 1 && step < amplitudes.Length)
             {
-                v = knobValue * 2;
-                V0 = knobValue * 2;
-            }
-            else if ((int)stepNumber == 1)
-            {
-
-                A1 = Amplitude;
-                // 現在の速度を計算
-                v = V0 + A1 * (Mathf.Sin(omega * t));
-            }
-            else if ((int)stepNumber == 2)
-            {
-
-                A2 = Amplitude;
-                // 現在の速度を計算
-                //v = V0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Sin(omega * t));
-                //v = V0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Cos(omega * t));
-                v = V0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Cos(omega * t));
-            }
-            else if ((int)stepNumber == 3)
-            {
-
-                A3 = Amplitude;
-                // 現在の速度を計算
-                //v = V0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Sin(omega * t)) + A3 * (Mathf.Sin(omega * t));
-                //v = V0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Sin(2 * omega * t)) + A3 * (Mathf.Sin(3 * omega * t));
-                v = V0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Cos(1 * omega * t)) + A3 * (Mathf.Sin(2 * omega * t));
-                //v = V0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Cos(omega * t)) + A3 * (Mathf.Sin(3* omega * t));
-            }
-            else if ((int)stepNumber == 4)
-            {
-
-                A4 = Amplitude;
-                // 現在の速度を計算
-                //v = V0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Sin(omega * t)) + A3 * (Mathf.Sin(omega * t));
-                //v = V0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Sin(2 * omega * t)) + A3 * (Mathf.Sin(3 * omega * t));
-                v = V0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Cos(1 * omega * t)) + A3 * (Mathf.Sin(2 * omega * t)) + A4 * (Mathf.Cos(2 * omega * t));
-                //v = V0 + A1 * (Mathf.Sin(omega * t)) + A2 * (Mathf.Cos(omega * t)) + A3 * (Mathf.Sin(3* omega * t));
+                Debug.Log("step : " + step);
+                amplitudes[step] = amplitude;
             }
 
-            captureCamera0.transform.position += direction * v * Time.deltaTime;
-            data.Add($"{timeMs:F3}, {SerialReader.lastSensorValue}, {responsePattern}, {(int)stepNumber}, {Amplitude}, {v}");
+            // 计算 v
+            v = V0;
+
+            // 現在の速度を計算
+            if (step >= 1) v += amplitudes[1] * Mathf.Sin(omega * t);
+            if (step >= 2) v += amplitudes[2] * Mathf.Cos(omega * t);
+            if (step >= 3) v += amplitudes[3] * Mathf.Sin(2 * omega * t);
+            if (step >= 4) v += amplitudes[4] * Mathf.Cos(2 * omega * t);
         }
+
+
+         
+        captureCamera0.transform.position += direction * v * Time.deltaTime;
+        data.Add($"{timeMs:F3}, {SerialReader.lastSensorValue}, {responsePattern}, {step}, {amplitude}, {v}");
     }
 
     void LuminanceMixture()
     {
-        if (timeMs <= trialTime)
+
+        // 写真を撮る距離に達したかをチェック // 检查是否到了拍照的距离
+        Debug.Log("frameNum--" + frameNum + "-----dt------" + Mathf.Abs(timeMs - frameNum * updateInterval * 1000));
+        if (Mathf.Abs(timeMs - frameNum * updateInterval * 1000) < 0.1f)
         {
-            // 写真を撮る距離に達したかをチェック // 检查是否到了拍照的距离
-            //Debug.Log("frameNum--" + frameNum + "-----dt------" + Mathf.Abs(timeMs - frameNum * updateInterval * 1000));
-            if (Mathf.Abs(timeMs - frameNum * updateInterval * 1000) < 0.1f)
-            {
-                frameNum++;
-                Image1RawImage.enabled = false;
-                Image2RawImage.enabled = false;
-                // カメラが移動する目標位置を計算 // 计算摄像机沿圆锥轴线移动的目标位置
-                targetPosition = direction * cameraSpeed * updateInterval;
+            frameNum++;
+            Image1RawImage.enabled = false;
+            Image2RawImage.enabled = false;
+            // カメラが移動する目標位置を計算 // 计算摄像机沿圆锥轴线移动的目标位置
+            targetPosition = direction * cameraSpeed * updateInterval;
 
-                // カメラを目標位置に移動 // 移动摄像机到目标位置
-                captureCamera1.transform.position = captureCamera1.transform.position + targetPosition; ;
-                captureCamera2.transform.position = captureCamera2.transform.position + targetPosition; ;
-            }
-            //輝度値を計算する 
-            float Image1ToNowDeltaTime = timeMs - (frameNum - 1) * updateInterval * 1000;
-            float nextRatio = Image1ToNowDeltaTime / (updateInterval * 1000);
-            float nextImageRatio = Math.Min(1, Math.Max(0, nextRatio));// 浮動小数点の演算誤差により、減算の結果がわずかに0未満になる場合があります
-
-            //Debug.Log("nextImageRatio : " + nextImageRatio + "    timeMs : " + timeMs + "     frameNum : " + frameNum + "     updateInterval : "+ updateInterval);
-
-            float previousImageRatio = 1.0f - nextImageRatio;
-
-            //Debug.Log("beforeImage1RawImage.color.r" + Image1RawImage.color.r + "  " + Image1RawImage.color.g + "  " + Image1RawImage.color.b + "  " + Image1RawImage.color.a);
-
-            Image1RawImage.color = new Color(Image1RawImage.color.r, Image1RawImage.color.g, Image1RawImage.color.b, previousImageRatio);
-            Image2RawImage.color = new Color(Image2RawImage.color.r, Image2RawImage.color.g, Image2RawImage.color.b, nextImageRatio);
-
-            //Debug.Log("Image1RawImage.color.r"+ Image1RawImage.color.r+"  "+ Image1RawImage.color.g +"  "+ Image1RawImage.color.b +"  " + Image1RawImage.color.a);
-            // Canvasに親オブジェクトを設定し、元のローカル位置、回転、およびスケールを保持 // 设置父对象为 Canvas，并保持原始的本地位置、旋转和缩放
-            Image1RawImage.transform.SetParent(canvas.transform, false);
-            Image2RawImage.transform.SetParent(canvas.transform, false);
-            Image1RawImage.enabled = true;
-            Image2RawImage.enabled = true;
-
-            // 輝度値の変化の表示
-            //RecordVariable(Image1RawImage.color.a, Image2RawImage.color.a);
-
-            // データを記録 // 记录数据
-            //data.Add($"{frameNum}, {previousImageRatio:F3}, {frameNum + 1}, {Image2Ratio:F3}, {timeMs :F3}, {(vectionResponse ? 1 : 0)}");
-            //data.Add($"{frameNum}, {Image1RawImage.color.a:F3}, {frameNum + 1}, {Image2RawImage.color.a:F3}, {timeMs :F3}, {(vectionResponse ? 1 : 0)}");
+            // カメラを目標位置に移動 // 移动摄像机到目标位置
+            captureCamera1.transform.position = captureCamera1.transform.position + targetPosition; ;
+            captureCamera2.transform.position = captureCamera2.transform.position + targetPosition; ;
         }
-        else if (timeMs > trialTime)
-        {
+        //輝度値を計算する 
+        float Image1ToNowDeltaTime = timeMs - (frameNum - 1) * updateInterval * 1000;
+        float nextRatio = Image1ToNowDeltaTime / (updateInterval * 1000);
+        float nextImageRatio = Math.Min(1, Math.Max(0, nextRatio));// 浮動小数点の演算誤差により、減算の結果がわずかに0未満になる場合があります
 
-            QuitGame();
-        }
+        //Debug.Log("nextImageRatio : " + nextImageRatio + "    timeMs : " + timeMs + "     frameNum : " + frameNum + "     updateInterval : "+ updateInterval);
+
+        float previousImageRatio = 1.0f - nextImageRatio;
+
+        //Debug.Log("beforeImage1RawImage.color.r" + Image1RawImage.color.r + "  " + Image1RawImage.color.g + "  " + Image1RawImage.color.b + "  " + Image1RawImage.color.a);
+
+        Image1RawImage.color = new Color(Image1RawImage.color.r, Image1RawImage.color.g, Image1RawImage.color.b, previousImageRatio);
+        Image2RawImage.color = new Color(Image2RawImage.color.r, Image2RawImage.color.g, Image2RawImage.color.b, nextImageRatio);
+
+        //Debug.Log("Image1RawImage.color.r"+ Image1RawImage.color.r+"  "+ Image1RawImage.color.g +"  "+ Image1RawImage.color.b +"  " + Image1RawImage.color.a);
+        // Canvasに親オブジェクトを設定し、元のローカル位置、回転、およびスケールを保持 // 设置父对象为 Canvas，并保持原始的本地位置、旋转和缩放
+        Image1RawImage.transform.SetParent(canvas.transform, false);
+        Image2RawImage.transform.SetParent(canvas.transform, false);
+        Image1RawImage.enabled = true;
+        Image2RawImage.enabled = true;
+
+        // 輝度値の変化の表示
+        //RecordVariable(Image1RawImage.color.a, Image2RawImage.color.a);
+
+        // データを記録 // 记录数据
+        //data.Add($"{frameNum}, {previousImageRatio:F3}, {frameNum + 1}, {Image2Ratio:F3}, {timeMs :F3}, {(vectionResponse ? 1 : 0)}");
+        //data.Add($"{frameNum}, {Image1RawImage.color.a:F3}, {frameNum + 1}, {Image2RawImage.color.a:F3}, {timeMs :F3}, {(vectionResponse ? 1 : 0)}");
+
     }
 
-    // 輝度値の変化の表示
-    /*     void RecordVariable(float Image1RawImage, float Image2RawImage)
-            {
-                // 记录第一个变量
-                Keyframe newKey1 = new Keyframe(Time.time, Image1RawImage);
-                recordedCurve1.AddKey(newKey1);
-
-                // 记录第二个变量
-                Keyframe newKey2 = new Keyframe(Time.time, Image2RawImage);
-                recordedCurve2.AddKey(newKey2);
-
-                // 清理超时关键帧（只保留 recordDuration 秒内的数据）
-                float threshold = Time.time - recordDuration;
-                while (recordedCurve1.keys.Length > 0 && recordedCurve1.keys[0].time < threshold)
-                    {
-                        recordedCurve1.RemoveKey(0);
-                    }
-                while (recordedCurve2.keys.Length > 0 && recordedCurve2.keys[0].time < threshold)
-                    {
-                        recordedCurve2.RemoveKey(0);
-                    }
-            }*/
     void GetRawImage()
     {
         // Canvas内で指定された名前の子オブジェクトを検索 // 在 Canvas 中查找指定名称的子对象
@@ -379,27 +362,19 @@ public class MoveCamera : MonoBehaviour
     }
     void QuitGame()
     {
-        //if (responsePattern == ResponsePattern.Velocity )
-        //{
-        /*        PlayerPrefs.SetFloat("LastKnobValue", SerialReader.lastSensorValue);
-                PlayerPrefs.Save(); // 立即写入磁盘（非必须，但推荐）*/
-        //}
-        #if UNITY_EDITOR
+    #if UNITY_EDITOR
 
-            UnityEditor.EditorApplication.isPlaying = false;
-        #else
+                    UnityEditor.EditorApplication.isPlaying = false;
+    #else
             Application.Quit();
-        #endif
+    #endif
     }
 
-    void OnApplicationQuit()
+    void OnDestroy()
     {
-        PlayerPrefs.SetFloat("V0", V0);
-        PlayerPrefs.SetFloat("A1", A1);
-        PlayerPrefs.SetFloat("A2", A2);
-        PlayerPrefs.SetFloat("A3", A3);
+        PlayerPrefs.SetFloat("TrialNumber", trialNumber);
+        Debug.Log("对象被销毁了（因为场景被重新加载）" + trialNumber);
         PlayerPrefs.Save();
-
         // 現在の日付を取得 // 获取当前日期
         string date = System.DateTime.Now.ToString("yyyyMMdd_HHmmss");
 
@@ -412,6 +387,14 @@ public class MoveCamera : MonoBehaviour
 
         //Debug.Log($"Data saved to {filePath}");
     }
+    public float GetAmplitude(int index)
+    {
+        return amplitudes[index];
+    }
 
+    public void SetAmplitude(int index, float value)
+    {
+        amplitudes[index] = value;
+    }
 }
 
