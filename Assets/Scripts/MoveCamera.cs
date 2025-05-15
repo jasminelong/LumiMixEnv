@@ -70,7 +70,7 @@ public class MoveCamera : MonoBehaviour
     private Quaternion forwardMoveRotation = Quaternion.Euler(0, 146.8f, 0);
     private int currentStep = 0;
     public float v;
-    public float[] amplitudes = new float[5];  
+    public float[] amplitudes = new float[5];
     public SerialReader SerialReader;
     // Start is called before the first frame update
 
@@ -101,6 +101,8 @@ public class MoveCamera : MonoBehaviour
     [Range(0f, 5f)]
     public float V0 = 1.0f;  // 基本速度
 
+    private bool mouseClicked = false;
+    private float amplitude;
     void Start()
     {
 
@@ -113,16 +115,16 @@ public class MoveCamera : MonoBehaviour
         nextStepButton.onClick.AddListener(OnNextStep); // ボタンがクリックされたときの処理を追加 // 添加按钮点击时的处理
         if (PlayerPrefs.HasKey("TrialNumber"))
         {
-            Debug.Log("restart" + PlayerPrefs.GetInt("TrialNumber"));
-            if (PlayerPrefs.GetInt("TrialNumber") > 0)
+            if (PlayerPrefs.GetInt("TrialNumber") > 0 && PlayerPrefs.GetInt("TrialNumber") <= 3)
             {
                 trialNumber = PlayerPrefs.GetInt("TrialNumber");
-            }else if (PlayerPrefs.GetInt("TrialNumber") > 3)
+            }
+            else if(PlayerPrefs.GetInt("TrialNumber") > 3)
             {
                 trialNumber = 1;
             }
         }
- 
+
         // captureCamera.enabled = false; // 初期状態でキャプチャカメラを無効にする // 初始化时禁用捕获摄像机
 
         updateInterval = 1 / fps; // 各フレームの表示間隔時間を計算 // 计算每一帧显示的间隔时间
@@ -135,8 +137,8 @@ public class MoveCamera : MonoBehaviour
         Image1RawImage.enabled = true;
         Image2RawImage.enabled = true;
         captureCamera2.transform.position += direction * captureIntervalDistance;
-        data.Add("Time, Knob, ResponsePattern, StepNumber, Amplitude, Velocity");
-        experimentalCondition = "SpeedData_" + "fps" + fps.ToString() + "_"
+        data.Add("FrondFrameNum, FrondFrameLuminance, BackFrameNum, BackFrameLuminance, Time, FrameNum, Knob, ResponsePattern, StepNumber, Amplitude, Velocity");
+        experimentalCondition = "fps" + fps.ToString() + "_"
                              + "ParticipantName_" + participantName.ToString() + "_"
                              + "TrialNumber_" + trialNumber.ToString() + "_"
                              + responsePattern.ToString() +
@@ -147,29 +149,18 @@ public class MoveCamera : MonoBehaviour
 
     }
     void Update()
-    {   
-if (Input.GetKeyDown(KeyCode.Space))
     {
-        bool toFullscreen = !Screen.fullScreen;
-
-        // 设置全屏模式
-        Screen.fullScreenMode = FullScreenMode.ExclusiveFullScreen;
-
-        // 切换为当前显示器最大分辨率 + 全屏/窗口
-        Screen.SetResolution(Display.main.systemWidth, Display.main.systemHeight, toFullscreen);
-
-        Debug.Log("切换全屏状态：" + toFullscreen);
-    }
         /// マウス入力は1フレームのみ検出されるため、Update() で処理する必要があります。
         // マウスの左ボタンが押されたときの処理 // 处理鼠标左键按下时的操作
 
-        if (Input.GetMouseButtonDown(0))
+        if (!mouseClicked && Input.GetMouseButtonDown(0))
         {
+            mouseClicked = true;
             //Debug.Log("Mouse Clicked");
             // ボタンがクリックされたときの処理を追加 // 添加按钮点击时的处理
             nextStepButton.gameObject.SetActive(true);
             Time.timeScale = 0f;
-            switch((int)stepNumber)
+            switch (currentStep)
             {
                 case 0:
                 case 1:
@@ -179,7 +170,7 @@ if (Input.GetKeyDown(KeyCode.Space))
                     break;
                 case 4:
                     trialNumber++;
-                    nextStepButtonTextComponent.text = "Entering the " + trialNumber + " experiment";
+                    nextStepButtonTextComponent.text = "Entering the " + trialNumber + " trial";
                     break;
             }
         }
@@ -223,6 +214,7 @@ if (Input.GetKeyDown(KeyCode.Space))
     }
     void OnNextStep()
     {
+        mouseClicked = false;
         Time.timeScale = 1f;
         currentStep++;
         responsePattern = ResponsePattern.Amplitude;
@@ -262,20 +254,20 @@ if (Input.GetKeyDown(KeyCode.Space))
         // つまみセンサー値（0〜1）を取得し
         float knobValue = Mathf.Clamp01(SerialReader.lastSensorValue);
         // Amplitudeを計算
-        float amplitude = knobValue * (A_max - A_min);
-        
+        amplitude = knobValue * (A_max - A_min);
+
         int step = (int)stepNumber;
-        
+
         if (responsePattern == ResponsePattern.Velocity)
         {
             V0 = knobValue * 2f;
             v = V0;
-        }else if (responsePattern == ResponsePattern.Amplitude)
+        }
+        else if (responsePattern == ResponsePattern.Amplitude)
         {
             // 現在のstepのAmplitudeを計算
             if (step >= 1 && step < amplitudes.Length)
             {
-                Debug.Log("step : " + step);
                 amplitudes[step] = amplitude;
             }
 
@@ -290,16 +282,16 @@ if (Input.GetKeyDown(KeyCode.Space))
         }
 
 
-         
+
         captureCamera0.transform.position += direction * v * Time.deltaTime;
-        data.Add($"{timeMs:F3}, {SerialReader.lastSensorValue}, {responsePattern}, {step}, {amplitude}, {v}");
+        //data.Add($"{timeMs:F3}, {SerialReader.lastSensorValue}, {responsePattern}, {step}, {amplitude}, {v}");
     }
 
     void LuminanceMixture()
     {
 
         // 写真を撮る距離に達したかをチェック // 检查是否到了拍照的距离
-        Debug.Log("frameNum--" + frameNum + "-----dt------" + Mathf.Abs(timeMs - frameNum * updateInterval * 1000));
+        //Debug.Log("frameNum--" + frameNum + "-----dt------" + Mathf.Abs(timeMs - frameNum * updateInterval * 1000));
         if (Mathf.Abs(timeMs - frameNum * updateInterval * 1000) < 0.1f)
         {
             frameNum++;
@@ -334,10 +326,9 @@ if (Input.GetKeyDown(KeyCode.Space))
         Image2RawImage.enabled = true;
 
         // 輝度値の変化の表示
-        //RecordVariable(Image1RawImage.color.a, Image2RawImage.color.a);
-
+        //RecordVariable(Image1RawImage.color.a, Image2RawImage.color.a); 
         // データを記録 // 记录数据
-        //data.Add($"{frameNum}, {previousImageRatio:F3}, {frameNum + 1}, {Image2Ratio:F3}, {timeMs :F3}, {(vectionResponse ? 1 : 0)}");
+        data.Add($"{frameNum}, {previousImageRatio:F3}, {frameNum + 1}, {nextImageRatio:F3}, {timeMs :F3}, {SerialReader.lastSensorValue}, {responsePattern}, {(int)stepNumber}, {amplitude}, {v}");
         //data.Add($"{frameNum}, {Image1RawImage.color.a:F3}, {frameNum + 1}, {Image2RawImage.color.a:F3}, {timeMs :F3}, {(vectionResponse ? 1 : 0)}");
 
     }
@@ -362,24 +353,23 @@ if (Input.GetKeyDown(KeyCode.Space))
     }
     void QuitGame()
     {
-    #if UNITY_EDITOR
+#if UNITY_EDITOR
 
                     UnityEditor.EditorApplication.isPlaying = false;
-    #else
-            Application.Quit();
-    #endif
+#else
+        Application.Quit();
+#endif
     }
 
     void OnDestroy()
     {
-        PlayerPrefs.SetFloat("TrialNumber", trialNumber);
-        Debug.Log("对象被销毁了（因为场景被重新加载）" + trialNumber);
+        PlayerPrefs.SetInt("TrialNumber", trialNumber);
         PlayerPrefs.Save();
         // 現在の日付を取得 // 获取当前日期
         string date = System.DateTime.Now.ToString("yyyyMMdd_HHmmss");
 
         // ファイル名を構築 // 构建文件名
-        string fileName = $"{date}_{experimentalCondition}_{participantName}_trialNumber{trialNumber}.csv";
+        string fileName = $"{date}_{experimentalCondition}.csv";
 
         // ファイルを保存（Application.dataPath：現在のプロジェクトのAssetsフォルダのパスを示す） // 保存文件（Application.dataPath：表示当前项目的Assets文件夹的路径）
         string filePath = Path.Combine("D:/vectionProject/public", folderName, fileName);
