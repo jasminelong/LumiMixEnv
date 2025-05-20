@@ -91,11 +91,11 @@ public class MoveCamera : MonoBehaviour
     [Range(0.1f, 10f)]
     public float omega = 2 * Mathf.PI; // 角速度（頻度）
 
-    [Range(0f, 5f)]
-    public float A_min = 0f;
+    [Range(-1f, 5f)]
+    public float A_min = -1f;
 
     [Range(0f, 5f)]
-    public float A_max = 3.0f;
+    public float A_max = 2.0f;
     public float t = 0f;
 
     [Range(0f, 5f)]
@@ -260,7 +260,7 @@ public class MoveCamera : MonoBehaviour
         // つまみセンサー値（0〜1）を取得し
         float knobValue = Mathf.Clamp01(SerialReader.lastSensorValue);
         // Amplitudeを計算
-        amplitude = knobValue * (A_max - A_min);
+        amplitude = A_min + knobValue * (A_max - A_min);
 
         int step = (int)stepNumber;
 
