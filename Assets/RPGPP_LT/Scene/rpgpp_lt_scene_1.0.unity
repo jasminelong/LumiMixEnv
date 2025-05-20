@@ -12516,8 +12516,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 297}
-  m_SizeDelta: {x: 3400, y: 600}
+  m_AnchoredPosition: {x: 0, y: 417}
+  m_SizeDelta: {x: 3440, y: 720}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &449548213
 MonoBehaviour:
@@ -17523,7 +17523,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: -303}
-  m_SizeDelta: {x: 3400, y: 600}
+  m_SizeDelta: {x: 3440, y: 720}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &614448968
 MonoBehaviour:
@@ -25332,7 +25332,7 @@ MonoBehaviour:
   captureIntervalDistance: 0
   updateInterval: 0
   frameNum: 0
-  participantName: 
+  participantName: K
   fps: 1
   directionPattern: 0
   v: 0
@@ -31583,7 +31583,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: -303}
-  m_SizeDelta: {x: 3400, y: 600}
+  m_SizeDelta: {x: 3440, y: 720}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1068767290
 MonoBehaviour:

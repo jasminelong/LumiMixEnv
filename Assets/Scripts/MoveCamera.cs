@@ -137,12 +137,10 @@ public class MoveCamera : MonoBehaviour
         Image1RawImage.enabled = true;
         Image2RawImage.enabled = true;
         captureCamera2.transform.position += direction * captureIntervalDistance;
-        data.Add("FrondFrameNum, FrondFrameLuminance, BackFrameNum, BackFrameLuminance, Time, FrameNum, Knob, ResponsePattern, StepNumber, Amplitude, Velocity");
+        data.Add("FrondFrameNum, FrondFrameLuminance, BackFrameNum, BackFrameLuminance, Time, Knob, ResponsePattern, StepNumber, Amplitude, Velocity");
         experimentalCondition = "fps" + fps.ToString() + "_"
                              + "ParticipantName_" + participantName.ToString() + "_"
-                             + "TrialNumber_" + trialNumber.ToString() + "_"
-                             + responsePattern.ToString() +
-                             stepNumber.ToString();
+                             + "TrialNumber_" + trialNumber.ToString();
 
 
         SerialReader = GetComponent<SerialReader>();
@@ -233,7 +231,15 @@ public class MoveCamera : MonoBehaviour
                 stepNumber = StepNumber.Option4;
                 break;
             case 5:
-                SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+                if (trialNumber < 3)
+                {
+                    SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+                }
+                else
+                {
+                    QuitGame();
+                }
+                
                 break;
         }
         nextStepButton.gameObject.SetActive(false);
@@ -315,8 +321,11 @@ public class MoveCamera : MonoBehaviour
 
         //Debug.Log("beforeImage1RawImage.color.r" + Image1RawImage.color.r + "  " + Image1RawImage.color.g + "  " + Image1RawImage.color.b + "  " + Image1RawImage.color.a);
 
-        Image1RawImage.color = new Color(Image1RawImage.color.r, Image1RawImage.color.g, Image1RawImage.color.b, previousImageRatio);
-        Image2RawImage.color = new Color(Image2RawImage.color.r, Image2RawImage.color.g, Image2RawImage.color.b, nextImageRatio);
+        // Image1RawImage.color = new Color(Image1RawImage.color.r, Image1RawImage.color.g, Image1RawImage.color.b, previousImageRatio);
+        // Image2RawImage.color = new Color(Image2RawImage.color.r, Image2RawImage.color.g, Image2RawImage.color.b, nextImageRatio);
+        
+        Image1RawImage.color = new Color(1, 1, 1, previousImageRatio);
+        Image2RawImage.color = new Color(1, 1, 1, 1);
 
         //Debug.Log("Image1RawImage.color.r"+ Image1RawImage.color.r+"  "+ Image1RawImage.color.g +"  "+ Image1RawImage.color.b +"  " + Image1RawImage.color.a);
         // Canvasに親オブジェクトを設定し、元のローカル位置、回転、およびスケールを保持 // 设置父对象为 Canvas，并保持原始的本地位置、旋转和缩放
@@ -328,6 +337,7 @@ public class MoveCamera : MonoBehaviour
         // 輝度値の変化の表示
         //RecordVariable(Image1RawImage.color.a, Image2RawImage.color.a); 
         // データを記録 // 记录数据
+            // data.Add("FrondFrameNum, FrondFrameLuminance, BackFrameNum, BackFrameLuminance, Time, FrameNum, Knob, ResponsePattern, StepNumber, Amplitude, Velocity");
         data.Add($"{frameNum}, {previousImageRatio:F3}, {frameNum + 1}, {nextImageRatio:F3}, {timeMs :F3}, {SerialReader.lastSensorValue}, {responsePattern}, {(int)stepNumber}, {amplitude}, {v}");
         //data.Add($"{frameNum}, {Image1RawImage.color.a:F3}, {frameNum + 1}, {Image2RawImage.color.a:F3}, {timeMs :F3}, {(vectionResponse ? 1 : 0)}");
 

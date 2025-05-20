@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+/* #if UNITY_EDITOR
 
 using System;
 using System.Reflection;
@@ -47,7 +47,7 @@ public static class FullscreenGameView
             ShowToolbarProperty?.SetValue(instance, False);
             int screenWidth = Display.main.systemWidth;
             int screenHeight = Display.main.systemHeight;
-            var desktopResolution = new Vector2(screenWidth, screenHeight);
+            var desktopResolution = new Vector2(3440, 1440);
             var fullscreenRect = new Rect(Vector2.zero, desktopResolution);
             instance.ShowPopup();
             instance.position = fullscreenRect;
@@ -56,4 +56,4 @@ public static class FullscreenGameView
     }
 }
 
-#endif
+#endif */
