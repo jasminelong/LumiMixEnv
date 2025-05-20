@@ -325,7 +325,7 @@ public class MoveCamera : MonoBehaviour
         // Image2RawImage.color = new Color(Image2RawImage.color.r, Image2RawImage.color.g, Image2RawImage.color.b, nextImageRatio);
         
         Image1RawImage.color = new Color(1, 1, 1, previousImageRatio);
-        Image2RawImage.color = new Color(1, 1, 1, 1);
+        Image2RawImage.color = new Color(1, 1, 1, 1.0f);
 
         //Debug.Log("Image1RawImage.color.r"+ Image1RawImage.color.r+"  "+ Image1RawImage.color.g +"  "+ Image1RawImage.color.b +"  " + Image1RawImage.color.a);
         // Canvasに親オブジェクトを設定し、元のローカル位置、回転、およびスケールを保持 // 设置父对象为 Canvas，并保持原始的本地位置、旋转和缩放
