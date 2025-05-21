@@ -85,9 +85,24 @@ public class MoveCamera : MonoBehaviour
     public StepNumber stepNumber;
     public int trialNumber = 1;
 
+    
+
+
+    //记录Image1RawImage的透明度使用的相关变量
+    [Space(20)]  
+    [Header("🔧 Image1RawImageの輝度値の記録")]
+    [Range(-10, 10)]
+    public float functionRatio = 0f; // 非线性度合成比 // 非线性度合成比
+    public int maxSamples = 500;
+    public float maxDuration = 5f; // 显示最近5秒
+    // 存时间戳（秒）和对应的 alpha
+    [HideInInspector] public List<float> timeStamps = new List<float>();
+    [HideInInspector] public List<float> alphaHistory = new List<float>();
+
+
+    //速度を調整
+    [Space(20)]  
     [Header("🔧 基本パラメータ（調整可能）")]
-
-
     [Range(0.1f, 10f)]
     public float omega = 2 * Mathf.PI; // 角速度（頻度）
 
@@ -96,13 +111,15 @@ public class MoveCamera : MonoBehaviour
 
     [Range(0f, 5f)]
     public float A_max = 2.0f;
-    public float t = 0f;
+    public float time = 0f;
 
     [Range(0f, 5f)]
     public float V0 = 1.0f;  // 基本速度
 
     private bool mouseClicked = false;
     private float amplitude;
+    
+
     void Start()
     {
 
@@ -171,6 +188,27 @@ public class MoveCamera : MonoBehaviour
                     nextStepButtonTextComponent.text = "Entering the " + trialNumber + " trial";
                     break;
             }
+        }
+
+        //輝度値の変化の表示
+        float now = Application.isPlaying ? Time.time : (float)UnityEditor.EditorApplication.timeSinceStartup;
+
+        // 現在の alpha 値をサンプルに追加//添加当前样本
+        timeStamps.Add(now);
+        alphaHistory.Add(Image1RawImage.color.a);
+
+        // 1秒より前のデータを削除//剔除 1 秒以前的数据
+        while (timeStamps.Count > 0 && timeStamps[0] < now - 5f)
+        {
+            timeStamps.RemoveAt(0);
+            alphaHistory.RemoveAt(0);
+        }
+
+        // 上限を超えた場合は最古データから削除 //如果依然过多，按最早移除
+        if (timeStamps.Count > maxSamples)
+        {
+            timeStamps.RemoveAt(0);
+            alphaHistory.RemoveAt(0);
         }
     }
     // Update is called once per frame
@@ -255,7 +293,7 @@ public class MoveCamera : MonoBehaviour
         //Vector3 targetPosition = captureCamera0.transform.position + direction * (SerialReader.lastSensorValue + 1f) * cameraSpeed * Time.fixedDeltaTime;
         //captureCamera0.transform.position = targetPosition;
 
-        t += Time.fixedDeltaTime;
+        time += Time.fixedDeltaTime;
 
         // つまみセンサー値（0〜1）を取得し
         float knobValue = Mathf.Clamp01(SerialReader.lastSensorValue);
@@ -281,10 +319,10 @@ public class MoveCamera : MonoBehaviour
             v = V0;
 
             // 現在の速度を計算
-            if (step >= 1) v += amplitudes[1] * Mathf.Sin(omega * t);
-            if (step >= 2) v += amplitudes[2] * Mathf.Cos(omega * t);
-            if (step >= 3) v += amplitudes[3] * Mathf.Sin(2 * omega * t);
-            if (step >= 4) v += amplitudes[4] * Mathf.Cos(2 * omega * t);
+            if (step >= 1) v += amplitudes[1] * Mathf.Sin(omega * time);
+            if (step >= 2) v += amplitudes[2] * Mathf.Cos(omega * time);
+            if (step >= 3) v += amplitudes[3] * Mathf.Sin(2 * omega * time);
+            if (step >= 4) v += amplitudes[4] * Mathf.Cos(2 * omega * time);
         }
 
 
@@ -306,26 +344,57 @@ public class MoveCamera : MonoBehaviour
             // カメラが移動する目標位置を計算 // 计算摄像机沿圆锥轴线移动的目标位置
             targetPosition = direction * cameraSpeed * updateInterval;
 
-            // カメラを目標位置に移動 // 移动摄像机到目标位置
-            captureCamera1.transform.position = captureCamera1.transform.position + targetPosition; ;
-            captureCamera2.transform.position = captureCamera2.transform.position + targetPosition; ;
+            // LuminanceMixture method1 カメラを目標位置に移動 // 移动摄像机到目标位置
+            /* captureCamera1.transform.position = captureCamera1.transform.position + targetPosition;
+            captureCamera2.transform.position = captureCamera2.transform.position + targetPosition; */
+
+            // LuminanceMixture method2 カメラを目標位置に移動 // 移动摄像机到目标位置
+            if (frameNum % 2 == 0)
+            {
+                captureCamera1.transform.position = captureCamera1.transform.position + targetPosition; ;
+            }
+            else
+            {
+                captureCamera2.transform.position = captureCamera2.transform.position + targetPosition; ;
+            }
         }
         //輝度値を計算する 
         float Image1ToNowDeltaTime = timeMs - (frameNum - 1) * updateInterval * 1000;
         float nextRatio = Image1ToNowDeltaTime / (updateInterval * 1000);
-        float nextImageRatio = Math.Min(1, Math.Max(0, nextRatio));// 浮動小数点の演算誤差により、減算の結果がわずかに0未満になる場合があります
-
-        //Debug.Log("nextImageRatio : " + nextImageRatio + "    timeMs : " + timeMs + "     frameNum : " + frameNum + "     updateInterval : "+ updateInterval);
-
+        float nextImageRatio = Math.Min(1f, Math.Max(0f, nextRatio));// x ∈ [0,1]浮動小数点の演算誤差により、減算の結果がわずかに0未満になる場合があります
         float previousImageRatio = 1.0f - nextImageRatio;
-
+        //Debug.Log("nextImageRatio : " + nextImageRatio + "    timeMs : " + timeMs + "     frameNum : " + frameNum + "     updateInterval : "+ updateInterval);
         //Debug.Log("beforeImage1RawImage.color.r" + Image1RawImage.color.r + "  " + Image1RawImage.color.g + "  " + Image1RawImage.color.b + "  " + Image1RawImage.color.a);
 
         // Image1RawImage.color = new Color(Image1RawImage.color.r, Image1RawImage.color.g, Image1RawImage.color.b, previousImageRatio);
         // Image2RawImage.color = new Color(Image2RawImage.color.r, Image2RawImage.color.g, Image2RawImage.color.b, nextImageRatio);
         
-        Image1RawImage.color = new Color(1, 1, 1, previousImageRatio);
-        Image2RawImage.color = new Color(1, 1, 1, 1.0f);
+        // 非线性函数 f_nonlinear(x) = (1-r)*x + r*(acos(-2x+1)/π)
+        float EaseRatio(float x, float r)
+        {
+            // 計算 acos 部分
+            float acosPart = (float)(Math.Acos(-2f * x + 1f) / Math.PI);
+            // 混合线性と非线性
+            return (1f - r) * x + r * acosPart;
+        }
+        float nonlinearPreviousImageRatio = EaseRatio(previousImageRatio, functionRatio);
+        float nonlinearNextImageRatio = EaseRatio(nextImageRatio, functionRatio);
+        //LuminanceMixture method1
+        /* Image1RawImage.color = new Color(1, 1, 1, nonlinearPreviousImageRatio);
+        Image2RawImage.color = new Color(1, 1, 1, 1.0f); */
+
+        //LuminanceMixture method2
+        if (frameNum % 2 == 0)
+        {
+            Image1RawImage.color = new Color(1, 1, 1, nonlinearNextImageRatio);
+            Image2RawImage.color = new Color(1, 1, 1, 1.0f);
+        }
+        else
+        {
+            Image1RawImage.color = new Color(1, 1, 1, nonlinearPreviousImageRatio);
+            Image2RawImage.color = new Color(1, 1, 1, 1.0f);
+        }
+
 
         //Debug.Log("Image1RawImage.color.r"+ Image1RawImage.color.r+"  "+ Image1RawImage.color.g +"  "+ Image1RawImage.color.b +"  " + Image1RawImage.color.a);
         // Canvasに親オブジェクトを設定し、元のローカル位置、回転、およびスケールを保持 // 设置父对象为 Canvas，并保持原始的本地位置、旋转和缩放
@@ -337,8 +406,8 @@ public class MoveCamera : MonoBehaviour
         // 輝度値の変化の表示
         //RecordVariable(Image1RawImage.color.a, Image2RawImage.color.a); 
         // データを記録 // 记录数据
-            // data.Add("FrondFrameNum, FrondFrameLuminance, BackFrameNum, BackFrameLuminance, Time, FrameNum, Knob, ResponsePattern, StepNumber, Amplitude, Velocity");
-        data.Add($"{frameNum}, {previousImageRatio:F3}, {frameNum + 1}, {nextImageRatio:F3}, {timeMs :F3}, {SerialReader.lastSensorValue}, {responsePattern}, {(int)stepNumber}, {amplitude}, {v}");
+        // data.Add("FrondFrameNum, FrondFrameLuminance, BackFrameNum, BackFrameLuminance, Time, FrameNum, Knob, ResponsePattern, StepNumber, Amplitude, Velocity");
+        data.Add($"{frameNum}, {Image1RawImage.color.a:F3}, {frameNum + 1}, {Image2RawImage.color.a:F3}, {timeMs :F3}, {SerialReader.lastSensorValue}, {responsePattern}, {(int)stepNumber}, {amplitude}, {v}");
         //data.Add($"{frameNum}, {Image1RawImage.color.a:F3}, {frameNum + 1}, {Image2RawImage.color.a:F3}, {timeMs :F3}, {(vectionResponse ? 1 : 0)}");
 
     }

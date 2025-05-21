@@ -5,18 +5,143 @@ using System.Collections.Generic;
 [CustomEditor(typeof(MoveCamera))]
 public class MoveCameraEditor : Editor
 {
-    private const int graphWidth = 300;
+    private const int graphWidth = 500;
     private const int graphHeight = 100;
     private Texture2D graphTexture;
     private Queue<float> velocityHistory = new Queue<float>();
-    private const float maxDuration = 5f; // 显示最近5秒
 
     public override void OnInspectorGUI()
     {
-        DrawDefaultInspector();
-
+        //DrawDefaultInspector();
         MoveCamera script = (MoveCamera)target;
-        // 表示 A1 ~ A4
+
+        SerializedProperty prop;
+
+        prop = serializedObject.FindProperty("captureCamera0");
+        EditorGUILayout.PropertyField(prop);
+
+        prop = serializedObject.FindProperty("captureCamera1");
+        EditorGUILayout.PropertyField(prop);
+
+        prop = serializedObject.FindProperty("captureCamera2");
+        EditorGUILayout.PropertyField(prop);
+
+        prop = serializedObject.FindProperty("canvas");
+        EditorGUILayout.PropertyField(prop);
+
+        prop = serializedObject.FindProperty("cameraSpeed");
+        EditorGUILayout.PropertyField(prop);
+
+        prop = serializedObject.FindProperty("updateInterval");
+        EditorGUILayout.PropertyField(prop);
+
+        prop = serializedObject.FindProperty("frameNum");
+        EditorGUILayout.PropertyField(prop);
+
+        prop = serializedObject.FindProperty("participantName");
+        EditorGUILayout.PropertyField(prop);
+
+        prop = serializedObject.FindProperty("fps");
+        EditorGUILayout.PropertyField(prop);
+
+        prop = serializedObject.FindProperty("v");
+        EditorGUILayout.PropertyField(prop);
+
+        prop = serializedObject.FindProperty("participantName");
+        EditorGUILayout.PropertyField(prop);
+
+        GUILayout.Space(10); 
+        prop = serializedObject.FindProperty("functionRatio");
+        EditorGUILayout.PropertyField(prop);
+
+        prop = serializedObject.FindProperty("maxDuration");
+        EditorGUILayout.PropertyField(prop);
+
+        //5-----輝度値の変化の表示
+        
+        EditorGUILayout.LabelField("📷 Brightness", EditorStyles.boldLabel);
+        GUILayout.Space(10); 
+        var times = script.timeStamps;
+        var alphas = script.alphaHistory;
+        var maxDuration = script.maxDuration;
+        if (times == null || times.Count < 3)
+        {
+            EditorGUILayout.HelpBox("wating…", MessageType.Info);
+            return;
+        }
+
+        // 現在時刻取得//当前时间（同脚本里计算方式）
+        float now = Application.isPlaying ? Time.time : (float)UnityEditor.EditorApplication.timeSinceStartup;
+
+        // 波形描画用領域を確保
+        Rect rect = GUILayoutUtility.GetRect(300, 150);
+        EditorGUI.DrawRect(rect, new Color(0.1f, 0.1f, 0.1f));
+
+         // Y軸の目盛りとラベルを描画//画 Y 轴刻度和标签
+        Handles.color = Color.gray;
+        int yTicks = 5;
+        for (int i = 0; i <= yTicks; i++)
+        {
+            float t = i / (float)yTicks;
+            float y = Mathf.Lerp(rect.yMax, rect.yMin, t);
+            //  目盛り線//刻度线
+            Handles.DrawLine(new Vector3(rect.xMin, y), new Vector3(rect.xMin + 5, y));
+            // ラベル表示（F2で小数点2桁）//标签
+            GUI.Label(
+                new Rect(rect.xMin + 8, y - 8, 40, 16),
+                t.ToString("F2")
+            );
+        }
+
+        // X軸の目盛りとラベルを描画
+        int xTicks = 5;
+        for (int i = 0; i <= xTicks; i++)
+        {
+            float t = i / (float)xTicks;
+            float x = Mathf.Lerp(rect.xMin, rect.xMax, t);
+            Handles.DrawLine(new Vector3(x, rect.yMax), new Vector3(x, rect.yMax - 5));
+            float timeLabel = now - maxDuration + t * maxDuration; // 1秒前から現在まで
+            GUI.Label(new Rect(x - 20, rect.yMax + 2, 40, 16), timeLabel.ToString("F2")+ "s");
+        }
+
+        // 波形をシアンで描画//画曲线
+        Handles.color = Color.cyan;
+        int count = times.Count;
+        float w = rect.width;
+        float h = rect.height;
+
+        for (int i = 1; i < count; i++)
+        {
+            float t0 = times[i - 1], t1 = times[i];
+            float x0 = rect.xMin + Mathf.Clamp01((t0 - (now - maxDuration)) / maxDuration) * w;
+            float y0 = rect.yMax - alphas[i - 1] * h;
+            float x1 = rect.xMin + Mathf.Clamp01((t1 - (now - maxDuration)) / maxDuration) * w;
+            float y1 = rect.yMax - alphas[i] * h;
+            Handles.DrawLine(new Vector3(x0, y0), new Vector3(x1, y1));
+        }
+
+        Handles.color = Color.white;
+        GUILayout.Space(20); 
+        EditorGUILayout.LabelField($"最新5秒間のサンプル数: {count} ");
+
+        //4.5-----
+        prop = serializedObject.FindProperty("omega");
+        EditorGUILayout.PropertyField(prop);
+
+        prop = serializedObject.FindProperty("A_min");
+        EditorGUILayout.PropertyField(prop);
+
+        prop = serializedObject.FindProperty("A_max");
+        EditorGUILayout.PropertyField(prop);
+
+        prop = serializedObject.FindProperty("time");
+        EditorGUILayout.PropertyField(prop);
+
+        prop = serializedObject.FindProperty("V0");
+        EditorGUILayout.PropertyField(prop);
+
+        
+        //4----- 表示 A1 ~ A4
         EditorGUILayout.LabelField("Amplitude Sliders (A1 ~ A4)", EditorStyles.boldLabel);
         for (int i = 1; i < script.amplitudes.Length; i++)
         {
@@ -30,7 +155,7 @@ public class MoveCameraEditor : Editor
             }
         }
 
-        //ResponsePatternブロックを挿入
+        //3-----ResponsePatternブロックを挿入
         GUILayout.Space(10);
         GUILayout.Label("📷 ResponsePattern", EditorStyles.boldLabel);
         EditorGUILayout.BeginHorizontal();
@@ -58,7 +183,7 @@ public class MoveCameraEditor : Editor
 
 
 
-        // 🔽 StepNumberブロックを挿入
+        // 2-----🔽 StepNumberブロックを挿入
         GUILayout.Space(10);
         GUILayout.Label("📷 StepNumber", EditorStyles.boldLabel);
         EditorGUILayout.BeginHorizontal();
@@ -84,7 +209,7 @@ public class MoveCameraEditor : Editor
         }
         EditorGUILayout.EndHorizontal();
 
-        //描画速度波形
+        //1-----描画速度波形
         // 添加当前速度到历史记录
         if (Application.isPlaying)
         {
@@ -136,6 +261,7 @@ public class MoveCameraEditor : Editor
 
         GUILayout.Label("📈 速度曲線 v(t)", EditorStyles.boldLabel);
         GUILayout.Label(graphTexture);
+        //GUILayout.Label(graphTexture, GUILayout.ExpandWidth(true), GUILayout.Height(graphHeight));
 
         // 显示实时值
         float time = Time.time;
