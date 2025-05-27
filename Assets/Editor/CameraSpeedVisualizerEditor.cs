@@ -29,6 +29,12 @@ public class MoveCameraEditor : Editor
         prop = serializedObject.FindProperty("canvas");
         EditorGUILayout.PropertyField(prop);
 
+        prop = serializedObject.FindProperty("captureImageTexture1");
+        EditorGUILayout.PropertyField(prop);
+
+        prop = serializedObject.FindProperty("captureImageTexture2");
+        EditorGUILayout.PropertyField(prop);
+
         prop = serializedObject.FindProperty("cameraSpeed");
         EditorGUILayout.PropertyField(prop);
 
@@ -38,37 +44,34 @@ public class MoveCameraEditor : Editor
         prop = serializedObject.FindProperty("frameNum");
         EditorGUILayout.PropertyField(prop);
 
-        prop = serializedObject.FindProperty("participantName");
-        EditorGUILayout.PropertyField(prop);
-
         prop = serializedObject.FindProperty("fps");
         EditorGUILayout.PropertyField(prop);
 
-        prop = serializedObject.FindProperty("v");
-        EditorGUILayout.PropertyField(prop);
+/*         prop = serializedObject.FindProperty("v");
+        EditorGUILayout.PropertyField(prop); */
 
         prop = serializedObject.FindProperty("participantName");
         EditorGUILayout.PropertyField(prop);
 
-        GUILayout.Space(10); 
+        prop = serializedObject.FindProperty("trialNumber");
+        EditorGUILayout.PropertyField(prop);
+
+
+        GUILayout.Space(10);
         prop = serializedObject.FindProperty("functionRatio");
-        EditorGUILayout.PropertyField(prop);
+        EditorGUILayout.Slider(prop, -10f, 10f); // ← 使用 Slider
 
-        prop = serializedObject.FindProperty("maxDuration");
-        EditorGUILayout.PropertyField(prop);
+   /*      prop = serializedObject.FindProperty("maxDuration");
+        EditorGUILayout.PropertyField(prop); */
 
+        serializedObject.ApplyModifiedProperties();
         //5-----輝度値の変化の表示
-        
+
         EditorGUILayout.LabelField("📷 Brightness", EditorStyles.boldLabel);
-        GUILayout.Space(10); 
+        GUILayout.Space(10);
         var times = script.timeStamps;
         var alphas = script.alphaHistory;
         var maxDuration = script.maxDuration;
-        if (times == null || times.Count < 3)
-        {
-            EditorGUILayout.HelpBox("wating…", MessageType.Info);
-            return;
-        }
 
         // 現在時刻取得//当前时间（同脚本里计算方式）
         float now = Application.isPlaying ? Time.time : (float)UnityEditor.EditorApplication.timeSinceStartup;
@@ -77,7 +80,7 @@ public class MoveCameraEditor : Editor
         Rect rect = GUILayoutUtility.GetRect(300, 150);
         EditorGUI.DrawRect(rect, new Color(0.1f, 0.1f, 0.1f));
 
-         // Y軸の目盛りとラベルを描画//画 Y 轴刻度和标签
+        // Y軸の目盛りとラベルを描画//画 Y 轴刻度和标签
         Handles.color = Color.gray;
         int yTicks = 5;
         for (int i = 0; i <= yTicks; i++)
@@ -101,7 +104,7 @@ public class MoveCameraEditor : Editor
             float x = Mathf.Lerp(rect.xMin, rect.xMax, t);
             Handles.DrawLine(new Vector3(x, rect.yMax), new Vector3(x, rect.yMax - 5));
             float timeLabel = now - maxDuration + t * maxDuration; // 1秒前から現在まで
-            GUI.Label(new Rect(x - 20, rect.yMax + 2, 40, 16), timeLabel.ToString("F2")+ "s");
+            GUI.Label(new Rect(x - 20, rect.yMax + 2, 40, 16), timeLabel.ToString("F2") + "s");
         }
 
         // 波形をシアンで描画//画曲线
@@ -121,7 +124,7 @@ public class MoveCameraEditor : Editor
         }
 
         Handles.color = Color.white;
-        GUILayout.Space(20); 
+        GUILayout.Space(20);
         EditorGUILayout.LabelField($"最新5秒間のサンプル数: {count} ");
 
         //4.5-----
@@ -129,10 +132,10 @@ public class MoveCameraEditor : Editor
         EditorGUILayout.PropertyField(prop);
 
         prop = serializedObject.FindProperty("A_min");
-        EditorGUILayout.PropertyField(prop);
+        EditorGUILayout.Slider(prop, -10f, 10f);
 
         prop = serializedObject.FindProperty("A_max");
-        EditorGUILayout.PropertyField(prop);
+        EditorGUILayout.Slider(prop, -10f, 10f);
 
         prop = serializedObject.FindProperty("time");
         EditorGUILayout.PropertyField(prop);
@@ -140,7 +143,7 @@ public class MoveCameraEditor : Editor
         prop = serializedObject.FindProperty("V0");
         EditorGUILayout.PropertyField(prop);
 
-        
+        serializedObject.ApplyModifiedProperties();
         //4----- 表示 A1 ~ A4
         EditorGUILayout.LabelField("Amplitude Sliders (A1 ~ A4)", EditorStyles.boldLabel);
         for (int i = 1; i < script.amplitudes.Length; i++)

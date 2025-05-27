@@ -9,7 +9,6 @@ using UnityEngine.SceneManagement;
 
 
 
-
 public class MoveCamera : MonoBehaviour
 {
     public enum DirectionPattern
@@ -34,6 +33,8 @@ public class MoveCamera : MonoBehaviour
     public Camera captureCamera1; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
     public Camera captureCamera2; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
     public GameObject canvas;
+    public Texture captureImageTexture1; // 撮影した画像を表示するためのUIコンポーネント // 用于显示拍摄图像的UI组件
+    public Texture captureImageTexture2; // 撮影した画像を表示するためのUIコンポーネント // 用于显示拍摄图像的UI组件
     public Button nextStepButton;
     public float cameraSpeed = 1f; // カメラが円柱の軸に沿って移動する速度 (m/s) // 摄像机沿圆柱轴线移动的速度，m/s
 
@@ -130,17 +131,6 @@ public class MoveCamera : MonoBehaviour
 
         nextStepButtonTextComponent = nextStepButton.GetComponentInChildren<TextMeshProUGUI>();
         nextStepButton.onClick.AddListener(OnNextStep); // ボタンがクリックされたときの処理を追加 // 添加按钮点击时的处理
-        if (PlayerPrefs.HasKey("TrialNumber"))
-        {
-            if (PlayerPrefs.GetInt("TrialNumber") > 0 && PlayerPrefs.GetInt("TrialNumber") <= 3)
-            {
-                trialNumber = PlayerPrefs.GetInt("TrialNumber");
-            }
-            else if(PlayerPrefs.GetInt("TrialNumber") > 3)
-            {
-                trialNumber = 1;
-            }
-        }
 
         // captureCamera.enabled = false; // 初期状態でキャプチャカメラを無効にする // 初始化时禁用捕获摄像机
 
@@ -192,7 +182,7 @@ public class MoveCamera : MonoBehaviour
 
         //輝度値の変化の表示
         float now = Application.isPlaying ? Time.time : (float)UnityEditor.EditorApplication.timeSinceStartup;
-
+/* 
         // 現在の alpha 値をサンプルに追加//添加当前样本
         timeStamps.Add(now);
         alphaHistory.Add(Image1RawImage.color.a);
@@ -209,7 +199,7 @@ public class MoveCamera : MonoBehaviour
         {
             timeStamps.RemoveAt(0);
             alphaHistory.RemoveAt(0);
-        }
+        } */
     }
     // Update is called once per frame
     void FixedUpdate()
@@ -269,15 +259,7 @@ public class MoveCamera : MonoBehaviour
                 stepNumber = StepNumber.Option4;
                 break;
             case 5:
-                if (trialNumber < 3)
-                {
-                    SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-                }
-                else
-                {
-                    QuitGame();
-                }
-                
+                QuitGame();
                 break;
         }
         nextStepButton.gameObject.SetActive(false);
@@ -345,18 +327,18 @@ public class MoveCamera : MonoBehaviour
             targetPosition = direction * cameraSpeed * updateInterval;
 
             // LuminanceMixture method1 カメラを目標位置に移動 // 移动摄像机到目标位置
-            /* captureCamera1.transform.position = captureCamera1.transform.position + targetPosition;
-            captureCamera2.transform.position = captureCamera2.transform.position + targetPosition; */
+            captureCamera1.transform.position = captureCamera1.transform.position + targetPosition;
+            captureCamera2.transform.position = captureCamera2.transform.position + targetPosition;  
 
             // LuminanceMixture method2 カメラを目標位置に移動 // 移动摄像机到目标位置
-            if (frameNum % 2 == 0)
+     /*        if (frameNum % 2 == 0)
             {
-                captureCamera1.transform.position = captureCamera1.transform.position + targetPosition; ;
+                captureCamera1.transform.position = captureCamera1.transform.position + targetPosition;
             }
             else
             {
-                captureCamera2.transform.position = captureCamera2.transform.position + targetPosition; ;
-            }
+                captureCamera2.transform.position = captureCamera2.transform.position + targetPosition;
+            }  */
         }
         //輝度値を計算する 
         float Image1ToNowDeltaTime = timeMs - (frameNum - 1) * updateInterval * 1000;
@@ -369,7 +351,7 @@ public class MoveCamera : MonoBehaviour
         // Image1RawImage.color = new Color(Image1RawImage.color.r, Image1RawImage.color.g, Image1RawImage.color.b, previousImageRatio);
         // Image2RawImage.color = new Color(Image2RawImage.color.r, Image2RawImage.color.g, Image2RawImage.color.b, nextImageRatio);
         
-        // 非线性函数 f_nonlinear(x) = (1-r)*x + r*(acos(-2x+1)/π)
+        // 非线性函数 f_nonlinear(x) = (1-r)*x + r*(acosxfvbfxbxcvxcvxckdfljgksljfksdlfj(-2x+1)/π)
         float EaseRatio(float x, float r)
         {
             // 計算 acos 部分
@@ -380,21 +362,47 @@ public class MoveCamera : MonoBehaviour
         float nonlinearPreviousImageRatio = EaseRatio(previousImageRatio, functionRatio);
         float nonlinearNextImageRatio = EaseRatio(nextImageRatio, functionRatio);
         //LuminanceMixture method1
-        /* Image1RawImage.color = new Color(1, 1, 1, nonlinearPreviousImageRatio);
-        Image2RawImage.color = new Color(1, 1, 1, 1.0f); */
+        Image1RawImage.color = new Color(1, 1, 1, nonlinearPreviousImageRatio);
+        Image2RawImage.color = new Color(1, 1, 1, 1.0f);
 
         //LuminanceMixture method2
+        /* if (frameNum % 2 == 0)
+       {
+           Image1RawImage.color = new Color(1, 1, 1, nonlinearNextImageRatio);
+           Image2RawImage.color = new Color(1, 1, 1, 1.0f);
+       }
+       else
+       {
+           Image1RawImage.color = new Color(1, 1, 1, nonlinearPreviousImageRatio);
+           Image2RawImage.color = new Color(1, 1, 1, 1.0f);
+       } */
+
+        //------------波形start
+        float now = Application.isPlaying ? Time.time : (float)UnityEditor.EditorApplication.timeSinceStartup;
+        // 現在の alpha 値をサンプルに追加//添加当前样本
+        timeStamps.Add(now);
         if (frameNum % 2 == 0)
         {
-            Image1RawImage.color = new Color(1, 1, 1, nonlinearNextImageRatio);
-            Image2RawImage.color = new Color(1, 1, 1, 1.0f);
+            alphaHistory.Add(nonlinearPreviousImageRatio);
         }
         else
         {
-            Image1RawImage.color = new Color(1, 1, 1, nonlinearPreviousImageRatio);
-            Image2RawImage.color = new Color(1, 1, 1, 1.0f);
+            alphaHistory.Add(nonlinearNextImageRatio);   
+        }
+        // 1秒より前のデータを削除//剔除 1 秒以前的数据
+        while (timeStamps.Count > 0 && timeStamps[0] < now - 5f)
+        {
+            timeStamps.RemoveAt(0);
+            alphaHistory.RemoveAt(0);
         }
 
+        // 上限を超えた場合は最古データから削除 //如果依然过多，按最早移除
+        if (timeStamps.Count > maxSamples)
+        {
+            timeStamps.RemoveAt(0);
+            alphaHistory.RemoveAt(0);
+        }
+        //------------波形end
 
         //Debug.Log("Image1RawImage.color.r"+ Image1RawImage.color.r+"  "+ Image1RawImage.color.g +"  "+ Image1RawImage.color.b +"  " + Image1RawImage.color.a);
         // Canvasに親オブジェクトを設定し、元のローカル位置、回転、およびスケールを保持 // 设置父对象为 Canvas，并保持原始的本地位置、旋转和缩放
@@ -442,8 +450,6 @@ public class MoveCamera : MonoBehaviour
 
     void OnDestroy()
     {
-        PlayerPrefs.SetInt("TrialNumber", trialNumber);
-        PlayerPrefs.Save();
         // 現在の日付を取得 // 获取当前日期
         string date = System.DateTime.Now.ToString("yyyyMMdd_HHmmss");
 

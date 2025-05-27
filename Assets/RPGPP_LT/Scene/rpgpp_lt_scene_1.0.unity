@@ -25327,12 +25327,14 @@ MonoBehaviour:
   captureCamera1: {fileID: 1898402712}
   captureCamera2: {fileID: 737476481}
   canvas: {fileID: 997586640}
+  captureImageTexture1: {fileID: 8400000, guid: 4b82c34776400284ba9def1c0682b808, type: 2}
+  captureImageTexture2: {fileID: 8400000, guid: 1640ba1724f62d64caaec2f651a311b2, type: 2}
   nextStepButton: {fileID: 1774636832}
   cameraSpeed: 1
   captureIntervalDistance: 0
   updateInterval: 0
   frameNum: 0
-  participantName: K
+  participantName: Test
   fps: 1
   directionPattern: 0
   v: 0
@@ -25346,10 +25348,15 @@ MonoBehaviour:
   responsePattern: 0
   stepNumber: 0
   trialNumber: 1
+  functionRatio: 0
+  maxSamples: 500
+  maxDuration: 5
+  timeStamps: []
+  alphaHistory: []
   omega: 6.2831855
-  A_min: -0.5
-  A_max: 3
-  t: 0
+  A_min: -5
+  A_max: 10
+  time: 0
   V0: 1
 --- !u!1001 &865707318
 PrefabInstance:
