@@ -29,6 +29,7 @@ public class MoveCamera : MonoBehaviour
         Option3 = 3,
         Option4 = 4,
     }
+
     public Camera captureCamera0; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
     public Camera captureCamera1; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
     public Camera captureCamera2; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
@@ -86,9 +87,6 @@ public class MoveCamera : MonoBehaviour
     public StepNumber stepNumber;
     public int trialNumber = 1;
 
-    
-
-
     //记录Image1RawImage的透明度使用的相关变量
     [Space(20)]  
     [Header("🔧 Image1RawImageの輝度値の記録")]
@@ -105,7 +103,8 @@ public class MoveCamera : MonoBehaviour
     [Space(20)]  
     [Header("🔧 基本パラメータ（調整可能）")]
     [Range(0.1f, 10f)]
-    public float omega = 2 * Mathf.PI; // 角速度（頻度）
+    // public float omega = 2 * Mathf.PI; // 角速度（頻度）
+    public float omega =  Mathf.PI; // 角速度（頻度）
 
     [Range(-1f, 5f)]
     public float A_min = -1f;
@@ -119,7 +118,31 @@ public class MoveCamera : MonoBehaviour
 
     private bool mouseClicked = false;
     private float amplitude;
-    
+
+    //------------Speed ​​function start-------------
+    public enum SpeedFunctionType
+    {
+        Linear,
+        EaseInOut,    // (1−cosπx)/2
+        Triangle,    // 1−|m−1|
+        Arccos       // 分段 arccos 波形
+    }
+    public SpeedFunctionType functionType = SpeedFunctionType.Linear;
+    [Range(0f, 10f)]
+    public float SpeedFunctionDistance = 5f;
+
+    public Vector3 SpeedFunctionleftLimit = Vector3.zero;
+
+    [Range(0f, 5f)]
+    public float SpeedFunctionFrequency = 1f;
+
+    [Range(0f, 2f)]
+    public float SpeedFunctionAmplitude = 1f;
+
+    [Range(-1f, 1f)]
+    public float SpeedFunctionOffset = 0f;
+    private float SpeedFunctionTime = 0f;
+    //-------------Speed ​​function end------------
 
     void Start()
     {
@@ -146,6 +169,7 @@ public class MoveCamera : MonoBehaviour
         captureCamera2.transform.position += direction * captureIntervalDistance;
         data.Add("FrondFrameNum, FrondFrameLuminance, BackFrameNum, BackFrameLuminance, Time, Knob, ResponsePattern, StepNumber, Amplitude, Velocity");
         experimentalCondition = "fps" + fps.ToString() + "_"
+                             + "cameraSpeed" + cameraSpeed.ToString() + "_"
                              + "ParticipantName_" + participantName.ToString() + "_"
                              + "TrialNumber_" + trialNumber.ToString();
 
@@ -175,7 +199,7 @@ public class MoveCamera : MonoBehaviour
                     break;
                 case 4:
                     trialNumber++;
-                    nextStepButtonTextComponent.text = "Entering the " + trialNumber + " trial";
+                    nextStepButtonTextComponent.text = "Entering the next trial";
                     break;
             }
         }
@@ -209,7 +233,7 @@ public class MoveCamera : MonoBehaviour
         LuminanceMixture();
 
     }
-
+    
     void InitialSetup()
     {
         frameNum = 1;
@@ -359,11 +383,21 @@ public class MoveCamera : MonoBehaviour
             // 混合线性と非线性
             return (1f - r) * x + r * acosPart;
         }
-        float nonlinearPreviousImageRatio = EaseRatio(previousImageRatio, functionRatio);
+       float nonlinearPreviousImageRatio = EaseRatio(previousImageRatio, functionRatio);
         float nonlinearNextImageRatio = EaseRatio(nextImageRatio, functionRatio);
+
+
+        SpeedFunctionTime += Time.deltaTime * SpeedFunctionFrequency;  
+        Vector3 basePos  = new Vector3(0f, 0f, 0f);
+
+        // 计算非线性混合比（t 可以是 previousImageRatio 和 nextImageRatio）
+        /*         float nonlinearPreviousImageRatio = CalculateZ(previousImageRatio, functionType, SpeedFunctionDistance, basePos , SpeedFunctionFrequency, SpeedFunctionAmplitude, SpeedFunctionOffset);
+                float nonlinearNextImageRatio     = CalculateZ(nextImageRatio,     functionType, SpeedFunctionDistance, basePos , SpeedFunctionFrequency, SpeedFunctionAmplitude, SpeedFunctionOffset);@ */
+        
         //LuminanceMixture method1
         Image1RawImage.color = new Color(1, 1, 1, nonlinearPreviousImageRatio);
-        Image2RawImage.color = new Color(1, 1, 1, 1.0f);
+        Image2RawImage.color = new Color(1, 1, 1, 1.0f); 
+
 
         //LuminanceMixture method2
         /* if (frameNum % 2 == 0)
@@ -415,11 +449,60 @@ public class MoveCamera : MonoBehaviour
         //RecordVariable(Image1RawImage.color.a, Image2RawImage.color.a); 
         // データを記録 // 记录数据
         // data.Add("FrondFrameNum, FrondFrameLuminance, BackFrameNum, BackFrameLuminance, Time, FrameNum, Knob, ResponsePattern, StepNumber, Amplitude, Velocity");
-        data.Add($"{frameNum}, {Image1RawImage.color.a:F3}, {frameNum + 1}, {Image2RawImage.color.a:F3}, {timeMs :F3}, {SerialReader.lastSensorValue}, {responsePattern}, {(int)stepNumber}, {amplitude}, {v}");
+        data.Add($"{frameNum}, {nonlinearPreviousImageRatio:F3}, {frameNum + 1}, {nonlinearNextImageRatio:F3}, {timeMs :F3}, {SerialReader.lastSensorValue}, {responsePattern}, {(int)stepNumber}, {amplitude}, {v}");
         //data.Add($"{frameNum}, {Image1RawImage.color.a:F3}, {frameNum + 1}, {Image2RawImage.color.a:F3}, {timeMs :F3}, {(vectionResponse ? 1 : 0)}");
 
     }
+    float CalculateZ(
+    float SpeedFunctionTime,
+    SpeedFunctionType functionType,
+    float SpeedFunctionDistance,
+    Vector3 SpeedFunctionleftLimit,
+    float SpeedFunctionFrequency = 1f,
+    float SpeedFunctionAmplitude = 1f,
+    float SpeedFunctionOffset = 0f
+)
+{
+    // 1. 让 t 在 [0, 2) 范围内循环往返
+    float tt = SpeedFunctionTime * SpeedFunctionFrequency;
+    // 2. 把往返做成 0→1→0 的区间：先对 2 取余，再对 1 作镜像
+    float m = tt % 2f;
+    if (m < 0f) m += 2f;
+    // m ∈ [0,2)，当 m>1 时我们需要“回过头”，用 2-m
+    float x = (m <= 1f) ? m : (2f - m);
 
+    // 3. 根据 functionType 计算“规范化”输出 y0 ∈ [0,1]
+    float y0;
+    switch (functionType)
+    {
+        case SpeedFunctionType.Linear:
+            y0 = x;
+            break;
+
+        case SpeedFunctionType.EaseInOut:
+            y0 = (1f - Mathf.Cos(Mathf.PI * x)) * 0.5f;
+            break;
+
+        case SpeedFunctionType.Triangle:
+            y0 = 1f - Mathf.Abs(2f * x - 1f);;  // 此处 x∈[0,1]，也可直接用 x 或 1−|2x−1|
+            break;
+
+        case SpeedFunctionType.Arccos:
+            // 把原来两个分段合并到同一个 x 上
+            y0 = Mathf.Acos(-2f * x + 1f) / Mathf.PI;
+            break;
+
+        default:
+            y0 = x;
+            break;
+    }
+
+    // 4. 振幅 & 偏移
+    float y = y0 * SpeedFunctionAmplitude + SpeedFunctionOffset;
+
+    // 5. 映射到 Z 轴：leftLimit.z → leftLimit.z + distance
+    return SpeedFunctionleftLimit.z + SpeedFunctionDistance * y;
+}
     void GetRawImage()
     {
         // Canvas内で指定された名前の子オブジェクトを検索 // 在 Canvas 中查找指定名称的子对象

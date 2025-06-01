@@ -60,9 +60,24 @@ public class MoveCameraEditor : Editor
         GUILayout.Space(10);
         prop = serializedObject.FindProperty("functionRatio");
         EditorGUILayout.Slider(prop, -10f, 10f); // ← 使用 Slider
+        
+        SerializedProperty functionTypeProp = serializedObject.FindProperty("functionType");
+        EditorGUILayout.PropertyField(functionTypeProp);
+        
+        prop = serializedObject.FindProperty("SpeedFunctionDistance");
+        EditorGUILayout.Slider(prop, 0f, 10f); // ← 使用 Slider
+
+        prop = serializedObject.FindProperty("SpeedFunctionFrequency");
+        EditorGUILayout.Slider(prop, 0f, 5f); // ← 使用 Slider
+
+        prop = serializedObject.FindProperty("SpeedFunctionAmplitude");
+        EditorGUILayout.Slider(prop, 0f, 2f); // ← 使用 Slider
+
+        prop = serializedObject.FindProperty("SpeedFunctionOffset");
+        EditorGUILayout.Slider(prop, -1f, 1f); // ← 使用 Slider
 
    /*      prop = serializedObject.FindProperty("maxDuration");
-        EditorGUILayout.PropertyField(prop); */
+                                      EditorGUILayout.PropertyField(prop); */
 
         serializedObject.ApplyModifiedProperties();
         //5-----輝度値の変化の表示
