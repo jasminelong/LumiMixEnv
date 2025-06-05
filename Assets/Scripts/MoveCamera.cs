@@ -383,16 +383,16 @@ public class MoveCamera : MonoBehaviour
             // 混合线性と非线性
             return (1f - r) * x + r * acosPart;
         }
-       float nonlinearPreviousImageRatio = EaseRatio(previousImageRatio, functionRatio);
-        float nonlinearNextImageRatio = EaseRatio(nextImageRatio, functionRatio);
+      /*  float nonlinearPreviousImageRatio = EaseRatio(previousImageRatio, functionRatio);
+        float nonlinearNextImageRatio = EaseRatio(nextImageRatio, functionRatio); */
 
 
         SpeedFunctionTime += Time.deltaTime * SpeedFunctionFrequency;  
         Vector3 basePos  = new Vector3(0f, 0f, 0f);
 
         // 计算非线性混合比（t 可以是 previousImageRatio 和 nextImageRatio）
-        /*         float nonlinearPreviousImageRatio = CalculateZ(previousImageRatio, functionType, SpeedFunctionDistance, basePos , SpeedFunctionFrequency, SpeedFunctionAmplitude, SpeedFunctionOffset);
-                float nonlinearNextImageRatio     = CalculateZ(nextImageRatio,     functionType, SpeedFunctionDistance, basePos , SpeedFunctionFrequency, SpeedFunctionAmplitude, SpeedFunctionOffset);@ */
+                 float nonlinearPreviousImageRatio = CalculateZ(previousImageRatio, functionType, SpeedFunctionDistance, basePos , SpeedFunctionFrequency, SpeedFunctionAmplitude, SpeedFunctionOffset);
+                float nonlinearNextImageRatio     = CalculateZ(nextImageRatio,     functionType, SpeedFunctionDistance, basePos , SpeedFunctionFrequency, SpeedFunctionAmplitude, SpeedFunctionOffset);
         
         //LuminanceMixture method1
         Image1RawImage.color = new Color(1, 1, 1, nonlinearPreviousImageRatio);
