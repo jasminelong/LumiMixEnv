@@ -104,7 +104,7 @@ public class MoveCamera : MonoBehaviour
     [Header("🔧 基本パラメータ（調整可能）")]
     [Range(0.1f, 10f)]
     // public float omega = 2 * Mathf.PI; // 角速度（頻度）
-    public float omega =  Mathf.PI/4; // 角速度（頻度）
+    public float omega =  Mathf.PI; // 角速度（頻度）
 
     [Range(-1f, 5f)]
     public float A_min = -1f;
@@ -516,10 +516,26 @@ public class MoveCamera : MonoBehaviour
         Image1RawImage = Image1Transform.GetComponent<RawImage>();
         Image2RawImage = Image2Transform.GetComponent<RawImage>();
 
+        // 创建纯黑纹理
+        Texture2D blackTex = new Texture2D(1, 1);
+        blackTex.SetPixel(0, 0, Color.black);
+        blackTex.Apply();
+
+        // 创建纯白纹理
+        Texture2D whiteTex = new Texture2D(1, 1);
+        whiteTex.SetPixel(0, 0, Color.white);
+        whiteTex.Apply();
+
+        // 设置给 RawImage
+        Image2RawImage.texture = blackTex;
+        Image1RawImage.texture = whiteTex; 
+        // Image2RawImage.texture = whiteTex;
+        // Image1RawImage.texture = blackTex;
         // RawImageコンポーネントを無効にする // 禁用 RawImage 组件
         continuousImageRawImage.enabled = false;
         Image1RawImage.enabled = false;
         Image2RawImage.enabled = false;
+
     }
     void QuitGame()
     {
