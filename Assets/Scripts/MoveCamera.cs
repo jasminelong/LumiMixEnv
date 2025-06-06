@@ -104,7 +104,7 @@ public class MoveCamera : MonoBehaviour
     [Header("🔧 基本パラメータ（調整可能）")]
     [Range(0.1f, 10f)]
     // public float omega = 2 * Mathf.PI; // 角速度（頻度）
-    public float omega =  Mathf.PI; // 角速度（頻度）
+    public float omega =  Mathf.PI/4; // 角速度（頻度）
 
     [Range(-1f, 5f)]
     public float A_min = -1f;
@@ -383,16 +383,16 @@ public class MoveCamera : MonoBehaviour
             // 混合线性と非线性
             return (1f - r) * x + r * acosPart;
         }
-      /*  float nonlinearPreviousImageRatio = EaseRatio(previousImageRatio, functionRatio);
-        float nonlinearNextImageRatio = EaseRatio(nextImageRatio, functionRatio); */
+        float nonlinearPreviousImageRatio = EaseRatio(previousImageRatio, functionRatio);
+        float nonlinearNextImageRatio = EaseRatio(nextImageRatio, functionRatio); 
 
 
         SpeedFunctionTime += Time.deltaTime * SpeedFunctionFrequency;  
         Vector3 basePos  = new Vector3(0f, 0f, 0f);
 
         // 计算非线性混合比（t 可以是 previousImageRatio 和 nextImageRatio）
-                 float nonlinearPreviousImageRatio = CalculateZ(previousImageRatio, functionType, SpeedFunctionDistance, basePos , SpeedFunctionFrequency, SpeedFunctionAmplitude, SpeedFunctionOffset);
-                float nonlinearNextImageRatio     = CalculateZ(nextImageRatio,     functionType, SpeedFunctionDistance, basePos , SpeedFunctionFrequency, SpeedFunctionAmplitude, SpeedFunctionOffset);
+                 //float nonlinearPreviousImageRatio = CalculateZ(previousImageRatio, functionType, SpeedFunctionDistance, basePos , SpeedFunctionFrequency, SpeedFunctionAmplitude, SpeedFunctionOffset);
+                //float nonlinearNextImageRatio     = CalculateZ(nextImageRatio,     functionType, SpeedFunctionDistance, basePos , SpeedFunctionFrequency, SpeedFunctionAmplitude, SpeedFunctionOffset);
         
         //LuminanceMixture method1
         Image1RawImage.color = new Color(1, 1, 1, nonlinearPreviousImageRatio);
@@ -541,7 +541,7 @@ public class MoveCamera : MonoBehaviour
 
         // ファイルを保存（Application.dataPath：現在のプロジェクトのAssetsフォルダのパスを示す） // 保存文件（Application.dataPath：表示当前项目的Assets文件夹的路径）
         string filePath = Path.Combine("D:/vectionProject/public", folderName, fileName);
-        File.WriteAllLines(filePath, data);
+        //File.WriteAllLines(filePath, data);
 
         //Debug.Log($"Data saved to {filePath}");
     }
