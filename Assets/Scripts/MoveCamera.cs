@@ -45,9 +45,11 @@ public class MoveCamera : MonoBehaviour
     private Transform continuousImageTransform;
     private Transform Image1Transform;
     private Transform Image2Transform;
+    private Transform CaptureCameraLinearBlendTransform;
     private RawImage continuousImageRawImage;// 撮影した画像を表示するためのUIコンポーネント // 用于显示拍摄图像的UI组件
     private RawImage Image1RawImage;// 撮影した画像を表示するためのUIコンポーネント // 用于显示拍摄图像的UI组件
     private RawImage Image2RawImage;// 撮影した画像を表示するためのUIコンポーネント // 用于显示拍摄图像的UI组件
+    private RawImage CaptureCameraLinearBlendRawImage;// 撮影した画像を表示するためのUIコンポーネント // 用于显示拍摄图像的UI组件
 
     public float updateInterval; // 更新間隔 (秒) // 更新间隔，单位秒
 
@@ -143,7 +145,8 @@ public class MoveCamera : MonoBehaviour
     public float SpeedFunctionOffset = 0f;
     private float SpeedFunctionTime = 0f;
     //-------------Speed ​​function end------------
-
+        Material _mat;
+    private Material matInstance;
     void Start()
     {
 
@@ -351,18 +354,18 @@ public class MoveCamera : MonoBehaviour
             targetPosition = direction * cameraSpeed * updateInterval;
 
             // LuminanceMixture method1 カメラを目標位置に移動 // 移动摄像机到目标位置
-            captureCamera1.transform.position = captureCamera1.transform.position + targetPosition;
-            captureCamera2.transform.position = captureCamera2.transform.position + targetPosition;  
+            /* captureCamera1.transform.position = captureCamera1.transform.position + targetPosition;
+            captureCamera2.transform.position = captureCamera2.transform.position + targetPosition;  */ 
 
             // LuminanceMixture method2 カメラを目標位置に移動 // 移动摄像机到目标位置
-     /*        if (frameNum % 2 == 0)
+             if (frameNum % 2 == 0)
             {
                 captureCamera1.transform.position = captureCamera1.transform.position + targetPosition;
             }
             else
             {
                 captureCamera2.transform.position = captureCamera2.transform.position + targetPosition;
-            }  */
+            }  
         }
         //輝度値を計算する 
         float Image1ToNowDeltaTime = timeMs - (frameNum - 1) * updateInterval * 1000;
@@ -384,32 +387,55 @@ public class MoveCamera : MonoBehaviour
             return (1f - r) * x + r * acosPart;
         }
         float nonlinearPreviousImageRatio = EaseRatio(previousImageRatio, functionRatio);
-        float nonlinearNextImageRatio = EaseRatio(nextImageRatio, functionRatio); 
+        
+        float nonlinearNextImageRatio = EaseRatio(nextImageRatio, functionRatio);
+
+        //使用Gamma 矫正
+         nonlinearPreviousImageRatio = Mathf.Pow(Mathf.Clamp01(nonlinearPreviousImageRatio), 2.2f);  
+        nonlinearNextImageRatio = Mathf.Pow(Mathf.Clamp01(nonlinearNextImageRatio), 2.2f);   
+
+        //使用shader
+        //matInstance.SetFloat("_BlendRatio", nonlinearPreviousImageRatio);
 
 
         SpeedFunctionTime += Time.deltaTime * SpeedFunctionFrequency;  
         Vector3 basePos  = new Vector3(0f, 0f, 0f);
 
         // 计算非线性混合比（t 可以是 previousImageRatio 和 nextImageRatio）
-                 //float nonlinearPreviousImageRatio = CalculateZ(previousImageRatio, functionType, SpeedFunctionDistance, basePos , SpeedFunctionFrequency, SpeedFunctionAmplitude, SpeedFunctionOffset);
-                //float nonlinearNextImageRatio     = CalculateZ(nextImageRatio,     functionType, SpeedFunctionDistance, basePos , SpeedFunctionFrequency, SpeedFunctionAmplitude, SpeedFunctionOffset);
-        
+        //float nonlinearPreviousImageRatio = CalculateZ(previousImageRatio, functionType, SpeedFunctionDistance, basePos , SpeedFunctionFrequency, SpeedFunctionAmplitude, SpeedFunctionOffset);
+        //float nonlinearNextImageRatio     = CalculateZ(nextImageRatio,     functionType, SpeedFunctionDistance, basePos , SpeedFunctionFrequency, SpeedFunctionAmplitude, SpeedFunctionOffset);
+
         //LuminanceMixture method1
-        Image1RawImage.color = new Color(1, 1, 1, nonlinearPreviousImageRatio);
-        Image2RawImage.color = new Color(1, 1, 1, 1.0f); 
+        /*  Image1RawImage.color = new Color(1, 1, 1, nonlinearPreviousImageRatio);
+         Image2RawImage.color = new Color(1, 1, 1, 1.0f);  */
 
 
         //LuminanceMixture method2
-        /* if (frameNum % 2 == 0)
-       {
-           Image1RawImage.color = new Color(1, 1, 1, nonlinearNextImageRatio);
-           Image2RawImage.color = new Color(1, 1, 1, 1.0f);
-       }
-       else
-       {
-           Image1RawImage.color = new Color(1, 1, 1, nonlinearPreviousImageRatio);
-           Image2RawImage.color = new Color(1, 1, 1, 1.0f);
-       } */
+                   if (frameNum % 2 == 0)
+               {
+                   Image1RawImage.color = new Color(1, 1, 1, nonlinearNextImageRatio);
+                   Image2RawImage.color = new Color(1, 1, 1, 1.0f);
+               }
+               else
+               {
+                   Image1RawImage.color = new Color(1, 1, 1, nonlinearPreviousImageRatio);
+                   Image2RawImage.color = new Color(1, 1, 1, 1.0f);
+               }   
+
+
+        //尝试透明度值固定为0.5，实时改变rgb的值
+/*         if (frameNum % 2 == 0)
+        {
+            Image1RawImage.color = new Color(nonlinearNextImageRatio, nonlinearNextImageRatio, nonlinearNextImageRatio, 0.5f);
+            Image2RawImage.color = new Color(nonlinearPreviousImageRatio, nonlinearPreviousImageRatio, nonlinearPreviousImageRatio, 1f);
+            //Image2RawImage.color = new Color(1, 1, 1, 1.0f);
+        }
+        else
+        {
+            Image1RawImage.color = new Color(nonlinearPreviousImageRatio, nonlinearPreviousImageRatio, nonlinearPreviousImageRatio, 0.5f);
+            Image2RawImage.color = new Color(nonlinearNextImageRatio, nonlinearNextImageRatio, nonlinearNextImageRatio, 1f);
+            //Image2RawImage.color = new Color(1, 1, 1, 1.0f);
+        }   */
 
         //------------波形start
         float now = Application.isPlaying ? Time.time : (float)UnityEditor.EditorApplication.timeSinceStartup;
@@ -510,13 +536,15 @@ public class MoveCamera : MonoBehaviour
         continuousImageTransform = canvas.transform.Find("CaptureCamera0");
         Image1Transform = canvas.transform.Find("CaptureCamera1");
         Image2Transform = canvas.transform.Find("CaptureCamera2");
+        CaptureCameraLinearBlendTransform = canvas.transform.Find("CaptureCameraLinearBlend");
 
         // 子オブジェクトのRawImageコンポーネントを取得 // 获取子对象的 RawImage 组件
         continuousImageRawImage = continuousImageTransform.GetComponent<RawImage>();
         Image1RawImage = Image1Transform.GetComponent<RawImage>();
         Image2RawImage = Image2Transform.GetComponent<RawImage>();
+        CaptureCameraLinearBlendRawImage= CaptureCameraLinearBlendTransform.GetComponent<RawImage>();
 
-        // 创建纯黑纹理
+/*         // 创建纯黑纹理
         Texture2D blackTex = new Texture2D(1, 1);
         blackTex.SetPixel(0, 0, Color.black);
         blackTex.Apply();
@@ -528,13 +556,27 @@ public class MoveCamera : MonoBehaviour
 
         // 设置给 RawImage
         Image2RawImage.texture = blackTex;
-        Image1RawImage.texture = whiteTex; 
+        Image1RawImage.texture = whiteTex; */
+
         // Image2RawImage.texture = whiteTex;
         // Image1RawImage.texture = blackTex;
+
         // RawImageコンポーネントを無効にする // 禁用 RawImage 组件
         continuousImageRawImage.enabled = false;
         Image1RawImage.enabled = false;
         Image2RawImage.enabled = false;
+        
+
+        // 获取材质的实例（不要直接改原始资源）
+        matInstance = new Material(Shader.Find("UI/RawImageLinearBlend"));
+
+        // 设置纹理和混合比例（例如：0.5）
+ /*        matInstance.SetTexture("_TopTex", whiteTex);
+        matInstance.SetTexture("_BottomTex", blackTex); */
+        matInstance.SetFloat("_BlendRatio", 0f);
+
+        // 设置给 RawImage 的材质
+        CaptureCameraLinearBlendRawImage.material = matInstance;
 
     }
     void QuitGame()
