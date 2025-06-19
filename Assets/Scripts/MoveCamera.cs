@@ -391,11 +391,8 @@ public class MoveCamera : MonoBehaviour
         float nonlinearNextImageRatio = EaseRatio(nextImageRatio, functionRatio);
 
         //使用Gamma 矫正
-         nonlinearPreviousImageRatio = Mathf.Pow(Mathf.Clamp01(nonlinearPreviousImageRatio), 2.2f);  
-        nonlinearNextImageRatio = Mathf.Pow(Mathf.Clamp01(nonlinearNextImageRatio), 2.2f);   
-
-        //使用shader
-        //matInstance.SetFloat("_BlendRatio", nonlinearPreviousImageRatio);
+          nonlinearPreviousImageRatio = Mathf.Pow(Mathf.Clamp01(nonlinearPreviousImageRatio), 2.2f);  
+         nonlinearNextImageRatio = Mathf.Pow(Mathf.Clamp01(nonlinearNextImageRatio), 2.2f);   
 
 
         SpeedFunctionTime += Time.deltaTime * SpeedFunctionFrequency;  
@@ -544,7 +541,7 @@ public class MoveCamera : MonoBehaviour
         Image2RawImage = Image2Transform.GetComponent<RawImage>();
         CaptureCameraLinearBlendRawImage= CaptureCameraLinearBlendTransform.GetComponent<RawImage>();
 
-/*         // 创建纯黑纹理
+        // 创建纯黑纹理
         Texture2D blackTex = new Texture2D(1, 1);
         blackTex.SetPixel(0, 0, Color.black);
         blackTex.Apply();
@@ -556,27 +553,16 @@ public class MoveCamera : MonoBehaviour
 
         // 设置给 RawImage
         Image2RawImage.texture = blackTex;
-        Image1RawImage.texture = whiteTex; */
+        Image1RawImage.texture = whiteTex; 
 
-        // Image2RawImage.texture = whiteTex;
-        // Image1RawImage.texture = blackTex;
+   /*       Image2RawImage.texture = whiteTex;
+         Image1RawImage.texture = blackTex; */
 
         // RawImageコンポーネントを無効にする // 禁用 RawImage 组件
         continuousImageRawImage.enabled = false;
         Image1RawImage.enabled = false;
         Image2RawImage.enabled = false;
         
-
-        // 获取材质的实例（不要直接改原始资源）
-        matInstance = new Material(Shader.Find("UI/RawImageLinearBlend"));
-
-        // 设置纹理和混合比例（例如：0.5）
- /*        matInstance.SetTexture("_TopTex", whiteTex);
-        matInstance.SetTexture("_BottomTex", blackTex); */
-        matInstance.SetFloat("_BlendRatio", 0f);
-
-        // 设置给 RawImage 的材质
-        CaptureCameraLinearBlendRawImage.material = matInstance;
 
     }
     void QuitGame()

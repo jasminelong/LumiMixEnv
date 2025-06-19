@@ -76,8 +76,6 @@ public class MoveCameraEditor : Editor
         prop = serializedObject.FindProperty("SpeedFunctionOffset");
         EditorGUILayout.Slider(prop, -1f, 1f); // ← 使用 Slider
 
-   /*      prop = serializedObject.FindProperty("maxDuration");
-                                      EditorGUILayout.PropertyField(prop); */
 
         serializedObject.ApplyModifiedProperties();
         //5-----輝度値の変化の表示
