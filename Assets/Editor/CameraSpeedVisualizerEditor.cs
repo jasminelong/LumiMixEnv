@@ -56,6 +56,13 @@ public class MoveCameraEditor : Editor
         prop = serializedObject.FindProperty("trialNumber");
         EditorGUILayout.PropertyField(prop);
 
+                prop = serializedObject.FindProperty("texture1");
+        EditorGUILayout.PropertyField(prop);
+
+                prop = serializedObject.FindProperty("texture2");
+        EditorGUILayout.PropertyField(prop);
+                        prop = serializedObject.FindProperty("Mat_GrayscaleOverBlend");
+        EditorGUILayout.PropertyField(prop);
 
         GUILayout.Space(10);
         prop = serializedObject.FindProperty("functionRatio");

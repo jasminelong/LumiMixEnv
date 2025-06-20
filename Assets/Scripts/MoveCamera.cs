@@ -147,6 +147,9 @@ public class MoveCamera : MonoBehaviour
     //-------------Speed ​​function end------------
         Material _mat;
     private Material matInstance;
+    public RenderTexture  texture1;
+    public RenderTexture  texture2;
+    public Material Mat_GrayscaleOverBlend; 
     void Start()
     {
 
@@ -391,8 +394,8 @@ public class MoveCamera : MonoBehaviour
         float nonlinearNextImageRatio = EaseRatio(nextImageRatio, functionRatio);
 
         //使用Gamma 矫正
-          nonlinearPreviousImageRatio = Mathf.Pow(Mathf.Clamp01(nonlinearPreviousImageRatio), 2.2f);  
-         nonlinearNextImageRatio = Mathf.Pow(Mathf.Clamp01(nonlinearNextImageRatio), 2.2f);   
+/*           nonlinearPreviousImageRatio = Mathf.Pow(Mathf.Clamp01(nonlinearPreviousImageRatio), 2.2f);  
+         nonlinearNextImageRatio = Mathf.Pow(Mathf.Clamp01(nonlinearNextImageRatio), 2.2f);    */
 
 
         SpeedFunctionTime += Time.deltaTime * SpeedFunctionFrequency;  
@@ -405,6 +408,7 @@ public class MoveCamera : MonoBehaviour
         //LuminanceMixture method1
         /*  Image1RawImage.color = new Color(1, 1, 1, nonlinearPreviousImageRatio);
          Image2RawImage.color = new Color(1, 1, 1, 1.0f);  */
+         
 
 
         //LuminanceMixture method2
@@ -412,27 +416,20 @@ public class MoveCamera : MonoBehaviour
                {
                    Image1RawImage.color = new Color(1, 1, 1, nonlinearNextImageRatio);
                    Image2RawImage.color = new Color(1, 1, 1, 1.0f);
+
+
+CaptureCameraLinearBlendRawImage.material.SetColor("_TopColor", new Color(1,1,1,nonlinearNextImageRatio)); // 透明度
+        CaptureCameraLinearBlendRawImage.material.SetColor("_BottomColor", new Color(1, 1, 1, nonlinearPreviousImageRatio));
                }
                else
                {
                    Image1RawImage.color = new Color(1, 1, 1, nonlinearPreviousImageRatio);
                    Image2RawImage.color = new Color(1, 1, 1, 1.0f);
+
+CaptureCameraLinearBlendRawImage.material.SetColor("_TopColor", new Color(1,1,1,nonlinearPreviousImageRatio)); // 透明度
+        CaptureCameraLinearBlendRawImage.material.SetColor("_BottomColor", new Color(1, 1, 1, nonlinearNextImageRatio));
                }   
 
-
-        //尝试透明度值固定为0.5，实时改变rgb的值
-/*         if (frameNum % 2 == 0)
-        {
-            Image1RawImage.color = new Color(nonlinearNextImageRatio, nonlinearNextImageRatio, nonlinearNextImageRatio, 0.5f);
-            Image2RawImage.color = new Color(nonlinearPreviousImageRatio, nonlinearPreviousImageRatio, nonlinearPreviousImageRatio, 1f);
-            //Image2RawImage.color = new Color(1, 1, 1, 1.0f);
-        }
-        else
-        {
-            Image1RawImage.color = new Color(nonlinearPreviousImageRatio, nonlinearPreviousImageRatio, nonlinearPreviousImageRatio, 0.5f);
-            Image2RawImage.color = new Color(nonlinearNextImageRatio, nonlinearNextImageRatio, nonlinearNextImageRatio, 1f);
-            //Image2RawImage.color = new Color(1, 1, 1, 1.0f);
-        }   */
 
         //------------波形start
         float now = Application.isPlaying ? Time.time : (float)UnityEditor.EditorApplication.timeSinceStartup;
@@ -541,22 +538,30 @@ public class MoveCamera : MonoBehaviour
         Image2RawImage = Image2Transform.GetComponent<RawImage>();
         CaptureCameraLinearBlendRawImage= CaptureCameraLinearBlendTransform.GetComponent<RawImage>();
 
-        // 创建纯黑纹理
-        Texture2D blackTex = new Texture2D(1, 1);
-        blackTex.SetPixel(0, 0, Color.black);
-        blackTex.Apply();
+CaptureCameraLinearBlendRawImage.material = new Material(Mat_GrayscaleOverBlend);
+CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", texture1);       // 上层图
+CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", texture2);    // 下层图
 
-        // 创建纯白纹理
-        Texture2D whiteTex = new Texture2D(1, 1);
-        whiteTex.SetPixel(0, 0, Color.white);
-        whiteTex.Apply();
 
-        // 设置给 RawImage
-        Image2RawImage.texture = blackTex;
-        Image1RawImage.texture = whiteTex; 
 
-   /*       Image2RawImage.texture = whiteTex;
-         Image1RawImage.texture = blackTex; */
+
+
+        /*         // 创建纯黑纹理
+                Texture2D blackTex = new Texture2D(1, 1);
+                blackTex.SetPixel(0, 0, Color.black);
+                blackTex.Apply();
+
+                // 创建纯白纹理
+                Texture2D whiteTex = new Texture2D(1, 1);
+                whiteTex.SetPixel(0, 0, Color.white);
+                whiteTex.Apply();
+
+                // 设置给 RawImage
+                Image2RawImage.texture = blackTex;
+                Image1RawImage.texture = whiteTex; 
+         */
+        /*       Image2RawImage.texture = whiteTex;
+              Image1RawImage.texture = blackTex; */
 
         // RawImageコンポーネントを無効にする // 禁用 RawImage 组件
         continuousImageRawImage.enabled = false;
