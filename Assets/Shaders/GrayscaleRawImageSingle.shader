@@ -38,7 +38,7 @@ Shader "UI/GrayscaleRawImageSingle"
             fixed4 frag (v2f i) : SV_Target
             {
                 fixed4 col = tex2D(_MainTex, i.uv);
-                float gray = dot(col.rgb, float3(0.299, 0.587, 0.114));
+                float gray = dot(col.rgb, float3(0.2126, 0.7152, 0.0722));
                 return fixed4(gray, gray, gray, col.a);
             }
             ENDCG

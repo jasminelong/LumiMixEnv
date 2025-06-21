@@ -65,7 +65,7 @@ public class MoveCamera : MonoBehaviour
 
     private List<string> data = new List<string>();
     private float startTime;
-    private string folderName = "Experiment2Data"; // サブフォルダ名 // 子文件夹名称
+    private string folderName = "BrightnessLinearData"; // サブフォルダ名 // 子文件夹名称
     private float timeMs; // 現在までの経過時間 // 运行到现在的时间
     private Vector3 direction;
 
@@ -147,8 +147,6 @@ public class MoveCamera : MonoBehaviour
     //-------------Speed ​​function end------------
         Material _mat;
     private Material matInstance;
-    public RenderTexture  texture1;
-    public RenderTexture  texture2;
     public Material Mat_GrayscaleOverBlend; 
     void Start()
     {
@@ -321,6 +319,7 @@ public class MoveCamera : MonoBehaviour
         }
         else if (responsePattern == ResponsePattern.Amplitude)
         {
+            
             // 現在のstepのAmplitudeを計算
             if (step >= 1 && step < amplitudes.Length)
             {
@@ -330,11 +329,20 @@ public class MoveCamera : MonoBehaviour
             // 计算 v
             v = V0;
 
+            //v(t)=V0+A1·sin(ωt)+A2·cos(ωt)+A3·sin(2ωt)+A4·cos(2ωt)
             // 現在の速度を計算
-            if (step >= 1) v += amplitudes[1] * Mathf.Sin(omega * time);
+           /*  if (step >= 1) v += amplitudes[1] * Mathf.Sin(omega * time);
             if (step >= 2) v += amplitudes[2] * Mathf.Cos(omega * time);
             if (step >= 3) v += amplitudes[3] * Mathf.Sin(2 * omega * time);
-            if (step >= 4) v += amplitudes[4] * Mathf.Cos(2 * omega * time);
+            if (step >= 4) v += amplitudes[4] * Mathf.Cos(2 * omega * time); */
+
+            //v(t)=V0 + A1·sin(ωt + φ) + A2·sin(2ωt + 2φ)
+            //v(t)=V0 + A1·sin(ωt + A2) + A3·sin(2ωt + A4)
+            // 現在の速度を計算
+            if (step >= 1) v = V0 + amplitudes[1] * Mathf.Sin(omega * time);
+            if (step >= 2) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]);
+            if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time);
+            if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time+ amplitudes[4]);
         }
 
 
@@ -414,20 +422,20 @@ public class MoveCamera : MonoBehaviour
         //LuminanceMixture method2
                    if (frameNum % 2 == 0)
                {
-                   Image1RawImage.color = new Color(1, 1, 1, nonlinearNextImageRatio);
-                   Image2RawImage.color = new Color(1, 1, 1, 1.0f);
+                   /* Image1RawImage.color = new Color(1, 1, 1, nonlinearNextImageRatio);
+                   Image2RawImage.color = new Color(1, 1, 1, 1.0f); */
 
 
 CaptureCameraLinearBlendRawImage.material.SetColor("_TopColor", new Color(1,1,1,nonlinearNextImageRatio)); // 透明度
-        CaptureCameraLinearBlendRawImage.material.SetColor("_BottomColor", new Color(1, 1, 1, nonlinearPreviousImageRatio));
+        CaptureCameraLinearBlendRawImage.material.SetColor("_BottomColor", new Color(1, 1, 1, 1.0f));
                }
                else
                {
-                   Image1RawImage.color = new Color(1, 1, 1, nonlinearPreviousImageRatio);
-                   Image2RawImage.color = new Color(1, 1, 1, 1.0f);
+                 /*   Image1RawImage.color = new Color(1, 1, 1, nonlinearPreviousImageRatio);
+                   Image2RawImage.color = new Color(1, 1, 1, 1.0f); */
 
 CaptureCameraLinearBlendRawImage.material.SetColor("_TopColor", new Color(1,1,1,nonlinearPreviousImageRatio)); // 透明度
-        CaptureCameraLinearBlendRawImage.material.SetColor("_BottomColor", new Color(1, 1, 1, nonlinearNextImageRatio));
+        CaptureCameraLinearBlendRawImage.material.SetColor("_BottomColor", new Color(1, 1, 1, 1.0f));
                }   
 
 
@@ -539,8 +547,8 @@ CaptureCameraLinearBlendRawImage.material.SetColor("_TopColor", new Color(1,1,1,
         CaptureCameraLinearBlendRawImage= CaptureCameraLinearBlendTransform.GetComponent<RawImage>();
 
 CaptureCameraLinearBlendRawImage.material = new Material(Mat_GrayscaleOverBlend);
-CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", texture1);       // 上层图
-CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", texture2);    // 下层图
+CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture1);       // 上层图
+CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture2);    // 下层图
 
 
 
@@ -588,9 +596,10 @@ CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", texture2);   
         // ファイル名を構築 // 构建文件名
         string fileName = $"{date}_{experimentalCondition}.csv";
 
+
         // ファイルを保存（Application.dataPath：現在のプロジェクトのAssetsフォルダのパスを示す） // 保存文件（Application.dataPath：表示当前项目的Assets文件夹的路径）
         string filePath = Path.Combine("D:/vectionProject/public", folderName, fileName);
-        //File.WriteAllLines(filePath, data);
+        File.WriteAllLines(filePath, data);
 
         //Debug.Log($"Data saved to {filePath}");
     }
