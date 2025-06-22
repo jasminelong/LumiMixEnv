@@ -73,7 +73,7 @@ public class MoveCamera : MonoBehaviour
     private Quaternion forwardMoveRotation = Quaternion.Euler(0, 146.8f, 0);
     private int currentStep = 0;
     public float v;
-    public float[] amplitudes = new float[5];
+    public float[] amplitudes = new float[10];
     public SerialReader SerialReader;
     // Start is called before the first frame update
 
@@ -321,37 +321,42 @@ public class MoveCamera : MonoBehaviour
         {
             //1.v(t)=V0+A1·sin(ωt)+A2·cos(ωt)+A3·sin(2ωt)+A4·cos(2ωt)
             // 現在のstepのAmplitudeを計算
-            /*  if (step >= 1 && step < amplitudes.Length)
+               if (step >= 1 && step < amplitudes.Length)
              {
                  amplitudes[step] = amplitude;
-             } */
+             } 
 
             // 计算 v
-            //v = V0;
+            v = V0;
 
 
             // 現在の速度を計算
-            /*  if (step >= 1) v += amplitudes[1] * Mathf.Sin(omega * time);
-             if (step >= 2) v += amplitudes[2] * Mathf.Cos(omega * time);
-             if (step >= 3) v += amplitudes[3] * Mathf.Sin(2 * omega * time);
-             if (step >= 4) v += amplitudes[4] * Mathf.Cos(2 * omega * time); */
+            if (step >= 1) v += amplitudes[1] * Mathf.Sin(0.5f * omega * time);
+             if (step >= 2) v += amplitudes[2] * Mathf.Cos(0.5f * omega * time);
+             if (step >= 3) v += amplitudes[3] * Mathf.Sin( omega * time);
+             if (step >= 4) v += amplitudes[4] * Mathf.Cos( omega * time);  
 
 
             //2.v(t)=V0 + A1·sin(ωt + φ) + A2·sin(2ωt + 2φ)
             //v(t)=V0 + A1·sin(ωt + A2) + A3·sin(2ωt + A4)
             // 現在の速度を計算
-            /*  if ((step == 1 || step == 3) && step < amplitudes.Length)
+              /* if ((step == 1 || step == 3) && step < amplitudes.Length)
              {
                  amplitudes[step] = A_min + knobValue * (A_max - A_min);
              }
              if ((step == 2 || step == 4) && step < amplitudes.Length)
              {
-                 amplitudes[step] = -Mathf.PI + knobValue * 2f * Mathf.PI;  // -π … +π
-             } */
-            /* if (step >= 1) v = V0 + amplitudes[1] * Mathf.Sin(omega * time);
-            if (step >= 2) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]);
-            if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time);
-            if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4]); */
+                 amplitudes[step] = knobValue * 2f * Mathf.PI;  // -π … +π
+             } 
+            if (step >= 1) v = V0 + amplitudes[1] * Mathf.Sin(omega * time);//amplitudes[1] 
+            if (step >= 2) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]);//amplitudes[2]
+            if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]);//amplitudes[1] 
+            if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]);//amplitudes[2]
+            //if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time);
+            if (step >= 5) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time);//amplitudes[3]
+            if (step >= 6) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4]); //amplitudes[4]
+            if (step >= 7) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time);//amplitudes[3]
+            if (step >= 8) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4]); //amplitudes[4] */
 
 
             //3.v(t)=V0 + A · triγ(ωt+φ)
@@ -369,19 +374,20 @@ public class MoveCamera : MonoBehaviour
 
 
             //4.Gamma脉冲波
-             if (step >= 1 && step < amplitudes.Length)
+           /*   if (step >= 1 && step < amplitudes.Length)
              {
                  amplitudes[step] = amplitude;
              } 
-            if (step >= 1) v = V0 + amplitudes[1] * GammaFunc(time, 0f, 0f);
-            if (step >= 2) v = V0 + amplitudes[1] * GammaFunc(time, amplitudes[2], 0f);
+            if (step >= 1) v = V0 + amplitudes[1] * GammaFunc(time, 0.001f, 0.001f);
+            if (step >= 2) v = V0 + amplitudes[1] * GammaFunc(time, amplitudes[2], 0.001f);
             if (step >= 3) v = V0 + amplitudes[1] * GammaFunc(time, amplitudes[2], amplitudes[3]);
             if (step >= 4)
             {
                 float t = Mathf.Repeat(Time.time + amplitudes[4]  / (2f * Mathf.PI), 1f);
                 v = V0 + amplitudes[1] * GammaFunc(t, amplitudes[2], amplitudes[3]);
-            } 
+            }  */
         }
+
 
 
 
@@ -389,14 +395,11 @@ public class MoveCamera : MonoBehaviour
         //data.Add($"{timeMs:F3}, {SerialReader.lastSensorValue}, {responsePattern}, {step}, {amplitude}, {v}");
     }
 
-float GammaFunc(float t, float alpha, float beta)
+ 
+float GammaApprox(float z)
 {
-    if (t < 0f) return 0f;
-    float norm = GammaApprox(alpha);      // 代替 Mathf.Gamma(alpha)
-    return Mathf.Pow(t, alpha - 1f) * Mathf.Exp(-t / beta) / (Mathf.Pow(beta, alpha) * norm);
-}
-    float GammaApprox(float z)
-{
+    if (z <= 0f) return float.NaN;
+
     float[] p = {
         1.000000000190015f,
         76.18009172947146f,
@@ -414,6 +417,17 @@ float GammaFunc(float t, float alpha, float beta)
     float t = z + 5.5f;
     return Mathf.Sqrt(2 * Mathf.PI) * Mathf.Pow(t, z + 0.5f) * Mathf.Exp(-t) * x;
 }
+
+float GammaFunc(float t, float alpha, float beta)
+{
+    if (t < 0f || alpha <= 0f || beta <= 0f) return 0f;  // 非法输入直接返回0
+
+    float norm = GammaApprox(alpha);
+    if (float.IsNaN(norm) || norm <= 0f) return 0f;      // 安全保护
+
+    return Mathf.Pow(t, alpha - 1f) * Mathf.Exp(-t / beta) / (Mathf.Pow(beta, alpha) * norm);
+}
+
     float TriGamma(float phase, float g){
         float y = 1f - Mathf.Abs(1f - Mathf.Repeat(phase, 2f*Mathf.PI)/Mathf.PI);
         return 1f - Mathf.Pow(y, g);
@@ -666,7 +680,7 @@ CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageT
 
         // ファイルを保存（Application.dataPath：現在のプロジェクトのAssetsフォルダのパスを示す） // 保存文件（Application.dataPath：表示当前项目的Assets文件夹的路径）
         string filePath = Path.Combine("D:/vectionProject/public", folderName, fileName);
-        //File.WriteAllLines(filePath, data);
+        File.WriteAllLines(filePath, data);
 
         //Debug.Log($"Data saved to {filePath}");
     }
