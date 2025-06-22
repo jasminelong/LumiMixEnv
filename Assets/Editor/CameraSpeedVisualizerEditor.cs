@@ -5,8 +5,8 @@ using System.Collections.Generic;
 [CustomEditor(typeof(MoveCamera))]
 public class MoveCameraEditor : Editor
 {
-    private const int graphWidth = 500;
-    private const int graphHeight = 100;
+    private int graphWidth = 500;
+    private  int graphHeight = 200;
     private Texture2D graphTexture;
     private Queue<float> velocityHistory = new Queue<float>();
 
@@ -159,12 +159,17 @@ public class MoveCameraEditor : Editor
         EditorGUILayout.PropertyField(prop);
 
         serializedObject.ApplyModifiedProperties();
+
         //4----- 表示 A1 ~ A4
         EditorGUILayout.LabelField("Amplitude Sliders (A1 ~ A4)", EditorStyles.boldLabel);
+
+        float[] minValues = { -1f, -5f, -1f, -5f };
+        float[] maxValues = { 3f, 10f, 3f, 10f };
+
         for (int i = 1; i < script.amplitudes.Length; i++)
         {
             float value = script.GetAmplitude(i);
-            float newValue = EditorGUILayout.Slider($"A{i}", value, 0f, 5f);
+            float newValue = EditorGUILayout.Slider($"A{i}", value, minValues[i - 1], maxValues[i - 1]);
             if (newValue != value)
             {
                 Undo.RecordObject(script, "Change Amplitude");
@@ -239,11 +244,15 @@ public class MoveCameraEditor : Editor
         }
 
         // 初始化图像
-        if (graphTexture == null)
+        int dynamicWidth = (int)(EditorGUIUtility.currentViewWidth - 80); // 计算动态宽度
+        if (graphTexture == null || graphTexture.width != dynamicWidth || graphTexture.height != graphHeight)
         {
+            graphWidth = dynamicWidth; // ✅ 把它赋给 graphWidth（变量）
             graphTexture = new Texture2D(graphWidth, graphHeight);
             graphTexture.filterMode = FilterMode.Point;
+            graphTexture.wrapMode = TextureWrapMode.Clamp;
         }
+
 
         // 清除图像
         Color backgroundColor = new Color(0.12f, 0.12f, 0.12f);
@@ -278,9 +287,24 @@ public class MoveCameraEditor : Editor
         graphTexture.Apply();
 
         GUILayout.Label("📈 速度曲線 v(t)", EditorStyles.boldLabel);
-        GUILayout.Label(graphTexture);
-        //GUILayout.Label(graphTexture, GUILayout.ExpandWidth(true), GUILayout.Height(graphHeight));
 
+        // ✅ 加入：刻度 + 图像 并排显示
+        EditorGUILayout.BeginHorizontal();
+
+        // 左：Y刻度区域
+        GUILayout.BeginVertical(GUILayout.Width(60));
+        int yDiv = 5;
+        for (int i = yDiv; i >= 0; i--)
+        {
+        float v = Mathf.Lerp(minV, maxV, i / (float)yDiv);
+        GUILayout.Label(v.ToString("F2"), GUILayout.Height(graphHeight / (float)yDiv));
+        }
+        GUILayout.EndVertical();
+
+        // 右：图像区域（宽度自适应）
+        GUILayout.Label(graphTexture, GUILayout.ExpandWidth(true), GUILayout.Height(graphHeight));
+
+        EditorGUILayout.EndHorizontal();
         // 显示实时值
         float time = Time.time;
         if (Application.isPlaying)
