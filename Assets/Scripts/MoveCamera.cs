@@ -530,7 +530,7 @@ public class MoveCamera : MonoBehaviour
             CaptureCameraLinearBlendRawImage.material.SetColor("_TopColor", new Color(1, 1, 1, nonlinearNextImageRatio)); // 透明度
             CaptureCameraLinearBlendRawImage.material.SetColor("_BottomColor", new Color(1, 1, 1, 1.0f));
             alphaHistory.Add(nonlinearPreviousImageRatio);
-            Debug.Log("nonlinearNextImageRatio" + nonlinearNextImageRatio);
+            Debug.Log("nonlinearNextImageRatio" + nonlinearNextImageRatio + "       "+ timeMs);
         }
         else
         {
@@ -540,7 +540,7 @@ public class MoveCamera : MonoBehaviour
             CaptureCameraLinearBlendRawImage.material.SetColor("_TopColor", new Color(1, 1, 1, nonlinearPreviousImageRatio)); // 透明度
             CaptureCameraLinearBlendRawImage.material.SetColor("_BottomColor", new Color(1, 1, 1, 1.0f));
             alphaHistory.Add(nonlinearNextImageRatio);
-            Debug.Log("nonlinearPreviousImageRatio" + nonlinearPreviousImageRatio);
+            Debug.Log("nonlinearPreviousImageRatio" + nonlinearPreviousImageRatio  + "       "+ timeMs);
         }
 
 
