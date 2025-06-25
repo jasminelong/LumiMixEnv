@@ -89,7 +89,7 @@ public class MoveCamera : MonoBehaviour
     public int trialNumber = 1;
 
     //记录Image1RawImage的透明度使用的相关变量
-    [Space(20)]  
+    [Space(20)]
     [Header("🔧 Image1RawImageの輝度値の記録")]
     [Range(-10, 10)]
     public float functionRatio = 0f; // 非线性度合成比 // 非线性度合成比
@@ -101,11 +101,11 @@ public class MoveCamera : MonoBehaviour
 
 
     //速度を調整
-    [Space(20)]  
+    [Space(20)]
     [Header("🔧 基本パラメータ（調整可能）")]
     [Range(0.1f, 10f)]
     // public float omega = 2 * Mathf.PI; // 角速度（頻度）
-    public float omega =  Mathf.PI; // 角速度（頻度）
+    public float omega = Mathf.PI; // 角速度（頻度）
 
     [Range(-1f, 5f)]
     public float A_min = -1f;
@@ -144,12 +144,24 @@ public class MoveCamera : MonoBehaviour
     public float SpeedFunctionOffset = 0f;
     private float SpeedFunctionTime = 0f;
     //-------------Speed ​​function end------------
-        Material _mat;
+    Material _mat;
     private Material matInstance;
-    public Material Mat_GrayscaleOverBlend; 
-// 对数刻度
+    public Material Mat_GrayscaleOverBlend;
+    private Texture2D blackTexture;
+    private Texture2D whiteTexture;
+    // 对数刻度
     void Start()
     {
+        /* //test
+        // 创建纯黑纹理
+        blackTexture = new Texture2D(1, 1);
+        blackTexture.SetPixel(0, 0, Color.black);
+        blackTexture.Apply();
+
+        // 创建纯白纹理
+        whiteTexture = new Texture2D(1, 1);
+        whiteTexture.SetPixel(0, 0, Color.white);
+        whiteTexture.Apply(); */
 
         // 垂直同期を無効にする // 关闭垂直同步
         QualitySettings.vSyncCount = 0;
@@ -210,24 +222,24 @@ public class MoveCamera : MonoBehaviour
 
         //輝度値の変化の表示
         float now = Application.isPlaying ? Time.time : (float)UnityEditor.EditorApplication.timeSinceStartup;
-/* 
-        // 現在の alpha 値をサンプルに追加//添加当前样本
-        timeStamps.Add(now);
-        alphaHistory.Add(Image1RawImage.color.a);
+        /* 
+                // 現在の alpha 値をサンプルに追加//添加当前样本
+                timeStamps.Add(now);
+                alphaHistory.Add(Image1RawImage.color.a);
 
-        // 1秒より前のデータを削除//剔除 1 秒以前的数据
-        while (timeStamps.Count > 0 && timeStamps[0] < now - 5f)
-        {
-            timeStamps.RemoveAt(0);
-            alphaHistory.RemoveAt(0);
-        }
+                // 1秒より前のデータを削除//剔除 1 秒以前的数据
+                while (timeStamps.Count > 0 && timeStamps[0] < now - 5f)
+                {
+                    timeStamps.RemoveAt(0);
+                    alphaHistory.RemoveAt(0);
+                }
 
-        // 上限を超えた場合は最古データから削除 //如果依然过多，按最早移除
-        if (timeStamps.Count > maxSamples)
-        {
-            timeStamps.RemoveAt(0);
-            alphaHistory.RemoveAt(0);
-        } */
+                // 上限を超えた場合は最古データから削除 //如果依然过多，按最早移除
+                if (timeStamps.Count > maxSamples)
+                {
+                    timeStamps.RemoveAt(0);
+                    alphaHistory.RemoveAt(0);
+                } */
     }
     // Update is called once per frame
     void FixedUpdate()
@@ -237,7 +249,7 @@ public class MoveCamera : MonoBehaviour
         LuminanceMixture();
 
     }
-    
+
     void InitialSetup()
     {
         frameNum = 1;
@@ -321,42 +333,42 @@ public class MoveCamera : MonoBehaviour
         {
             //1.v(t)=V0+A1·sin(ωt)+A2·cos(ωt)+A3·sin(2ωt)+A4·cos(2ωt)
             // 現在のstepのAmplitudeを計算
-               if (step >= 1 && step < amplitudes.Length)
-             {
-                 amplitudes[step] = amplitude;
-             } 
+            //    if (step >= 1 && step < amplitudes.Length)
+            //  {
+            //      amplitudes[step] = amplitude;
+            //  } 
 
-            // 计算 v
-            v = V0;
+            // // 计算 v
+            // v = V0;
 
 
-            // 現在の速度を計算
-            if (step >= 1) v += amplitudes[1] * Mathf.Sin(0.5f * omega * time);
-             if (step >= 2) v += amplitudes[2] * Mathf.Cos(0.5f * omega * time);
-             if (step >= 3) v += amplitudes[3] * Mathf.Sin( omega * time);
-             if (step >= 4) v += amplitudes[4] * Mathf.Cos( omega * time);  
+            // // 現在の速度を計算
+            // if (step >= 1) v += amplitudes[1] * Mathf.Sin(0.5f * omega * time);
+            //  if (step >= 2) v += amplitudes[2] * Mathf.Cos(0.5f * omega * time);
+            //  if (step >= 3) v += amplitudes[3] * Mathf.Sin( omega * time);
+            //  if (step >= 4) v += amplitudes[4] * Mathf.Cos( omega * time);  
 
 
             //2.v(t)=V0 + A1·sin(ωt + φ) + A2·sin(2ωt + 2φ)
             //v(t)=V0 + A1·sin(ωt + A2) + A3·sin(2ωt + A4)
             // 現在の速度を計算
-              /* if ((step == 1 || step == 3) && step < amplitudes.Length)
-             {
-                 amplitudes[step] = A_min + knobValue * (A_max - A_min);
-             }
-             if ((step == 2 || step == 4) && step < amplitudes.Length)
-             {
-                 amplitudes[step] = knobValue * 2f * Mathf.PI;  // -π … +π
-             } 
+            if ((step == 1 || step == 3) && step < amplitudes.Length)
+            {
+                amplitudes[step] = A_min + knobValue * (A_max - A_min);
+            }
+            if ((step == 2 || step == 4) && step < amplitudes.Length)
+            {
+                amplitudes[step] = knobValue * 2f * Mathf.PI;  // -π … +π
+            }
             if (step >= 1) v = V0 + amplitudes[1] * Mathf.Sin(omega * time);//amplitudes[1] 
             if (step >= 2) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]);//amplitudes[2]
-            if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]);//amplitudes[1] 
-            if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]);//amplitudes[2]
+            //if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]);//amplitudes[1] 
+            //if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]);//amplitudes[2]
             //if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time);
-            if (step >= 5) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time);//amplitudes[3]
-            if (step >= 6) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4]); //amplitudes[4]
-            if (step >= 7) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time);//amplitudes[3]
-            if (step >= 8) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4]); //amplitudes[4] */
+            if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time);//amplitudes[3]
+            if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4]); //amplitudes[4]
+                                                                                                                                                           //if (step >= 7) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time);//amplitudes[3]
+                                                                                                                                                           //if (step >= 8) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4]); //amplitudes[4] */
 
 
             //3.v(t)=V0 + A · triγ(ωt+φ)
@@ -374,18 +386,18 @@ public class MoveCamera : MonoBehaviour
 
 
             //4.Gamma脉冲波
-           /*   if (step >= 1 && step < amplitudes.Length)
+            /*   if (step >= 1 && step < amplitudes.Length)
+              {
+                  amplitudes[step] = amplitude;
+              } 
+             if (step >= 1) v = V0 + amplitudes[1] * GammaFunc(time, 0.001f, 0.001f);
+             if (step >= 2) v = V0 + amplitudes[1] * GammaFunc(time, amplitudes[2], 0.001f);
+             if (step >= 3) v = V0 + amplitudes[1] * GammaFunc(time, amplitudes[2], amplitudes[3]);
+             if (step >= 4)
              {
-                 amplitudes[step] = amplitude;
-             } 
-            if (step >= 1) v = V0 + amplitudes[1] * GammaFunc(time, 0.001f, 0.001f);
-            if (step >= 2) v = V0 + amplitudes[1] * GammaFunc(time, amplitudes[2], 0.001f);
-            if (step >= 3) v = V0 + amplitudes[1] * GammaFunc(time, amplitudes[2], amplitudes[3]);
-            if (step >= 4)
-            {
-                float t = Mathf.Repeat(Time.time + amplitudes[4]  / (2f * Mathf.PI), 1f);
-                v = V0 + amplitudes[1] * GammaFunc(t, amplitudes[2], amplitudes[3]);
-            }  */
+                 float t = Mathf.Repeat(Time.time + amplitudes[4]  / (2f * Mathf.PI), 1f);
+                 v = V0 + amplitudes[1] * GammaFunc(t, amplitudes[2], amplitudes[3]);
+             }  */
         }
 
 
@@ -395,12 +407,12 @@ public class MoveCamera : MonoBehaviour
         //data.Add($"{timeMs:F3}, {SerialReader.lastSensorValue}, {responsePattern}, {step}, {amplitude}, {v}");
     }
 
- 
-float GammaApprox(float z)
-{
-    if (z <= 0f) return float.NaN;
 
-    float[] p = {
+    float GammaApprox(float z)
+    {
+        if (z <= 0f) return float.NaN;
+
+        float[] p = {
         1.000000000190015f,
         76.18009172947146f,
         -86.50532032941677f,
@@ -410,26 +422,27 @@ float GammaApprox(float z)
         -0.5395239384953e-5f
     };
 
-    float x = p[0];
-    for (int i = 1; i < p.Length; i++)
-        x += p[i] / (z + i);
+        float x = p[0];
+        for (int i = 1; i < p.Length; i++)
+            x += p[i] / (z + i);
 
-    float t = z + 5.5f;
-    return Mathf.Sqrt(2 * Mathf.PI) * Mathf.Pow(t, z + 0.5f) * Mathf.Exp(-t) * x;
-}
+        float t = z + 5.5f;
+        return Mathf.Sqrt(2 * Mathf.PI) * Mathf.Pow(t, z + 0.5f) * Mathf.Exp(-t) * x;
+    }
 
-float GammaFunc(float t, float alpha, float beta)
-{
-    if (t < 0f || alpha <= 0f || beta <= 0f) return 0f;  // 非法输入直接返回0
+    float GammaFunc(float t, float alpha, float beta)
+    {
+        if (t < 0f || alpha <= 0f || beta <= 0f) return 0f;  // 非法输入直接返回0
 
-    float norm = GammaApprox(alpha);
-    if (float.IsNaN(norm) || norm <= 0f) return 0f;      // 安全保护
+        float norm = GammaApprox(alpha);
+        if (float.IsNaN(norm) || norm <= 0f) return 0f;      // 安全保护
 
-    return Mathf.Pow(t, alpha - 1f) * Mathf.Exp(-t / beta) / (Mathf.Pow(beta, alpha) * norm);
-}
+        return Mathf.Pow(t, alpha - 1f) * Mathf.Exp(-t / beta) / (Mathf.Pow(beta, alpha) * norm);
+    }
 
-    float TriGamma(float phase, float g){
-        float y = 1f - Mathf.Abs(1f - Mathf.Repeat(phase, 2f*Mathf.PI)/Mathf.PI);
+    float TriGamma(float phase, float g)
+    {
+        float y = 1f - Mathf.Abs(1f - Mathf.Repeat(phase, 2f * Mathf.PI) / Mathf.PI);
         return 1f - Mathf.Pow(y, g);
     }
     void LuminanceMixture()
@@ -446,19 +459,31 @@ float GammaFunc(float t, float alpha, float beta)
             targetPosition = direction * cameraSpeed * updateInterval;
 
             // LuminanceMixture method1 カメラを目標位置に移動 // 移动摄像机到目标位置
-            /* captureCamera1.transform.position = captureCamera1.transform.position + targetPosition;
-            captureCamera2.transform.position = captureCamera2.transform.position + targetPosition;  */ 
+            captureCamera1.transform.position = captureCamera1.transform.position + targetPosition;
+            captureCamera2.transform.position = captureCamera2.transform.position + targetPosition;
 
             // LuminanceMixture method2 カメラを目標位置に移動 // 移动摄像机到目标位置
-             if (frameNum % 2 == 0)
-            {
-                captureCamera1.transform.position = captureCamera1.transform.position + targetPosition;
-            }
-            else
-            {
-                captureCamera2.transform.position = captureCamera2.transform.position + targetPosition;
-            }  
+            /*    if (frameNum % 2 == 0)
+               {
+                   captureCamera1.transform.position = captureCamera1.transform.position + targetPosition;
+               }
+               else
+               {
+                   captureCamera2.transform.position = captureCamera2.transform.position + targetPosition;
+               }    */
         }
+        if (frameNum % 2 == 0)
+        {
+            CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture2);       // 上层图
+            CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture1);    // 下层图  
+        }
+        else
+        {
+            CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture1);       // 上层图
+            CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture2);    // 下层图  
+        }
+
+
         //輝度値を計算する 
         float Image1ToNowDeltaTime = timeMs - (frameNum - 1) * updateInterval * 1000;
         float nextRatio = Image1ToNowDeltaTime / (updateInterval * 1000);
@@ -469,7 +494,7 @@ float GammaFunc(float t, float alpha, float beta)
 
         // Image1RawImage.color = new Color(Image1RawImage.color.r, Image1RawImage.color.g, Image1RawImage.color.b, previousImageRatio);
         // Image2RawImage.color = new Color(Image2RawImage.color.r, Image2RawImage.color.g, Image2RawImage.color.b, nextImageRatio);
-        
+
         // 非线性函数 f_nonlinear(x) = (1-r)*x + r*(acosxfvbfxbxcvxcvxckdfljgksljfksdlfj(-2x+1)/π)
         float EaseRatio(float x, float r)
         {
@@ -479,59 +504,51 @@ float GammaFunc(float t, float alpha, float beta)
             return (1f - r) * x + r * acosPart;
         }
         float nonlinearPreviousImageRatio = EaseRatio(previousImageRatio, functionRatio);
-        
         float nonlinearNextImageRatio = EaseRatio(nextImageRatio, functionRatio);
 
-        //使用Gamma 矫正
-/*           nonlinearPreviousImageRatio = Mathf.Pow(Mathf.Clamp01(nonlinearPreviousImageRatio), 2.2f);  
-         nonlinearNextImageRatio = Mathf.Pow(Mathf.Clamp01(nonlinearNextImageRatio), 2.2f);    */
 
-
-        SpeedFunctionTime += Time.deltaTime * SpeedFunctionFrequency;  
-        Vector3 basePos  = new Vector3(0f, 0f, 0f);
+        SpeedFunctionTime += Time.deltaTime * SpeedFunctionFrequency;
+        Vector3 basePos = new Vector3(0f, 0f, 0f);
 
         // 计算非线性混合比（t 可以是 previousImageRatio 和 nextImageRatio）
         //float nonlinearPreviousImageRatio = CalculateZ(previousImageRatio, functionType, SpeedFunctionDistance, basePos , SpeedFunctionFrequency, SpeedFunctionAmplitude, SpeedFunctionOffset);
         //float nonlinearNextImageRatio     = CalculateZ(nextImageRatio,     functionType, SpeedFunctionDistance, basePos , SpeedFunctionFrequency, SpeedFunctionAmplitude, SpeedFunctionOffset);
 
         //LuminanceMixture method1
-        /*  Image1RawImage.color = new Color(1, 1, 1, nonlinearPreviousImageRatio);
-         Image2RawImage.color = new Color(1, 1, 1, 1.0f);  */
-         
+        //  Image1RawImage.color = new Color(1, 1, 1, nonlinearPreviousImageRatio);
+        //  Image2RawImage.color = new Color(1, 1, 1, 1.0f);   
 
+        /*         CaptureCameraLinearBlendRawImage.material.SetColor("_TopColor", new Color(1,1,1,nonlinearPreviousImageRatio)); // 透明度
+                CaptureCameraLinearBlendRawImage.material.SetColor("_BottomColor", new Color(1, 1, 1, 1.0f)); */
 
         //LuminanceMixture method2
-                   if (frameNum % 2 == 0)
-               {
-                   /* Image1RawImage.color = new Color(1, 1, 1, nonlinearNextImageRatio);
-                   Image2RawImage.color = new Color(1, 1, 1, 1.0f); */
+        if (frameNum % 2 == 0)
+        {
+            Image1RawImage.color = new Color(1, 1, 1, nonlinearNextImageRatio);
+            Image2RawImage.color = new Color(1, 1, 1, 1.0f);
 
+            CaptureCameraLinearBlendRawImage.material.SetColor("_TopColor", new Color(1, 1, 1, nonlinearNextImageRatio)); // 透明度
+            CaptureCameraLinearBlendRawImage.material.SetColor("_BottomColor", new Color(1, 1, 1, 1.0f));
+            alphaHistory.Add(nonlinearPreviousImageRatio);
+            Debug.Log("nonlinearNextImageRatio" + nonlinearNextImageRatio);
+        }
+        else
+        {
+            Image1RawImage.color = new Color(1, 1, 1, nonlinearPreviousImageRatio);
+            Image2RawImage.color = new Color(1, 1, 1, 1.0f);
 
-CaptureCameraLinearBlendRawImage.material.SetColor("_TopColor", new Color(1,1,1,nonlinearNextImageRatio)); // 透明度
-        CaptureCameraLinearBlendRawImage.material.SetColor("_BottomColor", new Color(1, 1, 1, 1.0f));
-               }
-               else
-               {
-                 /*   Image1RawImage.color = new Color(1, 1, 1, nonlinearPreviousImageRatio);
-                   Image2RawImage.color = new Color(1, 1, 1, 1.0f); */
-
-CaptureCameraLinearBlendRawImage.material.SetColor("_TopColor", new Color(1,1,1,nonlinearPreviousImageRatio)); // 透明度
-        CaptureCameraLinearBlendRawImage.material.SetColor("_BottomColor", new Color(1, 1, 1, 1.0f));
-               }   
+            CaptureCameraLinearBlendRawImage.material.SetColor("_TopColor", new Color(1, 1, 1, nonlinearPreviousImageRatio)); // 透明度
+            CaptureCameraLinearBlendRawImage.material.SetColor("_BottomColor", new Color(1, 1, 1, 1.0f));
+            alphaHistory.Add(nonlinearNextImageRatio);
+            Debug.Log("nonlinearPreviousImageRatio" + nonlinearPreviousImageRatio);
+        }
 
 
         //------------波形start
         float now = Application.isPlaying ? Time.time : (float)UnityEditor.EditorApplication.timeSinceStartup;
         // 現在の alpha 値をサンプルに追加//添加当前样本
         timeStamps.Add(now);
-        if (frameNum % 2 == 0)
-        {
-            alphaHistory.Add(nonlinearPreviousImageRatio);
-        }
-        else
-        {
-            alphaHistory.Add(nonlinearNextImageRatio);   
-        }
+
         // 1秒より前のデータを削除//剔除 1 秒以前的数据
         while (timeStamps.Count > 0 && timeStamps[0] < now - 5f)
         {
@@ -558,7 +575,7 @@ CaptureCameraLinearBlendRawImage.material.SetColor("_TopColor", new Color(1,1,1,
         //RecordVariable(Image1RawImage.color.a, Image2RawImage.color.a); 
         // データを記録 // 记录数据
         // data.Add("FrondFrameNum, FrondFrameLuminance, BackFrameNum, BackFrameLuminance, Time, FrameNum, Knob, ResponsePattern, StepNumber, Amplitude, Velocity");
-        data.Add($"{frameNum}, {nonlinearPreviousImageRatio:F3}, {frameNum + 1}, {nonlinearNextImageRatio:F3}, {timeMs :F3}, {SerialReader.lastSensorValue}, {responsePattern}, {(int)stepNumber}, {amplitude}, {v}");
+        data.Add($"{frameNum}, {nonlinearPreviousImageRatio:F3}, {frameNum + 1}, {nonlinearNextImageRatio:F3}, {timeMs:F3}, {SerialReader.lastSensorValue}, {responsePattern}, {(int)stepNumber}, {amplitude}, {v}");
         //data.Add($"{frameNum}, {Image1RawImage.color.a:F3}, {frameNum + 1}, {Image2RawImage.color.a:F3}, {timeMs :F3}, {(vectionResponse ? 1 : 0)}");
 
     }
@@ -571,47 +588,47 @@ CaptureCameraLinearBlendRawImage.material.SetColor("_TopColor", new Color(1,1,1,
     float SpeedFunctionAmplitude = 1f,
     float SpeedFunctionOffset = 0f
 )
-{
-    // 1. 让 t 在 [0, 2) 范围内循环往返
-    float tt = SpeedFunctionTime * SpeedFunctionFrequency;
-    // 2. 把往返做成 0→1→0 的区间：先对 2 取余，再对 1 作镜像
-    float m = tt % 2f;
-    if (m < 0f) m += 2f;
-    // m ∈ [0,2)，当 m>1 时我们需要“回过头”，用 2-m
-    float x = (m <= 1f) ? m : (2f - m);
-
-    // 3. 根据 functionType 计算“规范化”输出 y0 ∈ [0,1]
-    float y0;
-    switch (functionType)
     {
-        case SpeedFunctionType.Linear:
-            y0 = x;
-            break;
+        // 1. 让 t 在 [0, 2) 范围内循环往返
+        float tt = SpeedFunctionTime * SpeedFunctionFrequency;
+        // 2. 把往返做成 0→1→0 的区间：先对 2 取余，再对 1 作镜像
+        float m = tt % 2f;
+        if (m < 0f) m += 2f;
+        // m ∈ [0,2)，当 m>1 时我们需要“回过头”，用 2-m
+        float x = (m <= 1f) ? m : (2f - m);
 
-        case SpeedFunctionType.EaseInOut:
-            y0 = (1f - Mathf.Cos(Mathf.PI * x)) * 0.5f;
-            break;
+        // 3. 根据 functionType 计算“规范化”输出 y0 ∈ [0,1]
+        float y0;
+        switch (functionType)
+        {
+            case SpeedFunctionType.Linear:
+                y0 = x;
+                break;
 
-        case SpeedFunctionType.Triangle:
-            y0 = 1f - Mathf.Abs(2f * x - 1f);;  // 此处 x∈[0,1]，也可直接用 x 或 1−|2x−1|
-            break;
+            case SpeedFunctionType.EaseInOut:
+                y0 = (1f - Mathf.Cos(Mathf.PI * x)) * 0.5f;
+                break;
 
-        case SpeedFunctionType.Arccos:
-            // 把原来两个分段合并到同一个 x 上
-            y0 = Mathf.Acos(-2f * x + 1f) / Mathf.PI;
-            break;
+            case SpeedFunctionType.Triangle:
+                y0 = 1f - Mathf.Abs(2f * x - 1f); ;  // 此处 x∈[0,1]，也可直接用 x 或 1−|2x−1|
+                break;
 
-        default:
-            y0 = x;
-            break;
+            case SpeedFunctionType.Arccos:
+                // 把原来两个分段合并到同一个 x 上
+                y0 = Mathf.Acos(-2f * x + 1f) / Mathf.PI;
+                break;
+
+            default:
+                y0 = x;
+                break;
+        }
+
+        // 4. 振幅 & 偏移
+        float y = y0 * SpeedFunctionAmplitude + SpeedFunctionOffset;
+
+        // 5. 映射到 Z 轴：leftLimit.z → leftLimit.z + distance
+        return SpeedFunctionleftLimit.z + SpeedFunctionDistance * y;
     }
-
-    // 4. 振幅 & 偏移
-    float y = y0 * SpeedFunctionAmplitude + SpeedFunctionOffset;
-
-    // 5. 映射到 Z 轴：leftLimit.z → leftLimit.z + distance
-    return SpeedFunctionleftLimit.z + SpeedFunctionDistance * y;
-}
     void GetRawImage()
     {
         // Canvas内で指定された名前の子オブジェクトを検索 // 在 Canvas 中查找指定名称的子对象
@@ -625,38 +642,22 @@ CaptureCameraLinearBlendRawImage.material.SetColor("_TopColor", new Color(1,1,1,
         continuousImageRawImage = continuousImageTransform.GetComponent<RawImage>();
         Image1RawImage = Image1Transform.GetComponent<RawImage>();
         Image2RawImage = Image2Transform.GetComponent<RawImage>();
-        CaptureCameraLinearBlendRawImage= CaptureCameraLinearBlendTransform.GetComponent<RawImage>();
+        CaptureCameraLinearBlendRawImage = CaptureCameraLinearBlendTransform.GetComponent<RawImage>();
 
-CaptureCameraLinearBlendRawImage.material = new Material(Mat_GrayscaleOverBlend);
-CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture1);       // 上层图
-CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture2);    // 下层图
+        CaptureCameraLinearBlendRawImage.material = new Material(Mat_GrayscaleOverBlend);
 
-
-
+        CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture1);       // 上层图
+        CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture2);    // 下层图  
 
 
-        /*         // 创建纯黑纹理
-                Texture2D blackTex = new Texture2D(1, 1);
-                blackTex.SetPixel(0, 0, Color.black);
-                blackTex.Apply();
-
-                // 创建纯白纹理
-                Texture2D whiteTex = new Texture2D(1, 1);
-                whiteTex.SetPixel(0, 0, Color.white);
-                whiteTex.Apply();
-
-                // 设置给 RawImage
-                Image2RawImage.texture = blackTex;
-                Image1RawImage.texture = whiteTex; 
-         */
-        /*       Image2RawImage.texture = whiteTex;
-              Image1RawImage.texture = blackTex; */
-
+        /*  test        
+        CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex",  whiteTexture);       // 上层图
+        CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", blackTexture );    // 下层图  */
         // RawImageコンポーネントを無効にする // 禁用 RawImage 组件
         continuousImageRawImage.enabled = false;
         Image1RawImage.enabled = false;
         Image2RawImage.enabled = false;
-        
+
 
     }
     void QuitGame()
@@ -680,7 +681,7 @@ CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageT
 
         // ファイルを保存（Application.dataPath：現在のプロジェクトのAssetsフォルダのパスを示す） // 保存文件（Application.dataPath：表示当前项目的Assets文件夹的路径）
         string filePath = Path.Combine("D:/vectionProject/public", folderName, fileName);
-        File.WriteAllLines(filePath, data);
+        //File.WriteAllLines(filePath, data);
 
         //Debug.Log($"Data saved to {filePath}");
     }
