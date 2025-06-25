@@ -6,7 +6,7 @@ using System.Collections.Generic;
 public class MoveCameraEditor : Editor
 {
     private int graphWidth = 500;
-    private  int graphHeight = 200;
+    private int graphHeight = 200;
     private Texture2D graphTexture;
     private Queue<float> velocityHistory = new Queue<float>();
 
@@ -47,25 +47,29 @@ public class MoveCameraEditor : Editor
         prop = serializedObject.FindProperty("fps");
         EditorGUILayout.PropertyField(prop);
 
-/*         prop = serializedObject.FindProperty("v");
-        EditorGUILayout.PropertyField(prop); */
+        /*         prop = serializedObject.FindProperty("v");
+                EditorGUILayout.PropertyField(prop); */
 
         prop = serializedObject.FindProperty("participantName");
         EditorGUILayout.PropertyField(prop);
 
-        prop = serializedObject.FindProperty("trialNumber");
+        prop = serializedObject.FindProperty("experimentPattern");
         EditorGUILayout.PropertyField(prop);
 
-                        prop = serializedObject.FindProperty("Mat_GrayscaleOverBlend");
+        prop = serializedObject.FindProperty("trialNumber");
+        EditorGUILayout.PropertyField(prop);
+        
+
+        prop = serializedObject.FindProperty("Mat_GrayscaleOverBlend");
         EditorGUILayout.PropertyField(prop);
 
         GUILayout.Space(10);
         prop = serializedObject.FindProperty("functionRatio");
         EditorGUILayout.Slider(prop, -10f, 10f); // ← 使用 Slider
-        
+
         SerializedProperty functionTypeProp = serializedObject.FindProperty("functionType");
         EditorGUILayout.PropertyField(functionTypeProp);
-        
+
         prop = serializedObject.FindProperty("SpeedFunctionDistance");
         EditorGUILayout.Slider(prop, 0f, 10f); // ← 使用 Slider
 
@@ -296,8 +300,8 @@ public class MoveCameraEditor : Editor
         int yDiv = 5;
         for (int i = yDiv; i >= 0; i--)
         {
-        float v = Mathf.Lerp(minV, maxV, i / (float)yDiv);
-        GUILayout.Label(v.ToString("F2"), GUILayout.Height(graphHeight / (float)yDiv));
+            float v = Mathf.Lerp(minV, maxV, i / (float)yDiv);
+            GUILayout.Label(v.ToString("F2"), GUILayout.Height(graphHeight / (float)yDiv));
         }
         GUILayout.EndVertical();
 

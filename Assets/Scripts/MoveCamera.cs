@@ -20,6 +20,12 @@ public class MoveCamera : MonoBehaviour
         Velocity,
         Amplitude,
     }
+    public enum ExperimentPattern
+    {
+        Fourier,
+        Phase,
+        Nonlinear,
+    }
     public enum StepNumber
     {
         Option0 = 0,
@@ -27,6 +33,10 @@ public class MoveCamera : MonoBehaviour
         Option2 = 2,
         Option3 = 3,
         Option4 = 4,
+        Option5 = 5,
+        Option6 = 6,
+        Option7 = 7,
+        Option8 = 8,
     }
 
     public Camera captureCamera0; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
@@ -86,6 +96,7 @@ public class MoveCamera : MonoBehaviour
 
     [Header("🔧記録するデータ")]
     public StepNumber stepNumber;
+    public ExperimentPattern experimentPattern;
     public int trialNumber = 1;
 
     //记录Image1RawImage的透明度使用的相关变量
@@ -118,7 +129,7 @@ public class MoveCamera : MonoBehaviour
     public float V0 = 1.0f;  // 基本速度
 
     private bool mouseClicked = false;
-    private float amplitude;
+    private float amplitudeToSaveData;
 
     //------------Speed ​​function start-------------
     public enum SpeedFunctionType
@@ -211,12 +222,34 @@ public class MoveCamera : MonoBehaviour
                 case 1:
                 case 2:
                 case 3:
-                    nextStepButtonTextComponent.text = "Next Step Amplitude" + ((int)stepNumber + 1).ToString();
+                    nextStepButtonTextComponent.text = "Next Step";
                     break;
                 case 4:
-                    trialNumber++;
-                    nextStepButtonTextComponent.text = "Entering the next trial";
+                    if (experimentPattern == ExperimentPattern.Fourier)
+                    {
+                        nextStepButtonTextComponent.text = "Entering the next trial";
+                    }
+                    else
+                    {
+                        nextStepButtonTextComponent.text = "Next Step";
+                    }
                     break;
+                case 5:
+                case 6:
+                case 7:
+                    nextStepButtonTextComponent.text = "Next Step";
+                    break;
+                case 8:
+                    if (experimentPattern == ExperimentPattern.Phase)
+                    {
+                        nextStepButtonTextComponent.text = "Entering the next trial";
+                    }
+                    else
+                    {
+                        nextStepButtonTextComponent.text = "Next Step";
+                    }
+                    break;
+                    
             }
         }
 
@@ -299,7 +332,31 @@ public class MoveCamera : MonoBehaviour
                 stepNumber = StepNumber.Option4;
                 break;
             case 5:
-                QuitGame();
+                if (experimentPattern == ExperimentPattern.Fourier)
+                {
+                    SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+                }
+                else
+                {
+                    stepNumber = StepNumber.Option5;
+                }
+                //QuitGame();
+                break;
+            case 6:
+                stepNumber = StepNumber.Option6;
+                break;
+            case 7:
+                stepNumber = StepNumber.Option7;
+                break;
+            case 8:
+                if (experimentPattern == ExperimentPattern.Phase)
+                {
+                    SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+                }
+                else
+                {
+                    stepNumber = StepNumber.Option8;
+                }
                 break;
         }
         nextStepButton.gameObject.SetActive(false);
@@ -319,8 +376,7 @@ public class MoveCamera : MonoBehaviour
 
         // つまみセンサー値（0〜1）を取得し
         float knobValue = Mathf.Clamp01(SerialReader.lastSensorValue);
-        // Amplitudeを計算
-        amplitude = A_min + knobValue * (A_max - A_min);
+        
 
         int step = (int)stepNumber;
 
@@ -331,44 +387,66 @@ public class MoveCamera : MonoBehaviour
         }
         else if (responsePattern == ResponsePattern.Amplitude)
         {
-            //1.v(t)=V0+A1·sin(ωt)+A2·cos(ωt)+A3·sin(2ωt)+A4·cos(2ωt)
-            // 現在のstepのAmplitudeを計算
-            //    if (step >= 1 && step < amplitudes.Length)
-            //  {
-            //      amplitudes[step] = amplitude;
-            //  } 
-
-            // // 计算 v
-            // v = V0;
-
-
-            // // 現在の速度を計算
-            // if (step >= 1) v += amplitudes[1] * Mathf.Sin(0.5f * omega * time);
-            //  if (step >= 2) v += amplitudes[2] * Mathf.Cos(0.5f * omega * time);
-            //  if (step >= 3) v += amplitudes[3] * Mathf.Sin( omega * time);
-            //  if (step >= 4) v += amplitudes[4] * Mathf.Cos( omega * time);  
-
-
-            //2.v(t)=V0 + A1·sin(ωt + φ) + A2·sin(2ωt + 2φ)
-            //v(t)=V0 + A1·sin(ωt + A2) + A3·sin(2ωt + A4)
-            // 現在の速度を計算
-            if ((step == 1 || step == 3) && step < amplitudes.Length)
+            switch (experimentPattern)
             {
-                amplitudes[step] = A_min + knobValue * (A_max - A_min);
+                case ExperimentPattern.Fourier:
+                    //1.v(t)=V0+A1·sin(ωt)+A2·cos(ωt)+A3·sin(2ωt)+A4·cos(2ωt)
+                    //現在のstepのAmplitudeを計算
+                    // Amplitudeを計算
+                    amplitudeToSaveData = A_min + knobValue * (A_max - A_min);
+                    if (step >= 1 && step < amplitudes.Length)
+                    {
+                        amplitudes[step] = amplitudeToSaveData;
+                    }
+
+                    // 计算 v
+                    v = V0;
+
+                    // 現在の速度を計算
+                    if (step >= 1) v += amplitudes[1] * Mathf.Sin(omega * time);
+                    if (step >= 2) v += amplitudes[2] * Mathf.Cos(omega * time);
+                    if (step >= 3) v += amplitudes[3] * Mathf.Sin(2 * omega * time);
+                    if (step >= 4) v += amplitudes[4] * Mathf.Cos(2 * omega * time);
+
+                    break;
+                case ExperimentPattern.Phase:
+                    Debug.Log("stepNumber : " + step + "  knobValue : " + knobValue);
+                    //2.v(t)=V0 + A1·sin(ωt + φ) + A2·sin(2ωt + 2φ)
+                    //v(t)=V0 + A1·sin(ωt + A2) 二回+ A3·sin(2ωt + A4)二回
+                    // 現在の速度を計算
+                    if (step == 1 || step == 3)
+                    {
+                        amplitudeToSaveData = amplitudes[1] = A_min + knobValue * (A_max - A_min);
+                    }
+                    if (step == 5 || step == 7) 
+                    {
+                        amplitudeToSaveData = amplitudes[3] = A_min + knobValue * (A_max - A_min);
+                    }
+                    if (step == 2 || step == 4) 
+                    {
+                        amplitudeToSaveData = amplitudes[2] = knobValue * 2f * Mathf.PI;  // 0 … 2π
+                    }
+                    if (step == 6 || step == 8) 
+                    {
+                        amplitudeToSaveData = amplitudes[4] = knobValue * 2f * Mathf.PI;  // 0 … 2π
+                    }
+
+                    if (step >= 1) v = V0 + amplitudes[1] * Mathf.Sin(omega * time);//step1,amplitudes[1] 
+                    if (step >= 2) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]);//step2,amplitudes[2]
+                    if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]);//step3,amplitudes[1] 
+                    if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]);//step4,amplitudes[2]
+                    if (step >= 5) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time);//step5,amplitudes[3]
+                    if (step >= 6) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4]);//step6,amplitudes[4] 
+                    if (step >= 7) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4]);//step7,amplitudes[3]
+                    if (step >= 8) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4]);//step8,amplitudes[4] 
+                    break;
+                case ExperimentPattern.Nonlinear:
+                    //NonlinearResponse(step, knobValue);
+                    break;
             }
-            if ((step == 2 || step == 4) && step < amplitudes.Length)
-            {
-                amplitudes[step] = knobValue * 2f * Mathf.PI;  // -π … +π
-            }
-            if (step >= 1) v = V0 + amplitudes[1] * Mathf.Sin(omega * time);//amplitudes[1] 
-            if (step >= 2) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]);//amplitudes[2]
-            //if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]);//amplitudes[1] 
-            //if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]);//amplitudes[2]
-            //if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time);
-            if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time);//amplitudes[3]
-            if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4]); //amplitudes[4]
-                                                                                                                                                           //if (step >= 7) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time);//amplitudes[3]
-                                                                                                                                                           //if (step >= 8) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4]); //amplitudes[4] */
+
+
+
 
 
             //3.v(t)=V0 + A · triγ(ωt+φ)
@@ -388,7 +466,7 @@ public class MoveCamera : MonoBehaviour
             //4.Gamma脉冲波
             /*   if (step >= 1 && step < amplitudes.Length)
               {
-                  amplitudes[step] = amplitude;
+                  amplitudes[step] = amplitudeToSaveData;
               } 
              if (step >= 1) v = V0 + amplitudes[1] * GammaFunc(time, 0.001f, 0.001f);
              if (step >= 2) v = V0 + amplitudes[1] * GammaFunc(time, amplitudes[2], 0.001f);
@@ -404,7 +482,7 @@ public class MoveCamera : MonoBehaviour
 
 
         captureCamera0.transform.position += direction * v * Time.deltaTime;
-        //data.Add($"{timeMs:F3}, {SerialReader.lastSensorValue}, {responsePattern}, {step}, {amplitude}, {v}");
+        //data.Add($"{timeMs:F3}, {SerialReader.lastSensorValue}, {responsePattern}, {step}, {amplitudeToSaveData}, {v}");
     }
 
 
@@ -530,7 +608,7 @@ public class MoveCamera : MonoBehaviour
             CaptureCameraLinearBlendRawImage.material.SetColor("_TopColor", new Color(1, 1, 1, nonlinearNextImageRatio)); // 透明度
             CaptureCameraLinearBlendRawImage.material.SetColor("_BottomColor", new Color(1, 1, 1, 1.0f));
             alphaHistory.Add(nonlinearPreviousImageRatio);
-            Debug.Log("nonlinearNextImageRatio" + nonlinearNextImageRatio + "       "+ timeMs);
+            //Debug.Log("nonlinearNextImageRatio" + nonlinearNextImageRatio + "       " + timeMs);
         }
         else
         {
@@ -540,7 +618,7 @@ public class MoveCamera : MonoBehaviour
             CaptureCameraLinearBlendRawImage.material.SetColor("_TopColor", new Color(1, 1, 1, nonlinearPreviousImageRatio)); // 透明度
             CaptureCameraLinearBlendRawImage.material.SetColor("_BottomColor", new Color(1, 1, 1, 1.0f));
             alphaHistory.Add(nonlinearNextImageRatio);
-            Debug.Log("nonlinearPreviousImageRatio" + nonlinearPreviousImageRatio  + "       "+ timeMs);
+            //Debug.Log("nonlinearPreviousImageRatio" + nonlinearPreviousImageRatio + "       " + timeMs);
         }
 
 
@@ -575,7 +653,7 @@ public class MoveCamera : MonoBehaviour
         //RecordVariable(Image1RawImage.color.a, Image2RawImage.color.a); 
         // データを記録 // 记录数据
         // data.Add("FrondFrameNum, FrondFrameLuminance, BackFrameNum, BackFrameLuminance, Time, FrameNum, Knob, ResponsePattern, StepNumber, Amplitude, Velocity");
-        data.Add($"{frameNum}, {nonlinearPreviousImageRatio:F3}, {frameNum + 1}, {nonlinearNextImageRatio:F3}, {timeMs:F3}, {SerialReader.lastSensorValue}, {responsePattern}, {(int)stepNumber}, {amplitude}, {v}");
+        data.Add($"{frameNum}, {nonlinearPreviousImageRatio:F3}, {frameNum + 1}, {nonlinearNextImageRatio:F3}, {timeMs:F3}, {SerialReader.lastSensorValue}, {responsePattern}, {(int)stepNumber}, {amplitudeToSaveData}, {v}");
         //data.Add($"{frameNum}, {Image1RawImage.color.a:F3}, {frameNum + 1}, {Image2RawImage.color.a:F3}, {timeMs :F3}, {(vectionResponse ? 1 : 0)}");
 
     }
