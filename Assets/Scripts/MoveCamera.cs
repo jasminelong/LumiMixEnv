@@ -95,7 +95,7 @@ public class MoveCamera : MonoBehaviour
     public ResponsePattern responsePattern;
 
     [Header("🔧記録するデータ")]
-    public StepNumber stepNumber;
+    public StepNumber stepNumber = StepNumber.Option0; // 現在のステップ番号 // 当前步骤编号
     public ExperimentPattern experimentPattern;
     public int trialNumber = 1;
 
@@ -119,7 +119,7 @@ public class MoveCamera : MonoBehaviour
     public float omega = Mathf.PI; // 角速度（頻度）
 
     [Range(-1f, 5f)]
-    public float A_min = -1f;
+    public float A_min = -2f;
 
     [Range(0f, 5f)]
     public float A_max = 2.0f;
@@ -196,7 +196,8 @@ public class MoveCamera : MonoBehaviour
         captureCamera2.transform.position += direction * captureIntervalDistance;
         data.Add("FrondFrameNum, FrondFrameLuminance, BackFrameNum, BackFrameLuminance, Time, Knob, ResponsePattern, StepNumber, Amplitude, Velocity");
         experimentalCondition = "fps" + fps.ToString() + "_"
-                             + "cameraSpeed" + cameraSpeed.ToString() + "_"
+                             + "CameraSpeed" + cameraSpeed.ToString() + "_"
+                             + "ExperimentPattern_" + experimentPattern.ToString() + "_"
                              + "ParticipantName_" + participantName.ToString() + "_"
                              + "TrialNumber_" + trialNumber.ToString();
 
@@ -249,7 +250,7 @@ public class MoveCamera : MonoBehaviour
                         nextStepButtonTextComponent.text = "Next Step";
                     }
                     break;
-                    
+
             }
         }
 
@@ -334,13 +335,14 @@ public class MoveCamera : MonoBehaviour
             case 5:
                 if (experimentPattern == ExperimentPattern.Fourier)
                 {
-                    SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+                    QuitGame();
+                    //SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
                 }
                 else
                 {
                     stepNumber = StepNumber.Option5;
                 }
-                //QuitGame();
+
                 break;
             case 6:
                 stepNumber = StepNumber.Option6;
@@ -349,9 +351,13 @@ public class MoveCamera : MonoBehaviour
                 stepNumber = StepNumber.Option7;
                 break;
             case 8:
+                stepNumber = StepNumber.Option8;
+                break;
+            case 9:
                 if (experimentPattern == ExperimentPattern.Phase)
                 {
-                    SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+                    QuitGame();
+                    //SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
                 }
                 else
                 {
@@ -376,7 +382,7 @@ public class MoveCamera : MonoBehaviour
 
         // つまみセンサー値（0〜1）を取得し
         float knobValue = Mathf.Clamp01(SerialReader.lastSensorValue);
-        
+
 
         int step = (int)stepNumber;
 
@@ -418,15 +424,15 @@ public class MoveCamera : MonoBehaviour
                     {
                         amplitudeToSaveData = amplitudes[1] = A_min + knobValue * (A_max - A_min);
                     }
-                    if (step == 5 || step == 7) 
+                    if (step == 5 || step == 7)
                     {
                         amplitudeToSaveData = amplitudes[3] = A_min + knobValue * (A_max - A_min);
                     }
-                    if (step == 2 || step == 4) 
+                    if (step == 2 || step == 4)
                     {
                         amplitudeToSaveData = amplitudes[2] = knobValue * 2f * Mathf.PI;  // 0 … 2π
                     }
-                    if (step == 6 || step == 8) 
+                    if (step == 6 || step == 8)
                     {
                         amplitudeToSaveData = amplitudes[4] = knobValue * 2f * Mathf.PI;  // 0 … 2π
                     }
@@ -759,7 +765,7 @@ public class MoveCamera : MonoBehaviour
 
         // ファイルを保存（Application.dataPath：現在のプロジェクトのAssetsフォルダのパスを示す） // 保存文件（Application.dataPath：表示当前项目的Assets文件夹的路径）
         string filePath = Path.Combine("D:/vectionProject/public", folderName, fileName);
-        //File.WriteAllLines(filePath, data);
+        File.WriteAllLines(filePath, data);
 
         //Debug.Log($"Data saved to {filePath}");
     }
