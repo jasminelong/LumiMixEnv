@@ -39,6 +39,15 @@ public class MoveCamera : MonoBehaviour
         Option8 = 8,
     }
 
+    public enum CurveType  // 选择曲线
+    {
+        Linear,
+        Cosine,
+        Cubic,
+        Quintic,
+        Acos     // 老师原来的 acos 曲线
+    }
+    [SerializeField] CurveType curveType = CurveType.Cosine;
     public Camera captureCamera0; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
     public Camera captureCamera1; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
     public Camera captureCamera2; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
@@ -194,13 +203,16 @@ public class MoveCamera : MonoBehaviour
         Image1RawImage.enabled = true;
         Image2RawImage.enabled = true;
         captureCamera2.transform.position += direction * captureIntervalDistance;
-        data.Add("FrondFrameNum, FrondFrameLuminance, BackFrameNum, BackFrameLuminance, Time, Knob, ResponsePattern, StepNumber, Amplitude, Velocity");
-        experimentalCondition = "fps" + fps.ToString() + "_"
+        data.Add("FrondFrameNum, FrondFrameLuminance, BackFrameNum, BackFrameLuminance, Time, Knob, ResponsePattern, StepNumber, Amplitude, Velocity, FunctionRatio, CameraSpeed");
+        experimentalCondition = "Fps" + fps.ToString() + "_"
                              + "CameraSpeed" + cameraSpeed.ToString() + "_"
                              + "ExperimentPattern_" + experimentPattern.ToString() + "_"
                              + "ParticipantName_" + participantName.ToString() + "_"
                              + "TrialNumber_" + trialNumber.ToString();
-
+        if (experimentPattern == ExperimentPattern.Nonlinear)
+        {
+            experimentalCondition += "CurveType" + curveType.ToString() + "_";
+        }
 
         SerialReader = GetComponent<SerialReader>();
 
@@ -380,155 +392,91 @@ public class MoveCamera : MonoBehaviour
 
         time += Time.fixedDeltaTime;
 
-        // つまみセンサー値（0〜1）を取得し
-        float knobValue = Mathf.Clamp01(SerialReader.lastSensorValue);
-
-
-        int step = (int)stepNumber;
-
-        if (responsePattern == ResponsePattern.Velocity)
+        if (experimentPattern == ExperimentPattern.Fourier || experimentPattern == ExperimentPattern.Phase)
         {
-            V0 = knobValue * 2f;
-            v = V0;
-        }
-        else if (responsePattern == ResponsePattern.Amplitude)
-        {
-            switch (experimentPattern)
+            // つまみセンサー値（0〜1）を取得し
+            float knobValue = Mathf.Clamp01(SerialReader.lastSensorValue);
+            int step = (int)stepNumber;
+
+            if (responsePattern == ResponsePattern.Velocity)
             {
-                case ExperimentPattern.Fourier:
-                    //1.v(t)=V0+A1·sin(ωt)+A2·cos(ωt)+A3·sin(2ωt)+A4·cos(2ωt)
-                    //現在のstepのAmplitudeを計算
-                    // Amplitudeを計算
-                    amplitudeToSaveData = A_min + knobValue * (A_max - A_min);
-                    if (step >= 1 && step < amplitudes.Length)
-                    {
-                        amplitudes[step] = amplitudeToSaveData;
-                    }
-
-                    // 计算 v
-                    v = V0;
-
-                    // 現在の速度を計算
-                    if (step >= 1) v += amplitudes[1] * Mathf.Sin(omega * time);
-                    if (step >= 2) v += amplitudes[2] * Mathf.Cos(omega * time);
-                    if (step >= 3) v += amplitudes[3] * Mathf.Sin(2 * omega * time);
-                    if (step >= 4) v += amplitudes[4] * Mathf.Cos(2 * omega * time);
-
-                    break;
-                case ExperimentPattern.Phase:
-                    Debug.Log("stepNumber : " + step + "  knobValue : " + knobValue);
-                    //2.v(t)=V0 + A1·sin(ωt + φ) + A2·sin(2ωt + 2φ)
-                    //v(t)=V0 + A1·sin(ωt + A2) 二回+ A3·sin(2ωt + A4)二回
-                    // 現在の速度を計算
-                    if (step == 1 || step == 3)
-                    {
-                        amplitudeToSaveData = amplitudes[1] = A_min + knobValue * (A_max - A_min);
-                    }
-                    if (step == 5 || step == 7)
-                    {
-                        amplitudeToSaveData = amplitudes[3] = A_min + knobValue * (A_max - A_min);
-                    }
-                    if (step == 2 || step == 4)
-                    {
-                        amplitudeToSaveData = amplitudes[2] = knobValue * 2f * Mathf.PI;  // 0 … 2π
-                    }
-                    if (step == 6 || step == 8)
-                    {
-                        amplitudeToSaveData = amplitudes[4] = knobValue * 2f * Mathf.PI;  // 0 … 2π
-                    }
-
-                    if (step >= 1) v = V0 + amplitudes[1] * Mathf.Sin(omega * time);//step1,amplitudes[1] 
-                    if (step >= 2) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]);//step2,amplitudes[2]
-                    if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]);//step3,amplitudes[1] 
-                    if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]);//step4,amplitudes[2]
-                    if (step >= 5) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time);//step5,amplitudes[3]
-                    if (step >= 6) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4]);//step6,amplitudes[4] 
-                    if (step >= 7) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4]);//step7,amplitudes[3]
-                    if (step >= 8) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4]);//step8,amplitudes[4] 
-                    break;
-                case ExperimentPattern.Nonlinear:
-                    //NonlinearResponse(step, knobValue);
-                    break;
+                V0 = knobValue * 2f;
+                v = V0;
             }
+            else if (responsePattern == ResponsePattern.Amplitude)
+            {
+                switch (experimentPattern)
+                {
+                    case ExperimentPattern.Fourier:
+                        //1.v(t)=V0+A1·sin(ωt)+A2·cos(ωt)+A3·sin(2ωt)+A4·cos(2ωt)
+                        //現在のstepのAmplitudeを計算
+                        // Amplitudeを計算
+                        amplitudeToSaveData = A_min + knobValue * (A_max - A_min);
+                        if (step >= 1 && step < amplitudes.Length)
+                        {
+                            amplitudes[step] = amplitudeToSaveData;
+                        }
+
+                        // 计算 v
+                        v = V0;
 
 
+                        // 現在の速度を計算
+                        if (step >= 1) v += amplitudes[1] * Mathf.Sin(omega * time);
+                        if (step >= 2) v += amplitudes[2] * Mathf.Cos(omega * time);
+                        if (step >= 3) v += amplitudes[3] * Mathf.Sin(2 * omega * time);
+                        if (step >= 4) v += amplitudes[4] * Mathf.Cos(2 * omega * time);
+
+                        break;
+                    case ExperimentPattern.Phase:
+                        //2.v(t)=V0 + A1·sin(ωt + φ) + A2·sin(2ωt + 2φ)
+                        //v(t)=V0 + A1·sin(ωt + A2) 二回+ A3·sin(2ωt + A4)二回
+                        // 現在の速度を計算
+                        if (step == 1 || step == 3)
+                        {
+                            amplitudeToSaveData = amplitudes[1] = A_min + knobValue * (A_max - A_min);
+                        }
+                        if (step == 5 || step == 7)
+                        {
+                            amplitudeToSaveData = amplitudes[3] = A_min + knobValue * (A_max - A_min);
+                        }
+                        if (step == 2 || step == 4)
+                        {
+                            amplitudeToSaveData = amplitudes[2] = knobValue * 2f * Mathf.PI;  // 0 … 2π
+                        }
+                        if (step == 6 || step == 8)
+                        {
+                            amplitudeToSaveData = amplitudes[4] = knobValue * 2f * Mathf.PI;  // 0 … 2π
+                        }
+
+                        if (step >= 1) v = V0 + amplitudes[1] * Mathf.Sin(omega * time);//step1,amplitudes[1] 
+                        if (step >= 2) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]);//step2,amplitudes[2]
+                        if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]);//step3,amplitudes[1] 
+                        if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]);//step4,amplitudes[2]
+                        if (step >= 5) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time);//step5,amplitudes[3]
+                        if (step >= 6) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4]);//step6,amplitudes[4] 
+                        if (step >= 7) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4]);//step7,amplitudes[3]
+                        if (step >= 8) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4]);//step8,amplitudes[4] 
+                        break;
+                    case ExperimentPattern.Nonlinear:
+                        //NonlinearResponse(step, knobValue);
+                        break;
+                }
 
 
-
-            //3.v(t)=V0 + A · triγ(ωt+φ)
-            /*          if ((step == 1 || step == 3) && step < amplitudes.Length)
-                     {
-                         amplitudes[step] = A_min + knobValue * (A_max - A_min);
-                     }
-                     if ((step == 2 || step == 4) && step < amplitudes.Length)
-                     {
-                         amplitudes[step] = -Mathf.PI + knobValue * 2f * Mathf.PI;  // -π … +π
-                     }
-                     float gamma = 0.3f   * Mathf.Pow(10f, knobValue * Mathf.Log10(3f/0.3f));  
-                     if (step >= 1) v = V0 + amplitudes[1] * TriGamma(omega * time, gamma);
-                     if (step >= 2) v = V0 + amplitudes[1] * TriGamma(omega*time + amplitudes[2], gamma); */
-
-
-            //4.Gamma脉冲波
-            /*   if (step >= 1 && step < amplitudes.Length)
-              {
-                  amplitudes[step] = amplitudeToSaveData;
-              } 
-             if (step >= 1) v = V0 + amplitudes[1] * GammaFunc(time, 0.001f, 0.001f);
-             if (step >= 2) v = V0 + amplitudes[1] * GammaFunc(time, amplitudes[2], 0.001f);
-             if (step >= 3) v = V0 + amplitudes[1] * GammaFunc(time, amplitudes[2], amplitudes[3]);
-             if (step >= 4)
-             {
-                 float t = Mathf.Repeat(Time.time + amplitudes[4]  / (2f * Mathf.PI), 1f);
-                 v = V0 + amplitudes[1] * GammaFunc(t, amplitudes[2], amplitudes[3]);
-             }  */
+            }
+            captureCamera0.transform.position += direction * v * Time.deltaTime;
+        }
+        else if (experimentPattern == ExperimentPattern.Nonlinear)
+        {
+            captureCamera0.transform.position += direction * Time.deltaTime;
         }
 
-
-
-
-        captureCamera0.transform.position += direction * v * Time.deltaTime;
         //data.Add($"{timeMs:F3}, {SerialReader.lastSensorValue}, {responsePattern}, {step}, {amplitudeToSaveData}, {v}");
     }
 
 
-    float GammaApprox(float z)
-    {
-        if (z <= 0f) return float.NaN;
 
-        float[] p = {
-        1.000000000190015f,
-        76.18009172947146f,
-        -86.50532032941677f,
-        24.01409824083091f,
-        -1.231739572450155f,
-        0.001208650973866179f,
-        -0.5395239384953e-5f
-    };
-
-        float x = p[0];
-        for (int i = 1; i < p.Length; i++)
-            x += p[i] / (z + i);
-
-        float t = z + 5.5f;
-        return Mathf.Sqrt(2 * Mathf.PI) * Mathf.Pow(t, z + 0.5f) * Mathf.Exp(-t) * x;
-    }
-
-    float GammaFunc(float t, float alpha, float beta)
-    {
-        if (t < 0f || alpha <= 0f || beta <= 0f) return 0f;  // 非法输入直接返回0
-
-        float norm = GammaApprox(alpha);
-        if (float.IsNaN(norm) || norm <= 0f) return 0f;      // 安全保护
-
-        return Mathf.Pow(t, alpha - 1f) * Mathf.Exp(-t / beta) / (Mathf.Pow(beta, alpha) * norm);
-    }
-
-    float TriGamma(float phase, float g)
-    {
-        float y = 1f - Mathf.Abs(1f - Mathf.Repeat(phase, 2f * Mathf.PI) / Mathf.PI);
-        return 1f - Mathf.Pow(y, g);
-    }
     void LuminanceMixture()
     {
 
@@ -542,19 +490,9 @@ public class MoveCamera : MonoBehaviour
             // カメラが移動する目標位置を計算 // 计算摄像机沿圆锥轴线移动的目标位置
             targetPosition = direction * cameraSpeed * updateInterval;
 
-            // LuminanceMixture method1 カメラを目標位置に移動 // 移动摄像机到目标位置
             captureCamera1.transform.position = captureCamera1.transform.position + targetPosition;
             captureCamera2.transform.position = captureCamera2.transform.position + targetPosition;
 
-            // LuminanceMixture method2 カメラを目標位置に移動 // 移动摄像机到目标位置
-            /*    if (frameNum % 2 == 0)
-               {
-                   captureCamera1.transform.position = captureCamera1.transform.position + targetPosition;
-               }
-               else
-               {
-                   captureCamera2.transform.position = captureCamera2.transform.position + targetPosition;
-               }    */
         }
         if (frameNum % 2 == 0)
         {
@@ -576,36 +514,44 @@ public class MoveCamera : MonoBehaviour
         //Debug.Log("nextImageRatio : " + nextImageRatio + "    timeMs : " + timeMs + "     frameNum : " + frameNum + "     updateInterval : "+ updateInterval);
         //Debug.Log("beforeImage1RawImage.color.r" + Image1RawImage.color.r + "  " + Image1RawImage.color.g + "  " + Image1RawImage.color.b + "  " + Image1RawImage.color.a);
 
-        // Image1RawImage.color = new Color(Image1RawImage.color.r, Image1RawImage.color.g, Image1RawImage.color.b, previousImageRatio);
-        // Image2RawImage.color = new Color(Image2RawImage.color.r, Image2RawImage.color.g, Image2RawImage.color.b, nextImageRatio);
+        /*         // Logistic 曲线
+                float LogisticBlend(float x, float p)
+                {
+                    float k = 1f + 9f * p;             // 1 → 10
+                    float y = 0.5f + 0.5f * (float)Math.Tanh(k * (2f * x - 1f)) / (float)Math.Tanh(k);
+                    return y;
+                }
+                // p = 0~1 来自旋钮
+                float SmoothStepBlend(float x, float p)
+                {
+                    float s = 3f * x * x - 2f * x * x * x;   // SmoothStep 核心
+                    return Mathf.Lerp(x, s, p);    // 线性↔SmoothStep 插值
+                }
 
-        // 非线性函数 f_nonlinear(x) = (1-r)*x + r*(acosxfvbfxbxcvxcvxckdfljgksljfksdlfj(-2x+1)/π)
-        float EaseRatio(float x, float r)
-        {
-            // 計算 acos 部分
-            float acosPart = (float)(Math.Acos(-2f * x + 1f) / Math.PI);
-            // 混合线性と非线性
-            return (1f - r) * x + r * acosPart;
-        }
-        float nonlinearPreviousImageRatio = EaseRatio(previousImageRatio, functionRatio);
-        float nonlinearNextImageRatio = EaseRatio(nextImageRatio, functionRatio);
+                float CosineEaseBlend(float x, float p)
+                {
+                    float c = (1f - Mathf.Cos(Mathf.PI * x)) * 0.5f; // (1-cos)/2
+                    return Mathf.Lerp(x, c, p);
+                } */
+
+        /*         float nonlinearPreviousImageRatio = EaseRatio(previousImageRatio, functionRatio);
+                float nonlinearNextImageRatio = EaseRatio(nextImageRatio, functionRatio); */
+        float knobValue = Mathf.Clamp01(SerialReader.lastSensorValue);
+        functionRatio = Mathf.Clamp(knobValue, -1f, 1f);
+        float nonlinearPreviousImageRatio = BlendCurves.BlendCurve(previousImageRatio, functionRatio, curveType);
+        float nonlinearNextImageRatio = BlendCurves.BlendCurve(nextImageRatio, functionRatio, curveType);
 
 
-        SpeedFunctionTime += Time.deltaTime * SpeedFunctionFrequency;
-        Vector3 basePos = new Vector3(0f, 0f, 0f);
+        /*            if (experimentPattern == ExperimentPattern.Nonlinear)
+                {
+                    SpeedFunctionTime += Time.deltaTime * SpeedFunctionFrequency;
+                    Vector3 basePos = new Vector3(0f, 0f, 0f);
+                    // 计算非线性混合比（t 可以是 previousImageRatio 和 nextImageRatio）
+                    nonlinearPreviousImageRatio = CalculateZ(previousImageRatio, functionType, SpeedFunctionDistance, basePos, SpeedFunctionFrequency, SpeedFunctionAmplitude, SpeedFunctionOffset);
+                    nonlinearNextImageRatio = CalculateZ(nextImageRatio, functionType, SpeedFunctionDistance, basePos, SpeedFunctionFrequency, SpeedFunctionAmplitude, SpeedFunctionOffset);
 
-        // 计算非线性混合比（t 可以是 previousImageRatio 和 nextImageRatio）
-        //float nonlinearPreviousImageRatio = CalculateZ(previousImageRatio, functionType, SpeedFunctionDistance, basePos , SpeedFunctionFrequency, SpeedFunctionAmplitude, SpeedFunctionOffset);
-        //float nonlinearNextImageRatio     = CalculateZ(nextImageRatio,     functionType, SpeedFunctionDistance, basePos , SpeedFunctionFrequency, SpeedFunctionAmplitude, SpeedFunctionOffset);
+                }    */
 
-        //LuminanceMixture method1
-        //  Image1RawImage.color = new Color(1, 1, 1, nonlinearPreviousImageRatio);
-        //  Image2RawImage.color = new Color(1, 1, 1, 1.0f);   
-
-        /*         CaptureCameraLinearBlendRawImage.material.SetColor("_TopColor", new Color(1,1,1,nonlinearPreviousImageRatio)); // 透明度
-                CaptureCameraLinearBlendRawImage.material.SetColor("_BottomColor", new Color(1, 1, 1, 1.0f)); */
-
-        //LuminanceMixture method2
         if (frameNum % 2 == 0)
         {
             Image1RawImage.color = new Color(1, 1, 1, nonlinearNextImageRatio);
@@ -659,60 +605,11 @@ public class MoveCamera : MonoBehaviour
         //RecordVariable(Image1RawImage.color.a, Image2RawImage.color.a); 
         // データを記録 // 记录数据
         // data.Add("FrondFrameNum, FrondFrameLuminance, BackFrameNum, BackFrameLuminance, Time, FrameNum, Knob, ResponsePattern, StepNumber, Amplitude, Velocity");
-        data.Add($"{frameNum}, {nonlinearPreviousImageRatio:F3}, {frameNum + 1}, {nonlinearNextImageRatio:F3}, {timeMs:F3}, {SerialReader.lastSensorValue}, {responsePattern}, {(int)stepNumber}, {amplitudeToSaveData}, {v}");
+        data.Add($"{frameNum}, {nonlinearPreviousImageRatio:F3}, {frameNum + 1}, {nonlinearNextImageRatio:F3}, {timeMs:F3}, {SerialReader.lastSensorValue}, {responsePattern}, {(int)stepNumber}, {amplitudeToSaveData}, {v}, {functionRatio:F3}, {cameraSpeed:F3}");
         //data.Add($"{frameNum}, {Image1RawImage.color.a:F3}, {frameNum + 1}, {Image2RawImage.color.a:F3}, {timeMs :F3}, {(vectionResponse ? 1 : 0)}");
 
     }
-    float CalculateZ(
-    float SpeedFunctionTime,
-    SpeedFunctionType functionType,
-    float SpeedFunctionDistance,
-    Vector3 SpeedFunctionleftLimit,
-    float SpeedFunctionFrequency = 1f,
-    float SpeedFunctionAmplitude = 1f,
-    float SpeedFunctionOffset = 0f
-)
-    {
-        // 1. 让 t 在 [0, 2) 范围内循环往返
-        float tt = SpeedFunctionTime * SpeedFunctionFrequency;
-        // 2. 把往返做成 0→1→0 的区间：先对 2 取余，再对 1 作镜像
-        float m = tt % 2f;
-        if (m < 0f) m += 2f;
-        // m ∈ [0,2)，当 m>1 时我们需要“回过头”，用 2-m
-        float x = (m <= 1f) ? m : (2f - m);
 
-        // 3. 根据 functionType 计算“规范化”输出 y0 ∈ [0,1]
-        float y0;
-        switch (functionType)
-        {
-            case SpeedFunctionType.Linear:
-                y0 = x;
-                break;
-
-            case SpeedFunctionType.EaseInOut:
-                y0 = (1f - Mathf.Cos(Mathf.PI * x)) * 0.5f;
-                break;
-
-            case SpeedFunctionType.Triangle:
-                y0 = 1f - Mathf.Abs(2f * x - 1f); ;  // 此处 x∈[0,1]，也可直接用 x 或 1−|2x−1|
-                break;
-
-            case SpeedFunctionType.Arccos:
-                // 把原来两个分段合并到同一个 x 上
-                y0 = Mathf.Acos(-2f * x + 1f) / Mathf.PI;
-                break;
-
-            default:
-                y0 = x;
-                break;
-        }
-
-        // 4. 振幅 & 偏移
-        float y = y0 * SpeedFunctionAmplitude + SpeedFunctionOffset;
-
-        // 5. 映射到 Z 轴：leftLimit.z → leftLimit.z + distance
-        return SpeedFunctionleftLimit.z + SpeedFunctionDistance * y;
-    }
     void GetRawImage()
     {
         // Canvas内で指定された名前の子オブジェクトを検索 // 在 Canvas 中查找指定名称的子对象
@@ -777,6 +674,132 @@ public class MoveCamera : MonoBehaviour
     public void SetAmplitude(int index, float value)
     {
         amplitudes[index] = value;
+    }
+
+    public static class BlendCurves
+    {
+        // -------- 单条曲线公式 --------
+        static float Cosine(float x) => 0.5f * (1f - Mathf.Cos(Mathf.PI * x));
+        static float Cubic(float x) => 3f * x * x - 2f * x * x * x;
+        static float Quintic(float x)
+        {
+            float t = x;
+            return t * t * t * (t * (6f * t - 15f) + 10f);
+        }
+        static float AcosCurve(float x) =>
+            (float)(Math.Acos(-2f * x + 1f) / Math.PI);
+
+        // -------- 核心统一接口 --------
+        /// <summary>
+        /// 返回混合后的 y 值  
+        /// x           : 0-1 的线性进度  
+        /// funcRatio p : 0=线性 1=完全目标曲线（中间值 = 插值弯曲）  
+        /// curveType   : 选用哪条曲线
+        /// </summary>
+        public static float BlendCurve(float x, float p, CurveType curveType)
+        {
+            p = Mathf.Clamp01(p);          // 保险
+            if (curveType == CurveType.Linear || p == 0f)
+                return x;                  // 纯线性直接返回
+
+            float yCurve = curveType switch
+            {
+                CurveType.Cosine => Cosine(x),
+                CurveType.Cubic => Cubic(x),
+                CurveType.Quintic => Quintic(x),
+                CurveType.Acos => AcosCurve(x),
+                _ => x
+            };
+            return Mathf.Lerp(x, yCurve, p);   // 线性 ↔ 曲线 之间插值
+        }
+    }
+
+    float GammaApprox(float z)
+    {
+        if (z <= 0f) return float.NaN;
+
+        float[] p = {
+        1.000000000190015f,
+        76.18009172947146f,
+        -86.50532032941677f,
+        24.01409824083091f,
+        -1.231739572450155f,
+        0.001208650973866179f,
+        -0.5395239384953e-5f
+    };
+
+        float x = p[0];
+        for (int i = 1; i < p.Length; i++)
+            x += p[i] / (z + i);
+
+        float t = z + 5.5f;
+        return Mathf.Sqrt(2 * Mathf.PI) * Mathf.Pow(t, z + 0.5f) * Mathf.Exp(-t) * x;
+    }
+
+    float GammaFunc(float t, float alpha, float beta)
+    {
+        if (t < 0f || alpha <= 0f || beta <= 0f) return 0f;  // 非法输入直接返回0
+
+        float norm = GammaApprox(alpha);
+        if (float.IsNaN(norm) || norm <= 0f) return 0f;      // 安全保护
+
+        return Mathf.Pow(t, alpha - 1f) * Mathf.Exp(-t / beta) / (Mathf.Pow(beta, alpha) * norm);
+    }
+
+    float TriGamma(float phase, float g)
+    {
+        float y = 1f - Mathf.Abs(1f - Mathf.Repeat(phase, 2f * Mathf.PI) / Mathf.PI);
+        return 1f - Mathf.Pow(y, g);
+    }
+    float CalculateZ(
+    float SpeedFunctionTime,
+    SpeedFunctionType functionType,
+    float SpeedFunctionDistance,
+    Vector3 SpeedFunctionleftLimit,
+    float SpeedFunctionFrequency = 1f,
+    float SpeedFunctionAmplitude = 1f,
+    float SpeedFunctionOffset = 0f
+)
+    {
+        // 1. 让 t 在 [0, 2) 范围内循环往返
+        float tt = SpeedFunctionTime * SpeedFunctionFrequency;
+        // 2. 把往返做成 0→1→0 的区间：先对 2 取余，再对 1 作镜像
+        float m = tt % 2f;
+        if (m < 0f) m += 2f;
+        // m ∈ [0,2)，当 m>1 时我们需要“回过头”，用 2-m
+        float x = (m <= 1f) ? m : (2f - m);
+
+        // 3. 根据 functionType 计算“规范化”输出 y0 ∈ [0,1]
+        float y0;
+        switch (functionType)
+        {
+            case SpeedFunctionType.Linear:
+                y0 = x;
+                break;
+
+            case SpeedFunctionType.EaseInOut:
+                y0 = (1f - Mathf.Cos(Mathf.PI * x)) * 0.5f;
+                break;
+
+            case SpeedFunctionType.Triangle:
+                y0 = 1f - Mathf.Abs(2f * x - 1f); ;  // 此处 x∈[0,1]，也可直接用 x 或 1−|2x−1|
+                break;
+
+            case SpeedFunctionType.Arccos:
+                // 把原来两个分段合并到同一个 x 上
+                y0 = Mathf.Acos(-2f * x + 1f) / Mathf.PI;
+                break;
+
+            default:
+                y0 = x;
+                break;
+        }
+
+        // 4. 振幅 & 偏移
+        float y = y0 * SpeedFunctionAmplitude + SpeedFunctionOffset;
+
+        // 5. 映射到 Z 轴：leftLimit.z → leftLimit.z + distance
+        return SpeedFunctionleftLimit.z + SpeedFunctionDistance * y;
     }
 }
 
