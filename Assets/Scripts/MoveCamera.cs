@@ -211,7 +211,7 @@ public class MoveCamera : MonoBehaviour
                              + "TrialNumber_" + trialNumber.ToString();
         if (experimentPattern == ExperimentPattern.Nonlinear)
         {
-            experimentalCondition += "CurveType" + curveType.ToString() + "_";
+            experimentalCondition += "_" + "CurveType_" + curveType.ToString();
         }
 
         SerialReader = GetComponent<SerialReader>();
@@ -232,6 +232,15 @@ public class MoveCamera : MonoBehaviour
             switch (currentStep)
             {
                 case 0:
+                    if (experimentPattern == ExperimentPattern.Nonlinear)
+                    {
+                        nextStepButtonTextComponent.text = "Entering the next trial";
+                    }
+                    else
+                    {
+                        nextStepButtonTextComponent.text = "Next Step";
+                    }
+                    break;
                 case 1:
                 case 2:
                 case 3:
@@ -291,6 +300,7 @@ public class MoveCamera : MonoBehaviour
     void FixedUpdate()
     {
         timeMs = (Time.time - startTime) * 1000;
+        //timeMs = Time.timeSinceLevelLoad * 1000f;
         Continuous();
         LuminanceMixture();
 
@@ -301,6 +311,7 @@ public class MoveCamera : MonoBehaviour
         frameNum = 1;
         startTime = Time.time;
         timeMs = (Time.time - startTime) * 1000;
+        //timeMs = Time.timeSinceLevelLoad * 1000f;
         nextStepButton.gameObject.SetActive(false);
         Vector3 worldRightDirection = rightMoveRotation * Vector3.right;
         Vector3 worldForwardDirection = forwardMoveRotation * Vector3.forward;
@@ -333,7 +344,15 @@ public class MoveCamera : MonoBehaviour
         switch (currentStep)
         {
             case 1:
-                stepNumber = StepNumber.Option1;
+                if (experimentPattern == ExperimentPattern.Nonlinear)
+                {
+                    QuitGame();
+                }
+                else
+                {
+                    stepNumber = StepNumber.Option1;
+                }
+
                 break;
             case 2:
                 stepNumber = StepNumber.Option2;
@@ -534,13 +553,14 @@ public class MoveCamera : MonoBehaviour
                     return Mathf.Lerp(x, c, p);
                 } */
 
-        /*         float nonlinearPreviousImageRatio = EaseRatio(previousImageRatio, functionRatio);
-                float nonlinearNextImageRatio = EaseRatio(nextImageRatio, functionRatio); */
-        float knobValue = Mathf.Clamp01(SerialReader.lastSensorValue);
-        functionRatio = Mathf.Clamp(knobValue, -1f, 1f);
-        float nonlinearPreviousImageRatio = BlendCurves.BlendCurve(previousImageRatio, functionRatio, curveType);
-        float nonlinearNextImageRatio = BlendCurves.BlendCurve(nextImageRatio, functionRatio, curveType);
-
+        float nonlinearPreviousImageRatio = previousImageRatio;
+        float nonlinearNextImageRatio = nextImageRatio;
+        if (experimentPattern == ExperimentPattern.Nonlinear)
+        {
+            functionRatio = Mathf.Clamp(SerialReader.lastSensorValue * 2f - 0.5f, -0.5f, 1.5f);//[-0.5, 2]
+            nonlinearPreviousImageRatio = BlendCurves.BlendCurve(previousImageRatio, functionRatio, curveType);
+            nonlinearNextImageRatio = BlendCurves.BlendCurve(nextImageRatio, functionRatio, curveType);
+        }
 
         /*            if (experimentPattern == ExperimentPattern.Nonlinear)
                 {

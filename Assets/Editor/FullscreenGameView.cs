@@ -45,9 +45,10 @@ public static class FullscreenGameView
             instance = (EditorWindow)ScriptableObject.CreateInstance(GameViewType);
 
             ShowToolbarProperty?.SetValue(instance, False);
-            int screenWidth = Display.main.systemWidth;
-            int screenHeight = Display.main.systemHeight;
-            var desktopResolution = new Vector2(3440, 1440);
+            int screenWidth = Display.main.systemWidth > 0 ? Display.main.systemWidth : Screen.width;
+            int screenHeight = Display.main.systemHeight > 0 ? Display.main.systemHeight : Screen.height;
+            // var desktopResolution = new Vector2(3440, 1440);
+            var desktopResolution = new Vector2(screenWidth, screenHeight);
             var fullscreenRect = new Rect(Vector2.zero, desktopResolution);
             instance.ShowPopup();
             instance.position = fullscreenRect;
