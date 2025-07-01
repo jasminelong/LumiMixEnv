@@ -124,8 +124,7 @@ public class MoveCamera : MonoBehaviour
     [Space(20)]
     [Header("🔧 基本パラメータ（調整可能）")]
     [Range(0.1f, 10f)]
-    // public float omega = 2 * Mathf.PI; // 角速度（頻度）
-    public float omega = Mathf.PI; // 角速度（頻度）
+    public float omega = 2 * Mathf.PI; // 角速度（頻度）
 
     [Range(-1f, 5f)]
     public float A_min = -2f;
