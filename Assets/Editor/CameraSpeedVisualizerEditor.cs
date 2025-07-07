@@ -35,20 +35,22 @@ public class MoveCameraEditor : Editor
         prop = serializedObject.FindProperty("captureImageTexture2");
         EditorGUILayout.PropertyField(prop);
 
+        prop = serializedObject.FindProperty("Mat_GrayscaleOverBlend");
+        EditorGUILayout.PropertyField(prop);
+
         prop = serializedObject.FindProperty("cameraSpeed");
         EditorGUILayout.PropertyField(prop);
 
-        prop = serializedObject.FindProperty("updateInterval");
-        EditorGUILayout.PropertyField(prop);
+        // prop = serializedObject.FindProperty("updateInterval");
+        // EditorGUILayout.PropertyField(prop);
 
-        prop = serializedObject.FindProperty("frameNum");
-        EditorGUILayout.PropertyField(prop);
+/*         prop = serializedObject.FindProperty("frameNum");
+        EditorGUILayout.PropertyField(prop); */
 
         prop = serializedObject.FindProperty("fps");
         EditorGUILayout.PropertyField(prop);
         
-        prop = serializedObject.FindProperty("Mat_GrayscaleOverBlend");
-        EditorGUILayout.PropertyField(prop);
+
 
         /*         prop = serializedObject.FindProperty("v");
                 EditorGUILayout.PropertyField(prop); */
@@ -56,12 +58,15 @@ public class MoveCameraEditor : Editor
         prop = serializedObject.FindProperty("participantName");
         EditorGUILayout.PropertyField(prop);
 
+        prop = serializedObject.FindProperty("devMode");
+        EditorGUILayout.PropertyField(prop);
+
         prop = serializedObject.FindProperty("experimentPattern");
         EditorGUILayout.PropertyField(prop);
 
-        prop = serializedObject.FindProperty("trialNumber");
+/*         prop = serializedObject.FindProperty("trialNumber");
         EditorGUILayout.PropertyField(prop);
-
+ */
 
 
 /*         prop = serializedObject.FindProperty("curveType");

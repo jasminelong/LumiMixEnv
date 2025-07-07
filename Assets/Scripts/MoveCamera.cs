@@ -22,9 +22,9 @@ public class MoveCamera : MonoBehaviour
     }
     public enum ExperimentPattern
     {
-        Fourier,
         Phase,
         Nonlinear,
+        Fourier,
     }
     public enum StepNumber
     {
@@ -41,7 +41,11 @@ public class MoveCamera : MonoBehaviour
         LinearOnly,
         AcosOnly
     }
-
+    public enum DevMode
+    {
+        Normal,       // 正常模式
+        Test          // 测试模式
+    }
 
     public enum CurveType  // 选择曲线
     {
@@ -51,6 +55,7 @@ public class MoveCamera : MonoBehaviour
         Quintic,
         Acos     // 老师原来的 acos 曲线
     }
+    [SerializeField] DevMode devMode = DevMode.Normal;
     [SerializeField] BrightnessBlendMode brightnessBlendMode = BrightnessBlendMode.Dynamic;
     [SerializeField] CurveType curveType = CurveType.Cosine;
     public Camera captureCamera0; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
@@ -173,6 +178,7 @@ public class MoveCamera : MonoBehaviour
     public Material Mat_GrayscaleOverBlend;
     private Texture2D blackTexture;
     private Texture2D whiteTexture;
+
     // 对数刻度
     void Start()
     {
@@ -213,13 +219,28 @@ public class MoveCamera : MonoBehaviour
                              + "ExperimentPattern_" + experimentPattern.ToString() + "_"
                              + "ParticipantName_" + participantName.ToString() + "_"
                              + "TrialNumber_" + trialNumber.ToString();
-        if (experimentPattern == ExperimentPattern.Nonlinear)
+        if (experimentPattern == ExperimentPattern.Phase)
         {
-            experimentalCondition += "_" + "CurveType_" + curveType.ToString();
+            experimentalCondition += "_" + "BrightnessBlendMode" + brightnessBlendMode.ToString();
         }
 
         SerialReader = GetComponent<SerialReader>();
 
+        if (devMode.Equals(DevMode.Normal))
+        {
+            if (!TrialState.IsInitialized)
+            {
+                TrialState.trials = GenerateRandomTrials();
+                TrialState.currentIndex = 0;
+                Debug.Log("生成新试次顺序");
+            }
+            else
+            {
+                Debug.Log("继续使用已生成的试次顺序");
+            }
+
+            ShowCurrentTrial();
+        }
     }
     void Update()
     {
@@ -268,7 +289,6 @@ public class MoveCamera : MonoBehaviour
     void FixedUpdate()
     {
         timeMs = (Time.time - startTime) * 1000;
-        //timeMs = Time.timeSinceLevelLoad * 1000f;
         Continuous();
         LuminanceMixture();
 
@@ -279,7 +299,7 @@ public class MoveCamera : MonoBehaviour
         frameNum = 1;
         startTime = Time.time;
         timeMs = (Time.time - startTime) * 1000;
-        //timeMs = Time.timeSinceLevelLoad * 1000f;
+
         nextStepButton.gameObject.SetActive(false);
         Vector3 worldRightDirection = rightMoveRotation * Vector3.right;
         Vector3 worldForwardDirection = forwardMoveRotation * Vector3.forward;
@@ -314,7 +334,8 @@ public class MoveCamera : MonoBehaviour
             case 1:
                 if (experimentPattern == ExperimentPattern.Nonlinear)
                 {
-                    QuitGame();
+                    //QuitGame();
+                    RestartPlay();
                 }
                 else
                 {
@@ -335,7 +356,7 @@ public class MoveCamera : MonoBehaviour
                 if (experimentPattern == ExperimentPattern.Fourier || experimentPattern == ExperimentPattern.Phase)
                 {
                     //QuitGame();
-                    SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+                    RestartPlay();
                 }
                 else
                 {
@@ -424,14 +445,12 @@ public class MoveCamera : MonoBehaviour
         //data.Add($"{timeMs:F3}, {SerialReader.lastSensorValue}, {responsePattern}, {step}, {amplitudeToSaveData}, {v}");
     }
 
-
-
     void LuminanceMixture()
     {
 
         // 写真を撮る距離に達したかをチェック // 检查是否到了拍照的距离
         //Debug.Log("frameNum--" + frameNum + "-----dt------" + Mathf.Abs(timeMs - frameNum * updateInterval * 1000));
-        if (Mathf.Abs(timeMs - frameNum * updateInterval * 1000) < 0.1f)
+        if (Mathf.Abs(timeMs - frameNum * updateInterval * 1000) < 0.2f)
         {
             frameNum++;
             Image1RawImage.enabled = false;
@@ -536,8 +555,6 @@ public class MoveCamera : MonoBehaviour
         Image1RawImage.enabled = true;
         Image2RawImage.enabled = true;
 
-        // 輝度値の変化の表示
-        //RecordVariable(Image1RawImage.color.a, Image2RawImage.color.a); 
         // データを記録 // 记录数据
         // data.Add("FrondFrameNum, FrondFrameLuminance, BackFrameNum, BackFrameLuminance, Time, FrameNum, Knob, ResponsePattern, StepNumber, Amplitude, Velocity");
         data.Add($"{frameNum}, {nonlinearPreviousImageRatio:F3}, {frameNum + 1}, {nonlinearNextImageRatio:F3}, {timeMs:F3}, {SerialReader.lastSensorValue}, {responsePattern}, {(int)stepNumber}, {amplitudeToSaveData}, {v}, {functionRatio:F3}, {cameraSpeed:F3}");
@@ -597,9 +614,20 @@ public class MoveCamera : MonoBehaviour
 
         // ファイルを保存（Application.dataPath：現在のプロジェクトのAssetsフォルダのパスを示す） // 保存文件（Application.dataPath：表示当前项目的Assets文件夹的路径）
         string filePath = Path.Combine("D:/vectionProject/public", folderName, fileName);
-        //File.WriteAllLines(filePath, data);
+        File.WriteAllLines(filePath, data);
 
         //Debug.Log($"Data saved to {filePath}");
+    }
+    public static void RestartPlay()
+    {
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+        UnityEditor.EditorApplication.delayCall += () =>
+            UnityEditor.EditorApplication.isPlaying = true;
+#else
+        Debug.LogWarning("RestartPlayMode only works in the Unity Editor.");
+#endif
+
     }
     public float GetAmplitude(int index)
     {
@@ -611,6 +639,59 @@ public class MoveCamera : MonoBehaviour
         amplitudes[index] = value;
     }
 
+    //trail 設定------satrt------
+    List<Trial> GenerateRandomTrials()
+    {
+        List<Trial> trials = new List<Trial>();
+        for (int cond = 0; cond < 3; cond++)
+        {
+            for (int rep = 0; rep < 3; rep++)
+            {
+                trials.Add(new Trial { condition = cond, repetition = rep });
+            }
+        }
+
+        // 洗牌
+        for (int i = trials.Count - 1; i > 0; i--)
+        {
+            int j = UnityEngine.Random.Range(0, i + 1);
+            (trials[i], trials[j]) = (trials[j], trials[i]);
+        }
+
+        return trials;
+    }
+
+    void ShowCurrentTrial()
+    {
+        if (TrialState.currentIndex >= TrialState.trials.Count)
+        {
+            Debug.Log("🎉 全部试次完成！");
+            return;
+        }
+
+        var trial = TrialState.trials[TrialState.currentIndex];
+        Debug.Log($"🔬 当前试次：条件 = {trial.condition}, 重复 = {trial.repetition}");
+
+        trialNumber = trial.repetition;
+        switch (trial.condition)
+        {
+            case 0:
+                brightnessBlendMode = BrightnessBlendMode.CosineOnly;
+                break;
+            case 1:
+                brightnessBlendMode = BrightnessBlendMode.LinearOnly;
+                break;
+            case 2:
+                brightnessBlendMode = BrightnessBlendMode.AcosOnly;
+                break;
+        }
+    }
+    public void MarkTrialCompleted()
+    {
+        TrialState.currentIndex++;
+        ShowCurrentTrial();
+    }
+    //trail 設定------end------
 
     public static class BrightnessBlend
     {
@@ -677,7 +758,7 @@ public class MoveCamera : MonoBehaviour
         }
     }
 
- 
+
     public static class BlendCurves
     {
         // -------- 单条曲线公式 --------
