@@ -32,12 +32,16 @@ public class MoveCamera : MonoBehaviour
         Option1 = 1,
         Option2 = 2,
         Option3 = 3,
-        Option4 = 4,
-        Option5 = 5,
-        Option6 = 6,
-        Option7 = 7,
-        Option8 = 8,
+        Option4 = 4
     }
+    public enum BrightnessBlendMode
+    {
+        Dynamic,      // Cosine → Linear → Acos → Cosine
+        CosineOnly,
+        LinearOnly,
+        AcosOnly
+    }
+
 
     public enum CurveType  // 选择曲线
     {
@@ -47,6 +51,7 @@ public class MoveCamera : MonoBehaviour
         Quintic,
         Acos     // 老师原来的 acos 曲线
     }
+    [SerializeField] BrightnessBlendMode brightnessBlendMode = BrightnessBlendMode.Dynamic;
     [SerializeField] CurveType curveType = CurveType.Cosine;
     public Camera captureCamera0; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
     public Camera captureCamera1; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
@@ -246,22 +251,7 @@ public class MoveCamera : MonoBehaviour
                     nextStepButtonTextComponent.text = "Next Step";
                     break;
                 case 4:
-                    if (experimentPattern == ExperimentPattern.Fourier)
-                    {
-                        nextStepButtonTextComponent.text = "Entering the next trial";
-                    }
-                    else
-                    {
-                        nextStepButtonTextComponent.text = "Next Step";
-                    }
-                    break;
-                case 5:
-                case 6:
-                case 7:
-                    nextStepButtonTextComponent.text = "Next Step";
-                    break;
-                case 8:
-                    if (experimentPattern == ExperimentPattern.Phase)
+                    if (experimentPattern == ExperimentPattern.Fourier || experimentPattern == ExperimentPattern.Phase)
                     {
                         nextStepButtonTextComponent.text = "Entering the next trial";
                     }
@@ -273,27 +263,6 @@ public class MoveCamera : MonoBehaviour
 
             }
         }
-
-        //輝度値の変化の表示
-        float now = Application.isPlaying ? Time.time : (float)UnityEditor.EditorApplication.timeSinceStartup;
-        /* 
-                // 現在の alpha 値をサンプルに追加//添加当前样本
-                timeStamps.Add(now);
-                alphaHistory.Add(Image1RawImage.color.a);
-
-                // 1秒より前のデータを削除//剔除 1 秒以前的数据
-                while (timeStamps.Count > 0 && timeStamps[0] < now - 5f)
-                {
-                    timeStamps.RemoveAt(0);
-                    alphaHistory.RemoveAt(0);
-                }
-
-                // 上限を超えた場合は最古データから削除 //如果依然过多，按最早移除
-                if (timeStamps.Count > maxSamples)
-                {
-                    timeStamps.RemoveAt(0);
-                    alphaHistory.RemoveAt(0);
-                } */
     }
     // Update is called once per frame
     void FixedUpdate()
@@ -363,36 +332,16 @@ public class MoveCamera : MonoBehaviour
                 stepNumber = StepNumber.Option4;
                 break;
             case 5:
-                if (experimentPattern == ExperimentPattern.Fourier)
+                if (experimentPattern == ExperimentPattern.Fourier || experimentPattern == ExperimentPattern.Phase)
                 {
-                    QuitGame();
-                    //SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+                    //QuitGame();
+                    SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
                 }
                 else
                 {
-                    stepNumber = StepNumber.Option5;
+                    //stepNumber = StepNumber.Option5;
                 }
 
-                break;
-            case 6:
-                stepNumber = StepNumber.Option6;
-                break;
-            case 7:
-                stepNumber = StepNumber.Option7;
-                break;
-            case 8:
-                stepNumber = StepNumber.Option8;
-                break;
-            case 9:
-                if (experimentPattern == ExperimentPattern.Phase)
-                {
-                    QuitGame();
-                    //SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
-                }
-                else
-                {
-                    stepNumber = StepNumber.Option8;
-                }
                 break;
         }
         nextStepButton.gameObject.SetActive(false);
@@ -404,9 +353,6 @@ public class MoveCamera : MonoBehaviour
         continuousImageRawImage.enabled = true;
         // カメラが移動する目標位置を計算 // 计算摄像机沿圆锥轴线移动的目标位置right 
         //Vector3 targetPosition = captureCamera0.transform.position + direction * cameraSpeed * Time.fixedDeltaTime;
-        //予備実験
-        //Vector3 targetPosition = captureCamera0.transform.position + direction * (SerialReader.lastSensorValue + 1f) * cameraSpeed * Time.fixedDeltaTime;
-        //captureCamera0.transform.position = targetPosition;
 
         time += Time.fixedDeltaTime;
 
@@ -435,10 +381,6 @@ public class MoveCamera : MonoBehaviour
                             amplitudes[step] = amplitudeToSaveData;
                         }
 
-                        // 计算 v
-                        v = V0;
-
-
                         // 現在の速度を計算
                         if (step >= 1) v += amplitudes[1] * Mathf.Sin(omega * time);
                         if (step >= 2) v += amplitudes[2] * Mathf.Cos(omega * time);
@@ -447,34 +389,23 @@ public class MoveCamera : MonoBehaviour
 
                         break;
                     case ExperimentPattern.Phase:
-                        //2.v(t)=V0 + A1·sin(ωt + φ) + A2·sin(2ωt + 2φ)
-                        //v(t)=V0 + A1·sin(ωt + A2) 二回+ A3·sin(2ωt + A4)二回
+                        //2.v(t)=V0 + A1·sin(ωt + φ1 + Mathf.PI) + A2·sin(2ωt + φ2 + Mathf.PI)
+                        //v(t)=V0 + A1·sin(ωt + A2) + A3·sin(2ωt + A4)
                         // 現在の速度を計算
                         if (step == 1 || step == 3)
                         {
                             amplitudeToSaveData = amplitudes[1] = A_min + knobValue * (A_max - A_min);
                         }
-                        if (step == 5 || step == 7)
-                        {
-                            amplitudeToSaveData = amplitudes[3] = A_min + knobValue * (A_max - A_min);
-                        }
                         if (step == 2 || step == 4)
                         {
-                            amplitudeToSaveData = amplitudes[2] = knobValue * 2f * Mathf.PI;  // 0 … 2π
-                        }
-                        if (step == 6 || step == 8)
-                        {
-                            amplitudeToSaveData = amplitudes[4] = knobValue * 2f * Mathf.PI;  // 0 … 2π
+                            amplitudeToSaveData = amplitudes[2] = knobValue * 2f * Mathf.PI; ;  // 0 … 2π
                         }
 
                         if (step >= 1) v = V0 + amplitudes[1] * Mathf.Sin(omega * time);//step1,amplitudes[1] 
-                        if (step >= 2) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]);//step2,amplitudes[2]
-                        if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]);//step3,amplitudes[1] 
-                        if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]);//step4,amplitudes[2]
-                        if (step >= 5) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time);//step5,amplitudes[3]
-                        if (step >= 6) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4]);//step6,amplitudes[4] 
-                        if (step >= 7) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4]);//step7,amplitudes[3]
-                        if (step >= 8) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4]);//step8,amplitudes[4] 
+                        if (step >= 2) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI);//step2,amplitudes[2]
+                        if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time);//step3,amplitudes[3]
+                        if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);//step4,amplitudes[4] 
+
                         break;
                     case ExperimentPattern.Nonlinear:
                         //NonlinearResponse(step, knobValue);
@@ -532,36 +463,23 @@ public class MoveCamera : MonoBehaviour
         //Debug.Log("nextImageRatio : " + nextImageRatio + "    timeMs : " + timeMs + "     frameNum : " + frameNum + "     updateInterval : "+ updateInterval);
         //Debug.Log("beforeImage1RawImage.color.r" + Image1RawImage.color.r + "  " + Image1RawImage.color.g + "  " + Image1RawImage.color.b + "  " + Image1RawImage.color.a);
 
-        /*         // Logistic 曲线
-                float LogisticBlend(float x, float p)
-                {
-                    float k = 1f + 9f * p;             // 1 → 10
-                    float y = 0.5f + 0.5f * (float)Math.Tanh(k * (2f * x - 1f)) / (float)Math.Tanh(k);
-                    return y;
-                }
-                // p = 0~1 来自旋钮
-                float SmoothStepBlend(float x, float p)
-                {
-                    float s = 3f * x * x - 2f * x * x * x;   // SmoothStep 核心
-                    return Mathf.Lerp(x, s, p);    // 线性↔SmoothStep 插值
-                }
-
-                float CosineEaseBlend(float x, float p)
-                {
-                    float c = (1f - Mathf.Cos(Mathf.PI * x)) * 0.5f; // (1-cos)/2
-                    return Mathf.Lerp(x, c, p);
-                } */
-
         float nonlinearPreviousImageRatio = previousImageRatio;
         float nonlinearNextImageRatio = nextImageRatio;
+
         if (experimentPattern == ExperimentPattern.Nonlinear)
         {
-            functionRatio = Mathf.Clamp(SerialReader.lastSensorValue * 2f - 0.5f, -0.5f, 1.5f);//[-0.5, 2]
-            nonlinearPreviousImageRatio = BlendCurves.BlendCurve(previousImageRatio, functionRatio, curveType);
-            nonlinearNextImageRatio = BlendCurves.BlendCurve(nextImageRatio, functionRatio, curveType);
+            functionRatio = SerialReader.lastSensorValue * 2f;
+            nonlinearPreviousImageRatio = BrightnessBlend.GetMixedValue(previousImageRatio, functionRatio, brightnessBlendMode);
+            nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, functionRatio, brightnessBlendMode);
         }
+        /*         if (experimentPattern == ExperimentPattern.Nonlinear)
+                {
+                    functionRatio = Mathf.Clamp(SerialReader.lastSensorValue * 2f - 0.5f, -0.5f, 1.5f);//[-0.5, 2]
+                    nonlinearPreviousImageRatio = BlendCurves.BlendCurve(previousImageRatio, functionRatio, curveType);
+                    nonlinearNextImageRatio = BlendCurves.BlendCurve(nextImageRatio, functionRatio, curveType);
+                } */
 
-        /*            if (experimentPattern == ExperimentPattern.Nonlinear)
+        /*         if (experimentPattern == ExperimentPattern.Nonlinear)
                 {
                     SpeedFunctionTime += Time.deltaTime * SpeedFunctionFrequency;
                     Vector3 basePos = new Vector3(0f, 0f, 0f);
@@ -569,7 +487,7 @@ public class MoveCamera : MonoBehaviour
                     nonlinearPreviousImageRatio = CalculateZ(previousImageRatio, functionType, SpeedFunctionDistance, basePos, SpeedFunctionFrequency, SpeedFunctionAmplitude, SpeedFunctionOffset);
                     nonlinearNextImageRatio = CalculateZ(nextImageRatio, functionType, SpeedFunctionDistance, basePos, SpeedFunctionFrequency, SpeedFunctionAmplitude, SpeedFunctionOffset);
 
-                }    */
+                } */
 
         if (frameNum % 2 == 0)
         {
@@ -579,7 +497,6 @@ public class MoveCamera : MonoBehaviour
             CaptureCameraLinearBlendRawImage.material.SetColor("_TopColor", new Color(1, 1, 1, nonlinearNextImageRatio)); // 透明度
             CaptureCameraLinearBlendRawImage.material.SetColor("_BottomColor", new Color(1, 1, 1, 1.0f));
             alphaHistory.Add(nonlinearPreviousImageRatio);
-            //Debug.Log("nonlinearNextImageRatio" + nonlinearNextImageRatio + "       " + timeMs);
         }
         else
         {
@@ -589,7 +506,6 @@ public class MoveCamera : MonoBehaviour
             CaptureCameraLinearBlendRawImage.material.SetColor("_TopColor", new Color(1, 1, 1, nonlinearPreviousImageRatio)); // 透明度
             CaptureCameraLinearBlendRawImage.material.SetColor("_BottomColor", new Color(1, 1, 1, 1.0f));
             alphaHistory.Add(nonlinearNextImageRatio);
-            //Debug.Log("nonlinearPreviousImageRatio" + nonlinearPreviousImageRatio + "       " + timeMs);
         }
 
 
@@ -681,7 +597,7 @@ public class MoveCamera : MonoBehaviour
 
         // ファイルを保存（Application.dataPath：現在のプロジェクトのAssetsフォルダのパスを示す） // 保存文件（Application.dataPath：表示当前项目的Assets文件夹的路径）
         string filePath = Path.Combine("D:/vectionProject/public", folderName, fileName);
-        File.WriteAllLines(filePath, data);
+        //File.WriteAllLines(filePath, data);
 
         //Debug.Log($"Data saved to {filePath}");
     }
@@ -695,16 +611,85 @@ public class MoveCamera : MonoBehaviour
         amplitudes[index] = value;
     }
 
+
+    public static class BrightnessBlend
+    {
+        /// <summary>
+        /// Cosine → Linear → Acos → Cosine 动态或固定混合函数
+        /// </summary>
+        /// <param name="x">归一化时间 ∈ [0,1]</param>
+        /// <param name="knobValue">旋钮值 ∈ [0,2]（Dynamic 模式下有效）</param>
+        /// <param name="mode">混合模式（动态 or 固定函数）</param>
+        public static float GetMixedValue(float x, float knobValue, BrightnessBlendMode mode)
+        {
+            switch (mode)
+            {
+                case BrightnessBlendMode.CosineOnly:
+                    return 0.5f * (1f - Mathf.Cos(Mathf.PI * x));
+                case BrightnessBlendMode.LinearOnly:
+                    return x;
+                case BrightnessBlendMode.AcosOnly:
+                    return Mathf.Acos(-2f * x + 1f) / Mathf.PI;
+                case BrightnessBlendMode.Dynamic:
+                default:
+                    return GetDynamicBlend(x, knobValue);
+            }
+        }
+
+        /// <summary>
+        /// Cosine → Linear → Acos → Cosine 的动态混合实现
+        /// </summary>
+        private static float GetDynamicBlend(float x, float knobValue)
+        {
+            // --- 保留两端 ---
+            if (knobValue <= 0.1f || knobValue >= 1.9f)
+            {
+                return 0.5f * (1f - Mathf.Cos(Mathf.PI * x)); // Cosine 固定
+            }
+
+            // --- 映射到 [0, 1.8] 区间 ---
+            float k = knobValue - 0.1f;
+
+            if (k <= 0.6f)
+            {
+                // Phase 1: Cosine → Linear
+                float t = k / 0.6f;
+                float cosine = 0.5f * (1f - Mathf.Cos(Mathf.PI * x));
+                float linear = x;
+                return (1f - t) * cosine + t * linear;
+            }
+            else if (k <= 1.2f)
+            {
+                // Phase 2: Linear → Acos
+                float t = (k - 0.6f) / 0.6f;
+                float linear = x;
+                float acos = Mathf.Acos(-2f * x + 1f) / Mathf.PI;
+                return (1f - t) * linear + t * acos;
+            }
+            else
+            {
+                // Phase 3: Acos → Cosine
+                float t = (k - 1.2f) / 0.6f;
+                float acos = Mathf.Acos(-2f * x + 1f) / Mathf.PI;
+                float cosine = 0.5f * (1f - Mathf.Cos(Mathf.PI * x));
+                return (1f - t) * acos + t * cosine;
+            }
+        }
+    }
+
+ 
     public static class BlendCurves
     {
         // -------- 单条曲线公式 --------
-        static float Cosine(float x) => 0.5f * (1f - Mathf.Cos(Mathf.PI * x));
-        static float Cubic(float x) => 3f * x * x - 2f * x * x * x;
+        static float Cosine(float x) => 0.5f * (1f - Mathf.Cos(Mathf.PI * x));//Cosine 缓动函数：输出 y = 0.5 * (1 - cos(πx))
+        static float Cubic(float x) => 3f * x * x - 2f * x * x * x;//Cubic（SmoothStep）缓动函数：输出 y = 3x² - 2x³
+        //Quintic（SmootherStep）缓动函数：输出 y = 6t⁵ - 15t⁴ + 10t³
         static float Quintic(float x)
         {
             float t = x;
             return t * t * t * (t * (6f * t - 15f) + 10f);
         }
+        //Acos 曲线函数：输出 y = acos(-2x + 1) / π，定义域 x ∈ [0,1]
         static float AcosCurve(float x) =>
             (float)(Math.Acos(-2f * x + 1f) / Math.PI);
 

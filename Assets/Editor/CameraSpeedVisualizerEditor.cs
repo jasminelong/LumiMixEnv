@@ -46,6 +46,9 @@ public class MoveCameraEditor : Editor
 
         prop = serializedObject.FindProperty("fps");
         EditorGUILayout.PropertyField(prop);
+        
+        prop = serializedObject.FindProperty("Mat_GrayscaleOverBlend");
+        EditorGUILayout.PropertyField(prop);
 
         /*         prop = serializedObject.FindProperty("v");
                 EditorGUILayout.PropertyField(prop); */
@@ -60,30 +63,33 @@ public class MoveCameraEditor : Editor
         EditorGUILayout.PropertyField(prop);
 
 
-        prop = serializedObject.FindProperty("Mat_GrayscaleOverBlend");
+
+/*         prop = serializedObject.FindProperty("curveType");
+        EditorGUILayout.PropertyField(prop); */
+
+        prop = serializedObject.FindProperty("brightnessBlendMode");
         EditorGUILayout.PropertyField(prop);
 
-        prop = serializedObject.FindProperty("curveType");
-        EditorGUILayout.PropertyField(prop);
         GUILayout.Space(10);
         prop = serializedObject.FindProperty("functionRatio");
         EditorGUILayout.Slider(prop, -2f, 2f); // ← 使用 Slider
 
-        /*         SerializedProperty functionTypeProp = serializedObject.FindProperty("functionType");
-                EditorGUILayout.PropertyField(functionTypeProp);
 
-                prop = serializedObject.FindProperty("SpeedFunctionDistance");
-                EditorGUILayout.Slider(prop, 0f, 10f); // ← 使用 Slider
+        /*                  SerializedProperty functionTypeProp = serializedObject.FindProperty("functionType");
+                                                EditorGUILayout.PropertyField(functionTypeProp);
 
-                prop = serializedObject.FindProperty("SpeedFunctionFrequency");
-                EditorGUILayout.Slider(prop, 0f, 5f); // ← 使用 Slider
+                                                prop = serializedObject.FindProperty("SpeedFunctionDistance");
+                                                EditorGUILayout.Slider(prop, 0f, 10f); // ← 使用 Slider
 
-                prop = serializedObject.FindProperty("SpeedFunctionAmplitude");
-                EditorGUILayout.Slider(prop, 0f, 2f); // ← 使用 Slider
+                                                prop = serializedObject.FindProperty("SpeedFunctionFrequency");
+                                                EditorGUILayout.Slider(prop, 0f, 5f); // ← 使用 Slider
 
-                prop = serializedObject.FindProperty("SpeedFunctionOffset");
-                EditorGUILayout.Slider(prop, -1f, 1f); // ← 使用 Slider
-         */
+                                                prop = serializedObject.FindProperty("SpeedFunctionAmplitude");
+                                                EditorGUILayout.Slider(prop, 0f, 2f); // ← 使用 Slider
+
+                                                prop = serializedObject.FindProperty("SpeedFunctionOffset");
+                                                EditorGUILayout.Slider(prop, -1f, 1f); // ← 使用 Slider */
+
 
         serializedObject.ApplyModifiedProperties();
         //5-----輝度値の変化の表示
