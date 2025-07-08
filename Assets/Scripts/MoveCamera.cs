@@ -6,6 +6,9 @@ using System;
 using System.IO;
 using TMPro;
 using UnityEngine.SceneManagement;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 
 public class MoveCamera : MonoBehaviour
@@ -23,7 +26,7 @@ public class MoveCamera : MonoBehaviour
     public enum ExperimentPattern
     {
         Phase,
-        Nonlinear,
+        FunctionMix,
         Fourier,
     }
     public enum StepNumber
@@ -43,8 +46,10 @@ public class MoveCamera : MonoBehaviour
     }
     public enum DevMode
     {
+        Test,         // 测试模式
+        FunctionRation,    // 函数模式
         Normal,       // 正常模式
-        Test          // 测试模式
+
     }
 
     public enum CurveType  // 选择曲线
@@ -178,7 +183,11 @@ public class MoveCamera : MonoBehaviour
     public Material Mat_GrayscaleOverBlend;
     private Texture2D blackTexture;
     private Texture2D whiteTexture;
-
+    private int trailsCount = 0; // 试次总数
+    private int currentIndex = 0; // 当前试次索引
+    private string savePath = Path.Combine(Application.dataPath, "Scripts/full_trials.json");
+    private bool isEnd = false; // 是否结束实验
+    private string currentProgress; // 
     // 对数刻度
     void Start()
     {
@@ -198,8 +207,7 @@ public class MoveCamera : MonoBehaviour
         // 目標フレームレートを60フレーム/秒に設定 // 设置目标帧率为60帧每秒
         Time.fixedDeltaTime = 1.0f / 60.0f;
 
-        nextStepButtonTextComponent = nextStepButton.GetComponentInChildren<TextMeshProUGUI>();
-        nextStepButton.onClick.AddListener(OnNextStep); // ボタンがクリックされたときの処理を追加 // 添加按钮点击时的处理
+
 
         // captureCamera.enabled = false; // 初期状態でキャプチャカメラを無効にする // 初始化时禁用捕获摄像机
 
@@ -213,6 +221,15 @@ public class MoveCamera : MonoBehaviour
         Image1RawImage.enabled = true;
         Image2RawImage.enabled = true;
         captureCamera2.transform.position += direction * captureIntervalDistance;
+
+
+        SerialReader = GetComponent<SerialReader>();
+
+
+        TrailSettings();
+        nextStepButtonTextComponent = nextStepButton.GetComponentInChildren<TextMeshProUGUI>();
+        nextStepButton.onClick.AddListener(OnNextStep); // ボタンがクリックされたときの処理を追加 // 添加按钮点击时的处理
+
         data.Add("FrondFrameNum, FrondFrameLuminance, BackFrameNum, BackFrameLuminance, Time, Knob, ResponsePattern, StepNumber, Amplitude, Velocity, FunctionRatio, CameraSpeed");
         experimentalCondition = "Fps" + fps.ToString() + "_"
                              + "CameraSpeed" + cameraSpeed.ToString() + "_"
@@ -221,26 +238,13 @@ public class MoveCamera : MonoBehaviour
                              + "TrialNumber_" + trialNumber.ToString();
         if (experimentPattern == ExperimentPattern.Phase)
         {
-            experimentalCondition += "_" + "BrightnessBlendMode" + brightnessBlendMode.ToString();
+            experimentalCondition += "_" + "BrightnessBlendMode_" + brightnessBlendMode.ToString();
         }
-
-        SerialReader = GetComponent<SerialReader>();
-
-        if (devMode.Equals(DevMode.Normal))
+        if (devMode == DevMode.Test)
         {
-            if (!TrialState.IsInitialized)
-            {
-                TrialState.trials = GenerateRandomTrials();
-                TrialState.currentIndex = 0;
-                Debug.Log("生成新试次顺序");
-            }
-            else
-            {
-                Debug.Log("继续使用已生成的试次顺序");
-            }
-
-            ShowCurrentTrial();
+            experimentalCondition += "_" + "Test";
         }
+
     }
     void Update()
     {
@@ -257,7 +261,7 @@ public class MoveCamera : MonoBehaviour
             switch (currentStep)
             {
                 case 0:
-                    if (experimentPattern == ExperimentPattern.Nonlinear)
+                    if (experimentPattern == ExperimentPattern.FunctionMix)
                     {
                         nextStepButtonTextComponent.text = "Entering the next trial";
                     }
@@ -294,35 +298,6 @@ public class MoveCamera : MonoBehaviour
 
     }
 
-    void InitialSetup()
-    {
-        frameNum = 1;
-        startTime = Time.time;
-        timeMs = (Time.time - startTime) * 1000;
-
-        nextStepButton.gameObject.SetActive(false);
-        Vector3 worldRightDirection = rightMoveRotation * Vector3.right;
-        Vector3 worldForwardDirection = forwardMoveRotation * Vector3.forward;
-        switch (directionPattern)
-        {
-            case DirectionPattern.forward:
-                direction = worldForwardDirection;
-                captureCamera2.transform.rotation = Quaternion.Euler(0, 146.8f, 0);
-                captureCamera1.transform.rotation = Quaternion.Euler(0, 146.8f, 0);
-                captureCamera2.transform.position = new Vector3(30.5f, 28f, 160.4f);
-                captureCamera1.transform.position = new Vector3(30.5f, 28f, 160.4f);
-                break;
-            case DirectionPattern.right:
-                direction = worldRightDirection;
-                captureCamera2.transform.rotation = Quaternion.Euler(0, 48.5f, 0);
-                captureCamera1.transform.rotation = Quaternion.Euler(0, 48.5f, 0);
-                captureCamera0.transform.rotation = Quaternion.Euler(0, 48.5f, 0);
-                captureCamera2.transform.position = new Vector3(4f, 28f, 130f);
-                captureCamera1.transform.position = new Vector3(4f, 28f, 130f);
-                captureCamera0.transform.position = new Vector3(4f, 28f, 130f);
-                break;
-        }
-    }
     void OnNextStep()
     {
         mouseClicked = false;
@@ -332,10 +307,10 @@ public class MoveCamera : MonoBehaviour
         switch (currentStep)
         {
             case 1:
-                if (experimentPattern == ExperimentPattern.Nonlinear)
+                if (experimentPattern == ExperimentPattern.FunctionMix)
                 {
-                    //QuitGame();
-                    RestartPlay();
+                    MarkTrialCompletedAndRestart();
+
                 }
                 else
                 {
@@ -355,8 +330,14 @@ public class MoveCamera : MonoBehaviour
             case 5:
                 if (experimentPattern == ExperimentPattern.Fourier || experimentPattern == ExperimentPattern.Phase)
                 {
-                    //QuitGame();
-                    RestartPlay();
+                    if (isEnd)
+                    {
+                        QuitGame();
+                    }
+                    else
+                    {
+                        MarkTrialCompletedAndRestart();
+                    }
                 }
                 else
                 {
@@ -428,7 +409,7 @@ public class MoveCamera : MonoBehaviour
                         if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);//step4,amplitudes[4] 
 
                         break;
-                    case ExperimentPattern.Nonlinear:
+                    case ExperimentPattern.FunctionMix:
                         //NonlinearResponse(step, knobValue);
                         break;
                 }
@@ -437,7 +418,7 @@ public class MoveCamera : MonoBehaviour
             }
             captureCamera0.transform.position += direction * v * Time.deltaTime;
         }
-        else if (experimentPattern == ExperimentPattern.Nonlinear)
+        else if (experimentPattern == ExperimentPattern.FunctionMix)
         {
             captureCamera0.transform.position += direction * Time.deltaTime;
         }
@@ -485,20 +466,18 @@ public class MoveCamera : MonoBehaviour
         float nonlinearPreviousImageRatio = previousImageRatio;
         float nonlinearNextImageRatio = nextImageRatio;
 
-        if (experimentPattern == ExperimentPattern.Nonlinear)
-        {
-            functionRatio = SerialReader.lastSensorValue * 2f;
-            nonlinearPreviousImageRatio = BrightnessBlend.GetMixedValue(previousImageRatio, functionRatio, brightnessBlendMode);
-            nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, functionRatio, brightnessBlendMode);
-        }
-        /*         if (experimentPattern == ExperimentPattern.Nonlinear)
+
+        functionRatio = SerialReader.lastSensorValue * 2f;
+        nonlinearPreviousImageRatio = BrightnessBlend.GetMixedValue(previousImageRatio, functionRatio, brightnessBlendMode);
+        nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, functionRatio, brightnessBlendMode);
+        /*         if (experimentPattern == ExperimentPattern.FunctionMix)
                 {
                     functionRatio = Mathf.Clamp(SerialReader.lastSensorValue * 2f - 0.5f, -0.5f, 1.5f);//[-0.5, 2]
                     nonlinearPreviousImageRatio = BlendCurves.BlendCurve(previousImageRatio, functionRatio, curveType);
                     nonlinearNextImageRatio = BlendCurves.BlendCurve(nextImageRatio, functionRatio, curveType);
                 } */
 
-        /*         if (experimentPattern == ExperimentPattern.Nonlinear)
+        /*         if (experimentPattern == ExperimentPattern.FunctionMix)
                 {
                     SpeedFunctionTime += Time.deltaTime * SpeedFunctionFrequency;
                     Vector3 basePos = new Vector3(0f, 0f, 0f);
@@ -562,6 +541,36 @@ public class MoveCamera : MonoBehaviour
 
     }
 
+    void InitialSetup()
+    {
+        frameNum = 1;
+        startTime = Time.time;
+        timeMs = (Time.time - startTime) * 1000;
+
+        nextStepButton.gameObject.SetActive(false);
+        Vector3 worldRightDirection = rightMoveRotation * Vector3.right;
+        Vector3 worldForwardDirection = forwardMoveRotation * Vector3.forward;
+        switch (directionPattern)
+        {
+            case DirectionPattern.forward:
+                direction = worldForwardDirection;
+                captureCamera2.transform.rotation = Quaternion.Euler(0, 146.8f, 0);
+                captureCamera1.transform.rotation = Quaternion.Euler(0, 146.8f, 0);
+                captureCamera2.transform.position = new Vector3(30.5f, 28f, 160.4f);
+                captureCamera1.transform.position = new Vector3(30.5f, 28f, 160.4f);
+                break;
+            case DirectionPattern.right:
+                direction = worldRightDirection;
+                captureCamera2.transform.rotation = Quaternion.Euler(0, 48.5f, 0);
+                captureCamera1.transform.rotation = Quaternion.Euler(0, 48.5f, 0);
+                captureCamera0.transform.rotation = Quaternion.Euler(0, 48.5f, 0);
+                captureCamera2.transform.position = new Vector3(4f, 28f, 130f);
+                captureCamera1.transform.position = new Vector3(4f, 28f, 130f);
+                captureCamera0.transform.position = new Vector3(4f, 28f, 130f);
+                break;
+        }
+    }
+
     void GetRawImage()
     {
         // Canvas内で指定された名前の子オブジェクトを検索 // 在 Canvas 中查找指定名称的子对象
@@ -603,6 +612,103 @@ public class MoveCamera : MonoBehaviour
 #endif
     }
 
+    public void TrailSettings()
+    {
+        string json = File.ReadAllText(savePath);
+        ExperimentData data = JsonUtility.FromJson<ExperimentData>(json);
+
+        Trial currentTrial = null;
+
+        if (data.progress.exp1_intro_test < data.exp1_intro_test.Count)
+        {
+            currentTrial = data.exp1_intro_test[data.progress.exp1_intro_test];
+            currentProgress = "exp1_intro_test";
+            Debug.Log("Now exp1_intro_test");
+
+            devMode = DevMode.Test; // 设置为测试模式 set to test mode, 1condition, 1 trial
+            experimentPattern = ExperimentPattern.FunctionMix;
+            brightnessBlendMode = BrightnessBlendMode.Dynamic;
+        }
+        else if (data.progress.exp1_trials < data.exp1_trials.Count)
+        {
+            currentTrial = data.exp1_trials[data.progress.exp1_trials];
+            currentProgress = "exp1_trials";
+            Debug.Log("Now exp1_trials");
+
+            devMode = DevMode.FunctionRation; // set to function ratio mode, 1condition, 3 trials
+            experimentPattern = ExperimentPattern.FunctionMix;
+            brightnessBlendMode = BrightnessBlendMode.Dynamic;
+        }
+        else if (data.progress.exp2_intro_test < data.exp2_intro_test.Count)
+        {
+            currentTrial = data.exp2_intro_test[data.progress.exp2_intro_test];
+            currentProgress = "exp2_intro_test";
+            Debug.Log("Now exp2_intro_test");
+
+            devMode = DevMode.Test; // 设置为测试模式 set to test mode, 1condition, 1 trial
+            experimentPattern = ExperimentPattern.Phase; // set to phase mode
+            brightnessBlendMode = BrightnessBlendMode.LinearOnly;
+        }
+        else if (data.progress.exp2_trials < data.exp2_trials.Count)
+        {
+            currentTrial = data.exp2_trials[data.progress.exp2_trials];
+            currentProgress = "exp2_trials";
+            Debug.Log("Now exp2_trials");
+
+            devMode = DevMode.Normal; // 设置为测试模式 set to mode, 3condition, 3 trials
+            experimentPattern = ExperimentPattern.Phase; // set to phase mode
+            switch (currentTrial.condition)
+            {
+                case 1:
+                    brightnessBlendMode = BrightnessBlendMode.CosineOnly;
+                    break;
+                case 2:
+                    brightnessBlendMode = BrightnessBlendMode.LinearOnly;
+                    break;
+                case 3:
+                    brightnessBlendMode = BrightnessBlendMode.AcosOnly;
+                    break;
+            }
+            if (data.progress.exp2_trials + 1 == data.exp2_trials.Count)
+            {
+                isEnd = true; // 最后一次试次
+            }
+
+        }
+        else
+        {
+            Debug.Log("finished all trials");
+            return;
+        }
+
+        trialNumber = currentTrial.repetition;
+
+    }
+    void UpdateProgress()
+    {
+        string json = File.ReadAllText(savePath);
+        ExperimentData data = JsonUtility.FromJson<ExperimentData>(json);
+        switch (currentProgress)
+        {
+            case "exp1_intro_test":
+                data.progress.exp1_intro_test++;
+                break;
+            case "exp1_trials":
+                data.progress.exp1_trials++;
+                break;
+            case "exp2_intro_test":
+                data.progress.exp2_intro_test++;
+                break;
+            case "exp2_trials":
+                data.progress.exp2_trials++;
+                break;
+        }
+
+        // 保存
+        string updatedJson = JsonUtility.ToJson(data, true);
+        File.WriteAllText(savePath, updatedJson);
+    }
+
     void OnDestroy()
     {
         // 現在の日付を取得 // 获取当前日期
@@ -618,16 +724,17 @@ public class MoveCamera : MonoBehaviour
 
         //Debug.Log($"Data saved to {filePath}");
     }
-    public static void RestartPlay()
+    public void MarkTrialCompletedAndRestart()
     {
+        // TrialState.MarkTrialCompleted();
+        UpdateProgress();
 #if UNITY_EDITOR
-        UnityEditor.EditorApplication.isPlaying = false;
-        UnityEditor.EditorApplication.delayCall += () =>
-            UnityEditor.EditorApplication.isPlaying = true;
-#else
-        Debug.LogWarning("RestartPlayMode only works in the Unity Editor.");
+        EditorApplication.isPlaying = false;
+        EditorApplication.delayCall += () =>
+        {
+            EditorApplication.isPlaying = true;
+        };
 #endif
-
     }
     public float GetAmplitude(int index)
     {
@@ -639,59 +746,7 @@ public class MoveCamera : MonoBehaviour
         amplitudes[index] = value;
     }
 
-    //trail 設定------satrt------
-    List<Trial> GenerateRandomTrials()
-    {
-        List<Trial> trials = new List<Trial>();
-        for (int cond = 0; cond < 3; cond++)
-        {
-            for (int rep = 0; rep < 3; rep++)
-            {
-                trials.Add(new Trial { condition = cond, repetition = rep });
-            }
-        }
 
-        // 洗牌
-        for (int i = trials.Count - 1; i > 0; i--)
-        {
-            int j = UnityEngine.Random.Range(0, i + 1);
-            (trials[i], trials[j]) = (trials[j], trials[i]);
-        }
-
-        return trials;
-    }
-
-    void ShowCurrentTrial()
-    {
-        if (TrialState.currentIndex >= TrialState.trials.Count)
-        {
-            Debug.Log("🎉 全部试次完成！");
-            return;
-        }
-
-        var trial = TrialState.trials[TrialState.currentIndex];
-        Debug.Log($"🔬 当前试次：条件 = {trial.condition}, 重复 = {trial.repetition}");
-
-        trialNumber = trial.repetition;
-        switch (trial.condition)
-        {
-            case 0:
-                brightnessBlendMode = BrightnessBlendMode.CosineOnly;
-                break;
-            case 1:
-                brightnessBlendMode = BrightnessBlendMode.LinearOnly;
-                break;
-            case 2:
-                brightnessBlendMode = BrightnessBlendMode.AcosOnly;
-                break;
-        }
-    }
-    public void MarkTrialCompleted()
-    {
-        TrialState.currentIndex++;
-        ShowCurrentTrial();
-    }
-    //trail 設定------end------
 
     public static class BrightnessBlend
     {
@@ -764,7 +819,7 @@ public class MoveCamera : MonoBehaviour
         // -------- 单条曲线公式 --------
         static float Cosine(float x) => 0.5f * (1f - Mathf.Cos(Mathf.PI * x));//Cosine 缓动函数：输出 y = 0.5 * (1 - cos(πx))
         static float Cubic(float x) => 3f * x * x - 2f * x * x * x;//Cubic（SmoothStep）缓动函数：输出 y = 3x² - 2x³
-        //Quintic（SmootherStep）缓动函数：输出 y = 6t⁵ - 15t⁴ + 10t³
+                                                                   //Quintic（SmootherStep）缓动函数：输出 y = 6t⁵ - 15t⁴ + 10t³
         static float Quintic(float x)
         {
             float t = x;
@@ -844,7 +899,7 @@ public class MoveCamera : MonoBehaviour
     float SpeedFunctionFrequency = 1f,
     float SpeedFunctionAmplitude = 1f,
     float SpeedFunctionOffset = 0f
-)
+    )
     {
         // 1. 让 t 在 [0, 2) 范围内循环往返
         float tt = SpeedFunctionTime * SpeedFunctionFrequency;

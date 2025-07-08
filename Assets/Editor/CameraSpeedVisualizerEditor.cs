@@ -72,8 +72,8 @@ public class MoveCameraEditor : Editor
 /*         prop = serializedObject.FindProperty("curveType");
         EditorGUILayout.PropertyField(prop); */
 
-        prop = serializedObject.FindProperty("brightnessBlendMode");
-        EditorGUILayout.PropertyField(prop);
+         prop = serializedObject.FindProperty("brightnessBlendMode");
+        EditorGUILayout.PropertyField(prop); 
 
         GUILayout.Space(10);
         prop = serializedObject.FindProperty("functionRatio");
