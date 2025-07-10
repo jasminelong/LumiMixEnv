@@ -98,7 +98,7 @@ public class MoveCamera : MonoBehaviour
 
     private List<string> data = new List<string>();
     private float startTime;
-    private string folderName = "BrightnessLinearData"; // サブフォルダ名 // 子文件夹名称
+    private string folderName = "BrightnessData"; // サブフォルダ名 // 子文件夹名称
     private float timeMs; // 現在までの経過時間 // 运行到现在的时间
     private Vector3 direction;
 
@@ -226,7 +226,7 @@ public class MoveCamera : MonoBehaviour
         SerialReader = GetComponent<SerialReader>();
 
 
-        TrailSettings();
+        //TrailSettings();
         nextStepButtonTextComponent = nextStepButton.GetComponentInChildren<TextMeshProUGUI>();
         nextStepButton.onClick.AddListener(OnNextStep); // ボタンがクリックされたときの処理を追加 // 添加按钮点击时的处理
 
@@ -720,7 +720,7 @@ public class MoveCamera : MonoBehaviour
 
         // ファイルを保存（Application.dataPath：現在のプロジェクトのAssetsフォルダのパスを示す） // 保存文件（Application.dataPath：表示当前项目的Assets文件夹的路径）
         string filePath = Path.Combine("D:/vectionProject/public", folderName, fileName);
-        File.WriteAllLines(filePath, data);
+        //File.WriteAllLines(filePath, data);
 
         //Debug.Log($"Data saved to {filePath}");
     }
@@ -790,7 +790,7 @@ public class MoveCamera : MonoBehaviour
             {
                 // Phase 1: Cosine → Linear
                 float t = k / 0.6f;
-                float cosine = 0.5f * (1f - Mathf.Cos(Mathf.PI * x));
+                float cosine = 0.5f * (1f - Mathf.Cos(Mathf.PI * x));//Cosine 混合曲线：y = 0.5 × (1 − cos(πx))
                 float linear = x;
                 return (1f - t) * cosine + t * linear;
             }
@@ -799,7 +799,7 @@ public class MoveCamera : MonoBehaviour
                 // Phase 2: Linear → Acos
                 float t = (k - 0.6f) / 0.6f;
                 float linear = x;
-                float acos = Mathf.Acos(-2f * x + 1f) / Mathf.PI;
+                float acos = Mathf.Acos(-2f * x + 1f) / Mathf.PI;//Acos 曲线：y = acos(−2x + 1) / π
                 return (1f - t) * linear + t * acos;
             }
             else
