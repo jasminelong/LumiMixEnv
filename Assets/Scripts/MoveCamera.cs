@@ -98,7 +98,7 @@ public class MoveCamera : MonoBehaviour
 
     private List<string> data = new List<string>();
     private float startTime;
-    private string folderName = "BrightnessData"; // サブフォルダ名 // 子文件夹名称
+    private string folderName = "BrightnessFunctionMixAndPhaseData"; // サブフォルダ名 // 子文件夹名称
     private float timeMs; // 現在までの経過時間 // 运行到现在的时间
     private Vector3 direction;
 
