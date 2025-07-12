@@ -226,7 +226,7 @@ public class MoveCamera : MonoBehaviour
         SerialReader = GetComponent<SerialReader>();
 
 
-        //TrailSettings();
+        TrailSettings();
         nextStepButtonTextComponent = nextStepButton.GetComponentInChildren<TextMeshProUGUI>();
         nextStepButton.onClick.AddListener(OnNextStep); // ボタンがクリックされたときの処理を追加 // 添加按钮点击时的处理
 
@@ -309,7 +309,14 @@ public class MoveCamera : MonoBehaviour
             case 1:
                 if (experimentPattern == ExperimentPattern.FunctionMix)
                 {
-                    MarkTrialCompletedAndRestart();
+                    if (isEnd)
+                    {
+                        QuitGame();
+                    }
+                    else
+                    {
+                        MarkTrialCompletedAndRestart();
+                    }
 
                 }
                 else
@@ -468,6 +475,7 @@ public class MoveCamera : MonoBehaviour
 
 
         functionRatio = SerialReader.lastSensorValue * 2f;
+        // functionRatio = 1.0f;
         nonlinearPreviousImageRatio = BrightnessBlend.GetMixedValue(previousImageRatio, functionRatio, brightnessBlendMode);
         nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, functionRatio, brightnessBlendMode);
         /*         if (experimentPattern == ExperimentPattern.FunctionMix)
@@ -638,6 +646,10 @@ public class MoveCamera : MonoBehaviour
             devMode = DevMode.FunctionRation; // set to function ratio mode, 1condition, 3 trials
             experimentPattern = ExperimentPattern.FunctionMix;
             brightnessBlendMode = BrightnessBlendMode.Dynamic;
+            if (data.progress.exp1_trials + 1 == data.exp1_trials.Count && data.exp2_intro_test.Count == 0 && data.exp2_trials.Count == 0)
+            {
+                isEnd = true; // 最后一次试次
+            }
         }
         else if (data.progress.exp2_intro_test < data.exp2_intro_test.Count)
         {
@@ -660,13 +672,10 @@ public class MoveCamera : MonoBehaviour
             switch (currentTrial.condition)
             {
                 case 1:
-                    brightnessBlendMode = BrightnessBlendMode.CosineOnly;
-                    break;
-                case 2:
                     brightnessBlendMode = BrightnessBlendMode.LinearOnly;
                     break;
-                case 3:
-                    brightnessBlendMode = BrightnessBlendMode.AcosOnly;
+                case 2:
+                    brightnessBlendMode = BrightnessBlendMode.Dynamic;
                     break;
             }
             if (data.progress.exp2_trials + 1 == data.exp2_trials.Count)
@@ -720,7 +729,7 @@ public class MoveCamera : MonoBehaviour
 
         // ファイルを保存（Application.dataPath：現在のプロジェクトのAssetsフォルダのパスを示す） // 保存文件（Application.dataPath：表示当前项目的Assets文件夹的路径）
         string filePath = Path.Combine("D:/vectionProject/public", folderName, fileName);
-        //File.WriteAllLines(filePath, data);
+        File.WriteAllLines(filePath, data);
 
         //Debug.Log($"Data saved to {filePath}");
     }

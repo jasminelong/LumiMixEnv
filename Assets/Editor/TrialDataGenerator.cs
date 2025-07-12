@@ -11,14 +11,14 @@ public static class TrialDataGenerator
     {
         ExperimentData data = new ExperimentData
         {
-            exp1_intro_test = new List<Trial> { new Trial { condition = 1, repetition = 1 } },
+            // exp1_intro_test = new List<Trial> { new Trial { condition = 1, repetition = 1 } },
 
-            exp1_trials = new List<Trial>
-            {
-                new Trial { condition = 1, repetition = 1 },
-                new Trial { condition = 1, repetition = 2 },
-                new Trial { condition = 1, repetition = 3 }
-            },
+            // exp1_trials = new List<Trial>
+            // {
+            //     new Trial { condition = 1, repetition = 1 },
+            //     new Trial { condition = 1, repetition = 2 },
+            //     new Trial { condition = 1, repetition = 3 }
+            // },
 
             exp2_intro_test = new List<Trial> { new Trial { condition = 1, repetition = 1 } },
             exp2_trials = GenerateRandomExp2Trials(),
@@ -36,7 +36,7 @@ public static class TrialDataGenerator
     {
         List<Trial> trials = new List<Trial>();
 
-        for (int cond = 1; cond <= 3; cond++)
+        for (int cond = 1; cond <= 2; cond++)
             for (int rep = 1; rep <= 3; rep++)
                 trials.Add(new Trial { condition = cond, repetition = rep });
 
