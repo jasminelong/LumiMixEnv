@@ -474,8 +474,10 @@ public class MoveCamera : MonoBehaviour
         float nonlinearNextImageRatio = nextImageRatio;
 
 
-        functionRatio = SerialReader.lastSensorValue * 2f;
-        // functionRatio = 1.0f;
+        functionRatio = SerialReader.lastSensorValue;
+        // functionRatio = 0.583f;//ono
+        // functionRatio = 0.218f;//0.0 0.492 0.471 0.231 0.178 0.205
+        // functionRatio = 0.316f;//0.163 0.206 0.555 0.336 0.295 0.712
         nonlinearPreviousImageRatio = BrightnessBlend.GetMixedValue(previousImageRatio, functionRatio, brightnessBlendMode);
         nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, functionRatio, brightnessBlendMode);
         /*         if (experimentPattern == ExperimentPattern.FunctionMix)
@@ -782,42 +784,34 @@ public class MoveCamera : MonoBehaviour
         }
 
         /// <summary>
-        /// Cosine → Linear → Acos → Cosine 的动态混合实现
+        /// Cosine → Linear → Acos 的动态混合实现
         /// </summary>
         private static float GetDynamicBlend(float x, float knobValue)
         {
             // --- 保留两端 ---
-            if (knobValue <= 0.1f || knobValue >= 1.9f)
+            if (knobValue <= 0.1f)
             {
                 return 0.5f * (1f - Mathf.Cos(Mathf.PI * x)); // Cosine 固定
             }
-
-            // --- 映射到 [0, 1.8] 区间 ---
-            float k = knobValue - 0.1f;
-
-            if (k <= 0.6f)
+            else if (knobValue <= 0.5f)
             {
                 // Phase 1: Cosine → Linear
-                float t = k / 0.6f;
+                float t = knobValue - 0.1f / 0.4f;
                 float cosine = 0.5f * (1f - Mathf.Cos(Mathf.PI * x));//Cosine 混合曲线：y = 0.5 × (1 − cos(πx))
                 float linear = x;
                 return (1f - t) * cosine + t * linear;
             }
-            else if (k <= 1.2f)
+            else if (knobValue <= 0.9f)
             {
                 // Phase 2: Linear → Acos
-                float t = (k - 0.6f) / 0.6f;
+                float t = (knobValue - 0.5f) / 0.4f;
                 float linear = x;
                 float acos = Mathf.Acos(-2f * x + 1f) / Mathf.PI;//Acos 曲线：y = acos(−2x + 1) / π
                 return (1f - t) * linear + t * acos;
             }
-            else
+            else  
             {
-                // Phase 3: Acos → Cosine
-                float t = (k - 1.2f) / 0.6f;
-                float acos = Mathf.Acos(-2f * x + 1f) / Mathf.PI;
-                float cosine = 0.5f * (1f - Mathf.Cos(Mathf.PI * x));
-                return (1f - t) * acos + t * cosine;
+                return Mathf.Acos(-2f * x + 1f) / Mathf.PI;
             }
         }
     }
