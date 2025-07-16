@@ -474,12 +474,12 @@ public class MoveCamera : MonoBehaviour
         float nonlinearNextImageRatio = nextImageRatio;
 
 
-        // functionRatio = SerialReader.lastSensorValue;
-        // functionRatio = 0.583f;//0.517, 0.713, 0.581, 0.583, 0.684, 1.0 
-        // functionRatio = 0.218f;//0.0 0.492 0.471 0.231 0.178 0.205
-        // functionRatio = 0.316f;//0.163 0.206 0.555 0.336 0.295 0.712
-        // functionRatio = 0.734f;//0.817 0.651 0.551 0.84 0.582 0.841
-        functionRatio = 0.615f;//0.683 0.616 0.785 0.583 0.613 0.581
+        functionRatio = SerialReader.lastSensorValue;
+        // functionRatio = 0.583f;//0.517, 0.713, 0.581, 0.583, 0.684, 1.0 ONO  
+        // functionRatio = 0.218f;//0.0 0.492 0.471 0.231 0.178 0.205 LL
+        // functionRatio = 0.316f;//0.163 0.206 0.555 0.336 0.295 0.712 HOU
+        // functionRatio = 0.734f;//0.817 0.651 0.551 0.84 0.582 0.841 OMU
+        // functionRatio = 0.615f;//0.683 0.616 0.785 0.583 0.613 0.581 YAMA
         nonlinearPreviousImageRatio = BrightnessBlend.GetMixedValue(previousImageRatio, functionRatio, brightnessBlendMode);
         nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, functionRatio, brightnessBlendMode);
         /*         if (experimentPattern == ExperimentPattern.FunctionMix)
