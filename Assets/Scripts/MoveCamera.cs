@@ -733,7 +733,7 @@ public class MoveCamera : MonoBehaviour
 
         // ファイルを保存（Application.dataPath：現在のプロジェクトのAssetsフォルダのパスを示す） // 保存文件（Application.dataPath：表示当前项目的Assets文件夹的路径）
         string filePath = Path.Combine("D:/vectionProject/public", folderName, fileName);
-        File.WriteAllLines(filePath, data);
+        //File.WriteAllLines(filePath, data);
 
         //Debug.Log($"Data saved to {filePath}");
     }
