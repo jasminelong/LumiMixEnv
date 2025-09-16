@@ -1,11 +1,13 @@
 {
-    "exp1_intro_test": [
+    "exp1_intro_test": [],
+    "exp1_trials": [],
+    "exp2_intro_test": [
         {
             "condition": 1,
             "repetition": 1
         }
     ],
-    "exp1_trials": [
+    "exp2_trials": [
         {
             "condition": 1,
             "repetition": 1
@@ -20,23 +22,21 @@
         },
         {
             "condition": 1,
-            "repetition": 4
+            "repetition": 1
         },
         {
             "condition": 1,
-            "repetition": 5
+            "repetition": 2
         },
         {
             "condition": 1,
-            "repetition": 6
+            "repetition": 3
         }
     ],
-    "exp2_intro_test": [],
-    "exp2_trials": [],
     "progress": {
         "exp1_intro_test": 0,
         "exp1_trials": 0,
-        "exp2_intro_test": 0,
+        "exp2_intro_test": 1,
         "exp2_trials": 0
     }
 }

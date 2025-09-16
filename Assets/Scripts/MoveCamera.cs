@@ -127,7 +127,7 @@ public class MoveCamera : MonoBehaviour
     [Space(20)]
     [Header("🔧 Image1RawImageの輝度値の記録")]
     [Range(-10, 10)]
-    public float functionRatio = 0f; // 非线性度合成比 // 非线性度合成比
+    public float knobValue = 0f; // 非线性度合成比 // 非线性度合成比
     public int maxSamples = 500;
     public float maxDuration = 5f; // 显示最近5秒
     // 存时间戳（秒）和对应的 alpha
@@ -403,13 +403,13 @@ public class MoveCamera : MonoBehaviour
                         // 現在の速度を計算
                         if (step == 1 || step == 3)
                         {
-                            amplitudeToSaveData = amplitudes[1] = A_min + knobValue * (A_max - A_min);
+                            amplitudeToSaveData = A_min + knobValue * (A_max - A_min);
                         }
                         if (step == 2 || step == 4)
                         {
-                            amplitudeToSaveData = amplitudes[2] = knobValue * 2f * Mathf.PI; ;  // 0 … 2π
+                            amplitudeToSaveData = knobValue * 2f * Mathf.PI; ;  // 0 … 2π
                         }
-
+                        amplitudes[step] = amplitudeToSaveData;
                         if (step >= 1) v = V0 + amplitudes[1] * Mathf.Sin(omega * time);//step1,amplitudes[1] 
                         if (step >= 2) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI);//step2,amplitudes[2]
                         if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time);//step3,amplitudes[3]
@@ -474,19 +474,20 @@ public class MoveCamera : MonoBehaviour
         float nonlinearNextImageRatio = nextImageRatio;
 
 
-        functionRatio = SerialReader.lastSensorValue;
-        // functionRatio = 0.583f;//0.517, 0.713, 0.581, 0.583, 0.684, 1.0 ONO  
-        // functionRatio = 0.218f;//0.0 0.492 0.471 0.231 0.178 0.205 LL
-        // functionRatio = 0.316f;//0.163 0.206 0.555 0.336 0.295 0.712 HOU
-        // functionRatio = 0.734f;//0.817 0.651 0.551 0.84 0.582 0.841 OMU
-        // functionRatio = 0.615f;//0.683 0.616 0.785 0.583 0.613 0.581 YAMA
-        nonlinearPreviousImageRatio = BrightnessBlend.GetMixedValue(previousImageRatio, functionRatio, brightnessBlendMode);
-        nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, functionRatio, brightnessBlendMode);
+        knobValue = SerialReader.lastSensorValue;
+        //knobValue = 0.583f;//0.517, 0.713, 0.581, 0.583, 0.684, 1.0 ONO-C
+        // knobValue = 0.218f;//0.0 0.492 0.471 0.231 0.178 0.205 LL-E
+        // knobValue = 0.316f;//0.163 0.206 0.555 0.336 0.295 0.712 HOU-D
+        // knobValue = 0.734f;//0.817 0.651 0.551 0.84 0.582 0.841 OMU-B
+        // knobValue = 0.615f;//0.683 0.616 0.785 0.583 0.613 0.581 YAMA-A
+        nonlinearPreviousImageRatio = BrightnessBlend.GetMixedValue(previousImageRatio, knobValue, brightnessBlendMode);
+        nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, knobValue, brightnessBlendMode);
         /*         if (experimentPattern == ExperimentPattern.FunctionMix)
+
                 {
-                    functionRatio = Mathf.Clamp(SerialReader.lastSensorValue * 2f - 0.5f, -0.5f, 1.5f);//[-0.5, 2]
-                    nonlinearPreviousImageRatio = BlendCurves.BlendCurve(previousImageRatio, functionRatio, curveType);
-                    nonlinearNextImageRatio = BlendCurves.BlendCurve(nextImageRatio, functionRatio, curveType);
+                    knobValue = Mathf.Clamp(SerialReader.lastSensorValue * 2f - 0.5f, -0.5f, 1.5f);//[-0.5, 2]
+                    nonlinearPreviousImageRatio = BlendCurves.BlendCurve(previousImageRatio, knobValue, curveType);
+                    nonlinearNextImageRatio = BlendCurves.BlendCurve(nextImageRatio, knobValue, curveType);
                 } */
 
         /*         if (experimentPattern == ExperimentPattern.FunctionMix)
@@ -548,7 +549,7 @@ public class MoveCamera : MonoBehaviour
 
         // データを記録 // 记录数据
         // data.Add("FrondFrameNum, FrondFrameLuminance, BackFrameNum, BackFrameLuminance, Time, FrameNum, Knob, ResponsePattern, StepNumber, Amplitude, Velocity");
-        data.Add($"{frameNum}, {nonlinearPreviousImageRatio:F3}, {frameNum + 1}, {nonlinearNextImageRatio:F3}, {timeMs:F3}, {SerialReader.lastSensorValue}, {responsePattern}, {(int)stepNumber}, {amplitudeToSaveData}, {v}, {functionRatio:F3}, {cameraSpeed:F3}");
+        data.Add($"{frameNum}, {nonlinearPreviousImageRatio:F3}, {frameNum + 1}, {nonlinearNextImageRatio:F3}, {timeMs:F3}, {SerialReader.lastSensorValue}, {responsePattern}, {(int)stepNumber}, {amplitudeToSaveData}, {v}, {knobValue:F3}, {cameraSpeed:F3}");
         //data.Add($"{frameNum}, {Image1RawImage.color.a:F3}, {frameNum + 1}, {Image2RawImage.color.a:F3}, {timeMs :F3}, {(vectionResponse ? 1 : 0)}");
 
     }
