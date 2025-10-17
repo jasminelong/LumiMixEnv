@@ -43,7 +43,8 @@ v(t) = V_0 + A_1 \sin(\omega t + \phi_1) + A_2 \sin(2\omega t + \phi_2)
 
 📂 Data: [BrightnessFunctionMixAndPhaseData](https://github.com/jasminelong/expDataHub/tree/8e72e8e9680dc8ba884980344c53c79b2c80cd93/public/BrightnessFunctionMixAndPhaseData)  
 📊 Analysis script: [velocity_curve_linear_only_analysis.py](https://github.com/jasminelong/ExpDataHub/blob/9f55e3aadcab465175a3e1026faf0711b0bee1c3/public/velocity_curve_analysis/velocity_curve_linear_only_analysis.py)  
-📈 Result: [velocity_curves_linear_only_mean.png](https://github.com/jasminelong/ExpDataHub/blob/9f55e3aadcab465175a3e1026faf0711b0bee1c3/public/velocity_curve_analysis/velocity_curves_linear_only_mean.png?raw=true)
+📈 Result:  
+![Linear Velocity Curve](https://github.com/jasminelong/ExpDataHub/blob/9f55e3aadcab465175a3e1026faf0711b0bee1c3/public/velocity_curve_analysis/velocity_curves_linear_only_mean.png?raw=true)
 
 ---
 
