@@ -37,10 +37,10 @@ $$
 实验1中，被试在**线性亮度混合**条件下，通过旋钮调节速度，使上下两段视觉刺激的主观速度一致。  
 所得感知速度曲线符合下式：
 
-\[
 $$
 v(t)=V_0 + A_1\sin(\omega t+\phi_1) + A_2\sin(2\omega t+\phi_2)
 $$
+
 
 
 📂 Data: [BrightnessFunctionMixAndPhaseData](https://github.com/jasminelong/expDataHub/tree/8e72e8e9680dc8ba884980344c53c79b2c80cd93/public/BrightnessFunctionMixAndPhaseData)  
