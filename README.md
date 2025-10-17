@@ -23,23 +23,25 @@ Two experiments were conducted to compare linear and nonlinear blending methods 
 Participants adjusted a rotary knob to match their perceived motion speed in a linear luminance-blending condition.  
 The resulting velocity curve was modeled as:
 
-\[
-v(t) = V_0 + A_1 \sin(\omega t + \phi_1) + A_2 \sin(2\omega t + \phi_2)
-\]
+$$
+v(t)=V_0 + A_1\sin(\omega t+\phi_1) + A_2\sin(2\omega t+\phi_2)
+$$
 
 被験者は、線形輝度混合条件において**回転ノブ**を操作し、主観的に等価な速度になるように調整しました。  
 得られた速度曲線は以下の式で表されます：
 
-\[
-v(t) = V_0 + A_1 \sin(\omega t + \phi_1) + A_2 \sin(2\omega t + \phi_2)
-\]
+$$
+v(t)=V_0 + A_1\sin(\omega t+\phi_1) + A_2\sin(2\omega t+\phi_2)
+$$
 
 实验1中，被试在**线性亮度混合**条件下，通过旋钮调节速度，使上下两段视觉刺激的主观速度一致。  
 所得感知速度曲线符合下式：
 
 \[
-v(t) = V_0 + A_1 \sin(\omega t + \phi_1) + A_2 \sin(2\omega t + \phi_2)
-\]
+$$
+v(t)=V_0 + A_1\sin(\omega t+\phi_1) + A_2\sin(2\omega t+\phi_2)
+$$
+
 
 📂 Data: [BrightnessFunctionMixAndPhaseData](https://github.com/jasminelong/expDataHub/tree/8e72e8e9680dc8ba884980344c53c79b2c80cd93/public/BrightnessFunctionMixAndPhaseData)  
 📊 Analysis script: [velocity_curve_linear_only_analysis.py](https://github.com/jasminelong/ExpDataHub/blob/9f55e3aadcab465175a3e1026faf0711b0bee1c3/public/velocity_curve_analysis/velocity_curve_linear_only_analysis.py)  
