@@ -45,9 +45,10 @@ $$
 
 📂 Data: [BrightnessFunctionMixAndPhaseData](https://github.com/jasminelong/expDataHub/tree/8e72e8e9680dc8ba884980344c53c79b2c80cd93/public/BrightnessFunctionMixAndPhaseData)  
 📊 Analysis script: [velocity_curve_linear_only_analysis.py](https://github.com/jasminelong/ExpDataHub/blob/9f55e3aadcab465175a3e1026faf0711b0bee1c3/public/velocity_curve_analysis/velocity_curve_linear_only_analysis.py)  
+
 📈 Result:  
 ![Linear Velocity Curve](https://github.com/jasminelong/ExpDataHub/blob/090d690b3767d53ee4a7fb5797df1f32f3e8ca63/public/velocity_curve_analysis/velocity_curves_linear_only_mean_background_opaque.png?raw=true)
-
+🎬 Related Videos [![Function Mix Demo](https://img.youtube.com/vi/yqooWolbbrE/hqdefault.jpg)](https://youtu.be/yqooWolbbrE)  
 ---
 
 ### Experiment 2 – Function Mixing (関数混合)
@@ -62,9 +63,10 @@ Each function represents a different nonlinear luminance interpolation model.
 以探讨哪种混合方式能最有效地减小主观速度波动（“速度むら”）。  
 每种函数代表不同类型的非线性亮度插值模型。
 
+📂 Data: [BrightnessFunctionMixAndPhaseData](https://github.com/jasminelong/expDataHub/tree/8e72e8e9680dc8ba884980344c53c79b2c80cd93/public/BrightnessFunctionMixAndPhaseData)  
 📊 Analysis script: [function_mix_analysis.py](https://github.com/jasminelong/ExpDataHub/blob/9f55e3aadcab465175a3e1026faf0711b0bee1c3/public/velocity_curve_analysis/function_mix_analysis.py)  
 📈 Result: ![Function Mix Analysis](https://github.com/jasminelong/ExpDataHub/blob/9f55e3aadcab465175a3e1026faf0711b0bee1c3/public/velocity_curve_analysis/function_mix_analysis.png?raw=true)
-
+🎬 Related Videos [![Vection Demo](https://img.youtube.com/vi/aKt7oFtJfzU/hqdefault.jpg)](https://youtu.be/aKt7oFtJfzU)
 ---
 
 ## 🧩 Findings / 結果概要 / 实验结果
