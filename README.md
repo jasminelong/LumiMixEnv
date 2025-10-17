@@ -49,7 +49,7 @@ $$
 🎬 Related Videos:  <!-- [![Function Mix Demo](https://img.youtube.com/vi/yqooWolbbrE/hqdefault.jpg)](https://youtu.be/yqooWolbbrE)  -->
 <p align="center">
   <a href="https://youtu.be/yqooWolbbrE">
-    <img src="https://img.youtube.com/vi/yqooWolbbrE/hqdefault.jpg" width="480" style="border-radius:10px; margin:10px;">
+    <img src="https://img.youtube.com/vi/yqooWolbbrE/hqdefault.jpg" width="680" style="border-radius:10px; margin:10px;">
   </a>
 </p>
 
@@ -79,6 +79,7 @@ Each function represents a different nonlinear luminance interpolation model.
     <img src="https://img.youtube.com/vi/akT0FtJfZuI/hqdefault.jpg" width="480" style="border-radius:10px; margin:10px;">
   </a>
 </p>
+
 
 
 ---
