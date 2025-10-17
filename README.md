@@ -68,6 +68,7 @@ Each function represents a different nonlinear luminance interpolation model.
 📊 Analysis script: [function_mix_analysis.py](https://github.com/jasminelong/ExpDataHub/blob/9f55e3aadcab465175a3e1026faf0711b0bee1c3/public/velocity_curve_analysis/function_mix_analysis.py)  
 📈 Result: ![Function Mix Analysis](https://github.com/jasminelong/ExpDataHub/blob/9f55e3aadcab465175a3e1026faf0711b0bee1c3/public/velocity_curve_analysis/function_mix_analysis.png?raw=true)
 🎬 Related Videos [![Vection Demo](https://img.youtube.com/vi/aKt7oFtJfzU/hqdefault.jpg)](https://youtu.be/aKt7oFtJfzU)
+
 ---
 
 ## 🧩 Findings / 結果概要 / 实验结果
