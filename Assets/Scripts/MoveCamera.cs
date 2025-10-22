@@ -11,7 +11,7 @@ using UnityEditor;
 #endif
 
 
-public class MoveCamera : MonoBehaviour
+public partial class MoveCamera : MonoBehaviour
 {
     public enum DirectionPattern
     {
@@ -191,17 +191,6 @@ public class MoveCamera : MonoBehaviour
     // 对数刻度
     void Start()
     {
-        /* //test
-        // 创建纯黑纹理
-        blackTexture = new Texture2D(1, 1);
-        blackTexture.SetPixel(0, 0, Color.black);
-        blackTexture.Apply();
-
-        // 创建纯白纹理
-        whiteTexture = new Texture2D(1, 1);
-        whiteTexture.SetPixel(0, 0, Color.white);
-        whiteTexture.Apply(); */
-
         // 垂直同期を無効にする // 关闭垂直同步
         QualitySettings.vSyncCount = 0;
         // 目標フレームレートを60フレーム/秒に設定 // 设置目标帧率为60帧每秒
@@ -482,23 +471,7 @@ public class MoveCamera : MonoBehaviour
         // knobValue = 0.615f;//0.683 0.616 0.785 0.583 0.613 0.581 YAMA-A
         nonlinearPreviousImageRatio = BrightnessBlend.GetMixedValue(previousImageRatio, knobValue, brightnessBlendMode);
         nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, knobValue, brightnessBlendMode);
-        /*         if (experimentPattern == ExperimentPattern.FunctionMix)
 
-                {
-                    knobValue = Mathf.Clamp(SerialReader.lastSensorValue * 2f - 0.5f, -0.5f, 1.5f);//[-0.5, 2]
-                    nonlinearPreviousImageRatio = BlendCurves.BlendCurve(previousImageRatio, knobValue, curveType);
-                    nonlinearNextImageRatio = BlendCurves.BlendCurve(nextImageRatio, knobValue, curveType);
-                } */
-
-        /*         if (experimentPattern == ExperimentPattern.FunctionMix)
-                {
-                    SpeedFunctionTime += Time.deltaTime * SpeedFunctionFrequency;
-                    Vector3 basePos = new Vector3(0f, 0f, 0f);
-                    // 计算非线性混合比（t 可以是 previousImageRatio 和 nextImageRatio）
-                    nonlinearPreviousImageRatio = CalculateZ(previousImageRatio, functionType, SpeedFunctionDistance, basePos, SpeedFunctionFrequency, SpeedFunctionAmplitude, SpeedFunctionOffset);
-                    nonlinearNextImageRatio = CalculateZ(nextImageRatio, functionType, SpeedFunctionDistance, basePos, SpeedFunctionFrequency, SpeedFunctionAmplitude, SpeedFunctionOffset);
-
-                } */
 
         if (frameNum % 2 == 0)
         {
@@ -625,79 +598,6 @@ public class MoveCamera : MonoBehaviour
 #endif
     }
 
-    public void TrailSettings()
-    {
-        string json = File.ReadAllText(savePath);
-        ExperimentData data = JsonUtility.FromJson<ExperimentData>(json);
-
-        Trial currentTrial = null;
-
-        if (data.progress.exp1_intro_test < data.exp1_intro_test.Count)
-        {
-            currentTrial = data.exp1_intro_test[data.progress.exp1_intro_test];
-            currentProgress = "exp1_intro_test";
-            Debug.Log("Now exp1_intro_test");
-
-            devMode = DevMode.Test; // 设置为测试模式 set to test mode, 1condition, 1 trial
-            experimentPattern = ExperimentPattern.FunctionMix;
-            brightnessBlendMode = BrightnessBlendMode.Dynamic;
-        }
-        else if (data.progress.exp1_trials < data.exp1_trials.Count)
-        {
-            currentTrial = data.exp1_trials[data.progress.exp1_trials];
-            currentProgress = "exp1_trials";
-            Debug.Log("Now exp1_trials");
-
-            devMode = DevMode.FunctionRation; // set to function ratio mode, 1condition, 3 trials
-            experimentPattern = ExperimentPattern.FunctionMix;
-            brightnessBlendMode = BrightnessBlendMode.Dynamic;
-            if (data.progress.exp1_trials + 1 == data.exp1_trials.Count && data.exp2_intro_test.Count == 0 && data.exp2_trials.Count == 0)
-            {
-                isEnd = true; // 最后一次试次
-            }
-        }
-        else if (data.progress.exp2_intro_test < data.exp2_intro_test.Count)
-        {
-            currentTrial = data.exp2_intro_test[data.progress.exp2_intro_test];
-            currentProgress = "exp2_intro_test";
-            Debug.Log("Now exp2_intro_test");
-
-            devMode = DevMode.Test; // 设置为测试模式 set to test mode, 1condition, 1 trial
-            experimentPattern = ExperimentPattern.Phase; // set to phase mode
-            brightnessBlendMode = BrightnessBlendMode.LinearOnly;
-        }
-        else if (data.progress.exp2_trials < data.exp2_trials.Count)
-        {
-            currentTrial = data.exp2_trials[data.progress.exp2_trials];
-            currentProgress = "exp2_trials";
-            Debug.Log("Now exp2_trials");
-
-            devMode = DevMode.Normal; // 设置为测试模式 set to mode, 3condition, 3 trials
-            experimentPattern = ExperimentPattern.Phase; // set to phase mode
-            switch (currentTrial.condition)
-            {
-                case 1:
-                    brightnessBlendMode = BrightnessBlendMode.LinearOnly;
-                    break;
-                case 2:
-                    brightnessBlendMode = BrightnessBlendMode.Dynamic;
-                    break;
-            }
-            if (data.progress.exp2_trials + 1 == data.exp2_trials.Count)
-            {
-                isEnd = true; // 最后一次试次
-            }
-
-        }
-        else
-        {
-            Debug.Log("finished all trials");
-            return;
-        }
-
-        trialNumber = currentTrial.repetition;
-
-    }
     void UpdateProgress()
     {
         string json = File.ReadAllText(savePath);
@@ -818,134 +718,6 @@ public class MoveCamera : MonoBehaviour
             }
         }
     }
-
-
-    public static class BlendCurves
-    {
-        // -------- 单条曲线公式 --------
-        static float Cosine(float x) => 0.5f * (1f - Mathf.Cos(Mathf.PI * x));//Cosine 缓动函数：输出 y = 0.5 * (1 - cos(πx))
-        static float Cubic(float x) => 3f * x * x - 2f * x * x * x;//Cubic（SmoothStep）缓动函数：输出 y = 3x² - 2x³
-                                                                   //Quintic（SmootherStep）缓动函数：输出 y = 6t⁵ - 15t⁴ + 10t³
-        static float Quintic(float x)
-        {
-            float t = x;
-            return t * t * t * (t * (6f * t - 15f) + 10f);
-        }
-        //Acos 曲线函数：输出 y = acos(-2x + 1) / π，定义域 x ∈ [0,1]
-        static float AcosCurve(float x) =>
-            (float)(Math.Acos(-2f * x + 1f) / Math.PI);
-
-        // -------- 核心统一接口 --------
-        /// <summary>
-        /// 返回混合后的 y 值  
-        /// x           : 0-1 的线性进度  
-        /// funcRatio p : 0=线性 1=完全目标曲线（中间值 = 插值弯曲）  
-        /// curveType   : 选用哪条曲线
-        /// </summary>
-        public static float BlendCurve(float x, float p, CurveType curveType)
-        {
-            p = Mathf.Clamp01(p);          // 保险
-            if (curveType == CurveType.Linear || p == 0f)
-                return x;                  // 纯线性直接返回
-
-            float yCurve = curveType switch
-            {
-                CurveType.Cosine => Cosine(x),
-                CurveType.Cubic => Cubic(x),
-                CurveType.Quintic => Quintic(x),
-                CurveType.Acos => AcosCurve(x),
-                _ => x
-            };
-            return Mathf.Lerp(x, yCurve, p);   // 线性 ↔ 曲线 之间插值
-        }
-    }
-
-    float GammaApprox(float z)
-    {
-        if (z <= 0f) return float.NaN;
-
-        float[] p = {
-        1.000000000190015f,
-        76.18009172947146f,
-        -86.50532032941677f,
-        24.01409824083091f,
-        -1.231739572450155f,
-        0.001208650973866179f,
-        -0.5395239384953e-5f
-    };
-
-        float x = p[0];
-        for (int i = 1; i < p.Length; i++)
-            x += p[i] / (z + i);
-
-        float t = z + 5.5f;
-        return Mathf.Sqrt(2 * Mathf.PI) * Mathf.Pow(t, z + 0.5f) * Mathf.Exp(-t) * x;
-    }
-
-    float GammaFunc(float t, float alpha, float beta)
-    {
-        if (t < 0f || alpha <= 0f || beta <= 0f) return 0f;  // 非法输入直接返回0
-
-        float norm = GammaApprox(alpha);
-        if (float.IsNaN(norm) || norm <= 0f) return 0f;      // 安全保护
-
-        return Mathf.Pow(t, alpha - 1f) * Mathf.Exp(-t / beta) / (Mathf.Pow(beta, alpha) * norm);
-    }
-
-    float TriGamma(float phase, float g)
-    {
-        float y = 1f - Mathf.Abs(1f - Mathf.Repeat(phase, 2f * Mathf.PI) / Mathf.PI);
-        return 1f - Mathf.Pow(y, g);
-    }
-    float CalculateZ(
-    float SpeedFunctionTime,
-    SpeedFunctionType functionType,
-    float SpeedFunctionDistance,
-    Vector3 SpeedFunctionleftLimit,
-    float SpeedFunctionFrequency = 1f,
-    float SpeedFunctionAmplitude = 1f,
-    float SpeedFunctionOffset = 0f
-    )
-    {
-        // 1. 让 t 在 [0, 2) 范围内循环往返
-        float tt = SpeedFunctionTime * SpeedFunctionFrequency;
-        // 2. 把往返做成 0→1→0 的区间：先对 2 取余，再对 1 作镜像
-        float m = tt % 2f;
-        if (m < 0f) m += 2f;
-        // m ∈ [0,2)，当 m>1 时我们需要“回过头”，用 2-m
-        float x = (m <= 1f) ? m : (2f - m);
-
-        // 3. 根据 functionType 计算“规范化”输出 y0 ∈ [0,1]
-        float y0;
-        switch (functionType)
-        {
-            case SpeedFunctionType.Linear:
-                y0 = x;
-                break;
-
-            case SpeedFunctionType.EaseInOut:
-                y0 = (1f - Mathf.Cos(Mathf.PI * x)) * 0.5f;
-                break;
-
-            case SpeedFunctionType.Triangle:
-                y0 = 1f - Mathf.Abs(2f * x - 1f); ;  // 此处 x∈[0,1]，也可直接用 x 或 1−|2x−1|
-                break;
-
-            case SpeedFunctionType.Arccos:
-                // 把原来两个分段合并到同一个 x 上
-                y0 = Mathf.Acos(-2f * x + 1f) / Mathf.PI;
-                break;
-
-            default:
-                y0 = x;
-                break;
-        }
-
-        // 4. 振幅 & 偏移
-        float y = y0 * SpeedFunctionAmplitude + SpeedFunctionOffset;
-
-        // 5. 映射到 Z 轴：leftLimit.z → leftLimit.z + distance
-        return SpeedFunctionleftLimit.z + SpeedFunctionDistance * y;
-    }
+    
 }
 
