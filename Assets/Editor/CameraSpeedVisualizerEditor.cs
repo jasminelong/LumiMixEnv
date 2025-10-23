@@ -55,7 +55,10 @@ public class MoveCameraEditor : Editor
         /*         prop = serializedObject.FindProperty("v");
                 EditorGUILayout.PropertyField(prop); */
 
-        prop = serializedObject.FindProperty("participantName");
+        prop = serializedObject.FindProperty("subject");
+        EditorGUILayout.PropertyField(prop);
+
+         prop = serializedObject.FindProperty("participantName");
         EditorGUILayout.PropertyField(prop);
 
         prop = serializedObject.FindProperty("devMode");

@@ -52,17 +52,9 @@ public partial class MoveCamera : MonoBehaviour
 
     }
 
-    public enum CurveType  // 选择曲线
-    {
-        Linear,
-        Cosine,
-        Cubic,
-        Quintic,
-        Acos     // 老师原来的 acos 曲线
-    }
     [SerializeField] DevMode devMode = DevMode.Normal;
     [SerializeField] BrightnessBlendMode brightnessBlendMode = BrightnessBlendMode.Dynamic;
-    [SerializeField] CurveType curveType = CurveType.Cosine;
+  
     public Camera captureCamera0; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
     public Camera captureCamera1; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
     public Camera captureCamera2; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
@@ -188,6 +180,25 @@ public partial class MoveCamera : MonoBehaviour
     private string savePath = Path.Combine(Application.dataPath, "Scripts/full_trials.json");
     private bool isEnd = false; // 是否结束实验
     private string currentProgress; // 
+
+   
+    [Header("Subject / Condition")]
+    public SubjectOption subject = SubjectOption.YAMA_A;  // Inspector 里选   择被试   
+    [SerializeField] private bool clampNonNegative = false; // 只前进（裁剪负速度）
+        // T = 1 s → ω = 2π rad/s
+    private const float OMEGA = 2f * Mathf.PI;
+
+    [System.Serializable]
+
+
+    public enum SubjectOption
+    {
+        YAMA_A,   // 新增：参与者 YAMA -A
+        OMU_B,    // 参与者 OMU -B
+        ONO_C,    // 参与者 ONO -C
+        HOU_D,    // 参与者 HOU -D
+        LL_E      // 参与者 LL  -E
+    }
     // 对数刻度
     void Start()
     {
@@ -215,7 +226,7 @@ public partial class MoveCamera : MonoBehaviour
         SerialReader = GetComponent<SerialReader>();
 
 
-        TrailSettings();
+        // TrailSettings();
         nextStepButtonTextComponent = nextStepButton.GetComponentInChildren<TextMeshProUGUI>();
         nextStepButton.onClick.AddListener(OnNextStep); // ボタンがクリックされたときの処理を追加 // 添加按钮点击时的处理
 
@@ -438,7 +449,27 @@ public partial class MoveCamera : MonoBehaviour
             captureCamera1.transform.position = captureCamera1.transform.position + targetPosition;
             captureCamera2.transform.position = captureCamera2.transform.position + targetPosition;
 
+        }else
+        {
+           Vector3 dir = targetPosition.sqrMagnitude > 1e-12f ? targetPosition.normalized : Vector3.zero;
+            if (dir == Vector3.zero) return;
+
+            ModParams p = GetParams(subject);
+
+            float t  = Time.time;
+            float s1 = Mathf.Sin(OMEGA * t + p.PHI1);
+            float s2 = Mathf.Sin(2f * OMEGA * t + p.PHI2);
+
+            // 仅负的正弦调制项（无 V0）：
+            float v = -(p.A1 * s1 + p.A2 * s2);
+
+            if (clampNonNegative) v = Mathf.Max(0f, v);
+
+            Vector3 delta = dir * v * Time.deltaTime;
+            captureCamera1.transform.position += delta;
+            captureCamera2.transform.position += delta;
         }
+
         if (frameNum % 2 == 0)
         {
             CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture2);       // 上层图
@@ -471,7 +502,7 @@ public partial class MoveCamera : MonoBehaviour
         // knobValue = 0.615f;//0.683 0.616 0.785 0.583 0.613 0.581 YAMA-A
         nonlinearPreviousImageRatio = BrightnessBlend.GetMixedValue(previousImageRatio, knobValue, brightnessBlendMode);
         nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, knobValue, brightnessBlendMode);
-
+        Debug.Log("nonlinearNextImageRatio : " + nonlinearNextImageRatio);
 
         if (frameNum % 2 == 0)
         {
@@ -577,10 +608,6 @@ public partial class MoveCamera : MonoBehaviour
         CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture1);       // 上层图
         CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture2);    // 下层图  
 
-
-        /*  test        
-        CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex",  whiteTexture);       // 上层图
-        CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", blackTexture );    // 下层图  */
         // RawImageコンポーネントを無効にする // 禁用 RawImage 组件
         continuousImageRawImage.enabled = false;
         Image1RawImage.enabled = false;
@@ -718,6 +745,36 @@ public partial class MoveCamera : MonoBehaviour
             }
         }
     }
-    
+
+    public struct ModParams
+    {
+        public float A1, PHI1, A2, PHI2;
+        public ModParams(float a1, float phi1, float a2, float phi2)
+        { A1 = a1; PHI1 = phi1; A2 = a2; PHI2 = phi2; }
+    }
+    private ModParams GetParams(SubjectOption opt)
+    {
+        switch (opt)
+        {
+            case SubjectOption.Mean:   // 平均
+                return new ModParams(0.540f, 1.849f, -0.528f, 1.462f);
+
+            case SubjectOption.YAMA_A: // ⚠️ 目前用“平均值”占位 —— 拿到 YAMA 的真实参数后改这里
+                return new ModParams(0.540f, 1.849f, -0.528f, 1.462f);
+
+            case SubjectOption.OMU_B:
+                return new ModParams(0.522f, 2.528f, -0.223f, 3.525f);
+
+            case SubjectOption.ONO_C:
+                return new ModParams(0.632f, 3.663f,  0.461f, 5.123f);
+
+            case SubjectOption.HOU_D:
+                return new ModParams(0.275f, 3.031f,  0.920f, 5.982f);
+
+            case SubjectOption.LL_E:
+                return new ModParams(-0.278f, 1.849f, -0.292f, 3.728f);
+        }
+        return new ModParams(0.540f, 1.849f, -0.528f, 1.462f);
+    }
 }
 
