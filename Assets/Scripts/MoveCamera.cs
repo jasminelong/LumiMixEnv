@@ -188,8 +188,7 @@ public partial class MoveCamera : MonoBehaviour
         // T = 1 s → ω = 2π rad/s
     private const float OMEGA = 2f * Mathf.PI;
 
-    [System.Serializable]
-
+    public float cameraSpeedReverse;
 
     public enum SubjectOption
     {
@@ -417,9 +416,9 @@ public partial class MoveCamera : MonoBehaviour
             float s2 = Mathf.Sin(2f * omega * t + p.PHI2);
 
             // 仅负的正弦调制项：
-            float v_reverse = 1.0f -(p.A1 * s1 + p.A2 * s2);
+            cameraSpeedReverse = 1.0f -(p.A1 * s1 + p.A2 * s2);
 
-            Vector3 delta = direction * v_reverse * Time.deltaTime;
+            Vector3 delta = direction * cameraSpeedReverse * Time.deltaTime;
             captureCamera1.transform.position += delta;
             captureCamera2.transform.position += delta;
 

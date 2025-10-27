@@ -9,10 +9,10 @@ public class MoveCameraEditor : Editor
     private int graphHeight = 200;
     private Texture2D graphTexture;
     private Queue<float> velocityHistory = new Queue<float>();
+    private Queue<float> camSpeedHistory = new Queue<float>();
 
     public override void OnInspectorGUI()
     {
-        //DrawDefaultInspector();
         MoveCamera script = (MoveCamera)target;
 
         SerializedProperty prop;
@@ -41,19 +41,8 @@ public class MoveCameraEditor : Editor
         prop = serializedObject.FindProperty("cameraSpeed");
         EditorGUILayout.PropertyField(prop);
 
-        // prop = serializedObject.FindProperty("updateInterval");
-        // EditorGUILayout.PropertyField(prop);
-
-        /*         prop = serializedObject.FindProperty("frameNum");
-                EditorGUILayout.PropertyField(prop); */
-
         prop = serializedObject.FindProperty("fps");
         EditorGUILayout.PropertyField(prop);
-
-
-
-        /*         prop = serializedObject.FindProperty("v");
-                EditorGUILayout.PropertyField(prop); */
 
         prop = serializedObject.FindProperty("participantName");
         EditorGUILayout.PropertyField(prop);
@@ -68,14 +57,6 @@ public class MoveCameraEditor : Editor
         prop = serializedObject.FindProperty("experimentPattern");
         EditorGUILayout.PropertyField(prop);
 
-        /*         prop = serializedObject.FindProperty("trialNumber");
-                EditorGUILayout.PropertyField(prop);
-         */
-
-
-        /*         prop = serializedObject.FindProperty("curveType");
-                EditorGUILayout.PropertyField(prop); */
-
         prop = serializedObject.FindProperty("brightnessBlendMode");
         EditorGUILayout.PropertyField(prop);
 
@@ -85,76 +66,18 @@ public class MoveCameraEditor : Editor
 
         serializedObject.ApplyModifiedProperties();
 
-        //5-----輝度値の変化の表示
-        GUILayout.Space(20);
-        EditorGUILayout.LabelField("Brightness", EditorStyles.boldLabel);
-        GUILayout.Space(10);
-        var times = script.timeStamps;
-        var alphas = script.alphaHistory;
-        var maxDuration = script.maxDuration;
+        // Brightness 曲线（单独方法）
+        DrawBrightnessGraph(script);
 
-        // 現在時刻取得//当前时间（同脚本里计算方式）
-        float now = Application.isPlaying ? Time.time : (float)UnityEditor.EditorApplication.timeSinceStartup;
-
-        // 波形描画用領域を確保
-        Rect rect = GUILayoutUtility.GetRect(300, 150);
-        EditorGUI.DrawRect(rect, new Color(0.1f, 0.1f, 0.1f));
-
-        // Y軸の目盛りとラベルを描画//画 Y 轴刻度和标签
-        Handles.color = Color.gray;
-        int yTicks = 5;
-        for (int i = 0; i <= yTicks; i++)
-        {
-            float t = i / (float)yTicks;
-            float y = Mathf.Lerp(rect.yMax, rect.yMin, t);
-            //  目盛り線//刻度线
-            Handles.DrawLine(new Vector3(rect.xMin, y), new Vector3(rect.xMin + 5, y));
-            // ラベル表示（F2で小数点2桁）//标签
-            GUI.Label(
-                new Rect(rect.xMin + 8, y - 8, 40, 16),
-                t.ToString("F2")
-            );
-        }
-
-        // X軸の目盛りとラベルを描画
-        int xTicks = 5;
-        for (int i = 0; i <= xTicks; i++)
-        {
-            float t = i / (float)xTicks;
-            float x = Mathf.Lerp(rect.xMin, rect.xMax, t);
-            Handles.DrawLine(new Vector3(x, rect.yMax), new Vector3(x, rect.yMax - 5));
-            float timeLabel = now - maxDuration + t * maxDuration; // 1秒前から現在まで
-            GUI.Label(new Rect(x - 20, rect.yMax + 2, 40, 16), timeLabel.ToString("F2") + "s");
-        }
-
-        // 波形をシアンで描画//画曲线
-        Handles.color = Color.cyan;
-        int count = times.Count;
-        float w = rect.width;
-        float h = rect.height;
-
-        for (int i = 1; i < count; i++)
-        {
-            float t0 = times[i - 1], t1 = times[i];
-            float x0 = rect.xMin + Mathf.Clamp01((t0 - (now - maxDuration)) / maxDuration) * w;
-            float y0 = rect.yMax - alphas[i - 1] * h;
-            float x1 = rect.xMin + Mathf.Clamp01((t1 - (now - maxDuration)) / maxDuration) * w;
-            float y1 = rect.yMax - alphas[i] * h;
-            Handles.DrawLine(new Vector3(x0, y0), new Vector3(x1, y1));
-        }
-
-        Handles.color = Color.white;
-        GUILayout.Space(20);
-        EditorGUILayout.LabelField($"最新5秒間のサンプル数: {count} ");
+        // CaptureCamera1 速度图（抽出方法，与 Brightness 一致的尺寸与横轴）
+        DrawCaptureCamera1SpeedGraph(script);
 
         //4.5-----
         prop = serializedObject.FindProperty("omega");
         EditorGUILayout.PropertyField(prop);
-
-        prop = serializedObject.FindProperty("A_min");
+                prop = serializedObject.FindProperty("A_max");
         EditorGUILayout.Slider(prop, -10f, 10f);
-
-        prop = serializedObject.FindProperty("A_max");
+        prop = serializedObject.FindProperty("A_min");
         EditorGUILayout.Slider(prop, -10f, 10f);
 
         prop = serializedObject.FindProperty("time");
@@ -229,6 +152,63 @@ public class MoveCameraEditor : Editor
 
     }
     
+    // 把 Brightness 曲线逻辑抽出，供 OnInspectorGUI 调用
+    void DrawBrightnessGraph(MoveCamera script)
+    {
+        GUILayout.Space(20);
+        EditorGUILayout.LabelField("Brightness", EditorStyles.boldLabel);
+        GUILayout.Space(10);
+
+        var times = script.timeStamps;
+        var alphas = script.alphaHistory;
+        var maxDuration = script.maxDuration;
+        float now = Application.isPlaying ? Time.time : (float)UnityEditor.EditorApplication.timeSinceStartup;
+
+        Rect rect = GUILayoutUtility.GetRect(300, 150);
+        EditorGUI.DrawRect(rect, new Color(0.1f, 0.1f, 0.1f));
+
+        Handles.color = Color.gray;
+        int yTicks = 5;
+        for (int i = 0; i <= yTicks; i++)
+        {
+            float t = i / (float)yTicks;
+            float y = Mathf.Lerp(rect.yMax, rect.yMin, t);
+            Handles.DrawLine(new Vector3(rect.xMin, y), new Vector3(rect.xMin + 5, y));
+            GUI.Label(new Rect(rect.xMin + 8, y - 8, 40, 16), t.ToString("F2"));
+        }
+
+        int xTicks = 5;
+        for (int i = 0; i <= xTicks; i++)
+        {
+            float t = i / (float)xTicks;
+            float x = Mathf.Lerp(rect.xMin, rect.xMax, t);
+            Handles.DrawLine(new Vector3(x, rect.yMax), new Vector3(x, rect.yMax - 5));
+            float timeLabel = now - maxDuration + t * maxDuration;
+            GUI.Label(new Rect(x - 20, rect.yMax + 2, 40, 16), timeLabel.ToString("F2") + "s");
+        }
+
+        Handles.color = Color.cyan;
+        int count = (times != null) ? times.Count : 0;
+        float w = rect.width;
+        float h = rect.height;
+        if (count > 1)
+        {
+            for (int i = 1; i < count; i++)
+            {
+                float t0 = times[i - 1], t1 = times[i];
+                float x0 = rect.xMin + Mathf.Clamp01((t0 - (now - maxDuration)) / maxDuration) * w;
+                float y0 = rect.yMax - alphas[i - 1] * h;
+                float x1 = rect.xMin + Mathf.Clamp01((t1 - (now - maxDuration)) / maxDuration) * w;
+                float y1 = rect.yMax - alphas[i] * h;
+                Handles.DrawLine(new Vector3(x0, y0), new Vector3(x1, y1));
+            }
+        }
+
+        Handles.color = Color.white;
+        GUILayout.Space(20);
+        EditorGUILayout.LabelField($"最新5秒間のサンプル数: {count} ");
+    }
+    
     // 画速度曲线 v(t) —— y 轴刻度与曲线完全对齐
 void DrawVelocityGraph(MoveCamera script)
 {
@@ -267,8 +247,8 @@ void DrawVelocityGraph(MoveCamera script)
         : new float[1] { script.v };
 
     // ===== 固定 Y 轴范围（不再随数据变化）=====
-    float minV = -1f;
-    float maxV =  3f;
+    float minV = -1.5f;
+    float maxV =  2.5f;
 
     // y=0 轴（与曲线统一用 height-1）
     int zeroY = Mathf.RoundToInt(Mathf.InverseLerp(minV, maxV, 0f) * (graphHeight - 1));
@@ -439,5 +419,94 @@ private static float DrawBigSliderWithNumberFloat(
     return v;
 }
 
+    void DrawCaptureCamera1SpeedGraph(MoveCamera script)
+    {
+        GUILayout.Space(10);
+        EditorGUILayout.LabelField("CaptureCamera1 Speed", EditorStyles.boldLabel);
+        GUILayout.Space(10);
+
+        var maxDuration = script.maxDuration;
+        float now = Application.isPlaying ? Time.time : (float)UnityEditor.EditorApplication.timeSinceStartup;
+
+        // 跟 Brightness 一样的绘制区域尺寸
+        Rect rect = GUILayoutUtility.GetRect(300, 150);
+        EditorGUI.DrawRect(rect, new Color(0.1f, 0.1f, 0.1f));
+
+        // 采样（播放时把当前速度推入历史）
+        float currentCamSpeed = script.cameraSpeedReverse;
+        Debug.Log("Current Camera Speed Reverse: " + currentCamSpeed);
+        if (Application.isPlaying)
+        {
+            camSpeedHistory.Enqueue(currentCamSpeed);
+        }
+        int maxSamples = Mathf.Max(4, Mathf.RoundToInt(rect.width));
+        while (camSpeedHistory.Count > maxSamples) camSpeedHistory.Dequeue();
+
+        // Y 轴刻度（固定 -1.5 .. 2.5，与 Brightness 风格一致）
+        Handles.color = Color.gray;
+        int yTicks = 5;
+        for (int i = 0; i <= yTicks; i++)
+        {
+            float t = i / (float)yTicks;
+            float y = Mathf.Lerp(rect.yMax, rect.yMin, t);
+            Handles.DrawLine(new Vector3(rect.xMin, y), new Vector3(rect.xMin + 5, y));
+            float yVal = Mathf.Lerp(2.5f, -1.5f, t);
+            GUI.Label(new Rect(rect.xMin + 8, y - 8, 40, 16), yVal.ToString("F2"));
+        }
+
+        // X 轴刻度与时间标签（和 Brightness 共用时间范围）
+        int xTicks = 5;
+        for (int i = 0; i <= xTicks; i++)
+        {
+            float t = i / (float)xTicks;
+            float x = Mathf.Lerp(rect.xMin, rect.xMax, t);
+            Handles.DrawLine(new Vector3(x, rect.yMax), new Vector3(x, rect.yMax - 5));
+            float timeLabel = now - maxDuration + t * maxDuration;
+            GUI.Label(new Rect(x - 20, rect.yMax + 2, 40, 16), timeLabel.ToString("F2") + "s");
+        }
+
+        // 绘制速度曲线：将历史样本均匀映射到最近 maxDuration 时间轴（与 Brightness 横轴对齐）
+        Handles.color = Color.cyan;
+        if (camSpeedHistory.Count > 0)
+        {
+            float[] samples = camSpeedHistory.ToArray();
+            int sn = samples.Length;
+            float yMin = -1.5f, yMax = 2.5f;
+            float w = rect.width, h = rect.height;
+
+            if (sn == 1)
+            {
+                float x = rect.xMax;
+                float y = rect.yMax - Mathf.InverseLerp(yMin, yMax, samples[0]) * h;
+                Handles.DrawLine(new Vector3(rect.xMin, y), new Vector3(rect.xMax, y));
+            }
+            else
+            {
+                for (int i = 1; i < sn; i++)
+                {
+                    float frac0 = (i - 1) / (float)(sn - 1);
+                    float frac1 = i / (float)(sn - 1);
+
+                    float x0 = rect.xMin + frac0 * w;
+                    float y0 = rect.yMax - Mathf.InverseLerp(yMin, yMax, samples[i - 1]) * h;
+                    float x1 = rect.xMin + frac1 * w;
+                    float y1 = rect.yMax - Mathf.InverseLerp(yMin, yMax, samples[i]) * h;
+
+                    Handles.DrawLine(new Vector3(x0, y0), new Vector3(x1, y1));
+                }
+            }
+        }
+        else
+        {
+            // 无样本时画当前值的水平线（在时间轴右端）
+            float yy = rect.yMax - Mathf.InverseLerp(-1.5f, 2.5f, currentCamSpeed) * rect.height;
+            Handles.DrawLine(new Vector3(rect.xMin, yy), new Vector3(rect.xMax, yy));
+        }
+
+        Handles.color = Color.white;
+        GUILayout.Space(6);
+        int count = camSpeedHistory.Count;
+        EditorGUILayout.LabelField($"最新5秒間のサンプル数: {count} ");
+    }
 
 }
