@@ -50,11 +50,10 @@ public partial class MoveCamera : MonoBehaviour
         Test,         // 测试模式
         FunctionRation,    // 函数模式
         Normal,       // 正常模式
-
     }
 
-    [SerializeField] DevMode devMode = DevMode.Normal;
-    [SerializeField] BrightnessBlendMode brightnessBlendMode = BrightnessBlendMode.Dynamic;
+    [SerializeField] DevMode devMode = DevMode.Test;
+    [SerializeField] BrightnessBlendMode brightnessBlendMode = BrightnessBlendMode.LinearOnly;
   
     public Camera captureCamera0; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
     public Camera captureCamera1; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
@@ -112,8 +111,8 @@ public partial class MoveCamera : MonoBehaviour
     public ResponsePattern responsePattern;
 
     [Header("🔧記録するデータ")]
-    public StepNumber stepNumber = StepNumber.Option0; // 現在のステップ番号 // 当前步骤编号
-    public ExperimentPattern experimentPattern;
+    public StepNumber stepNumber = StepNumber.Option0; // 現在のステップ番号   // 当前步骤编号
+    public ExperimentPattern experimentPattern = ExperimentPattern.CameraMove;
     public int trialNumber = 1;
 
     //记录Image1RawImage的透明度使用的相关变量
@@ -126,7 +125,6 @@ public partial class MoveCamera : MonoBehaviour
     // 存时间戳（秒）和对应的 alpha
     [HideInInspector] public List<float> timeStamps = new List<float>();
     [HideInInspector] public List<float> alphaHistory = new List<float>();
-
 
     //速度を調整
     [Space(20)]
@@ -206,10 +204,6 @@ public partial class MoveCamera : MonoBehaviour
         // 目標フレームレートを60フレーム/秒に設定 // 设置目标帧率为60帧每秒
         Time.fixedDeltaTime = 1.0f / 60.0f;
 
-
-
-        // captureCamera.enabled = false; // 初期状態でキャプチャカメラを無効にする // 初始化时禁用捕获摄像机
-
         updateInterval = 1 / fps; // 各フレームの表示間隔時間を計算 // 计算每一帧显示的间隔时间
         captureIntervalDistance = cameraSpeed / fps; // 各フレームの間隔距離を計算 // 计算每帧之间的间隔距离
 
@@ -217,13 +211,8 @@ public partial class MoveCamera : MonoBehaviour
         InitialSetup();
 
         continuousImageRawImage.enabled = true;
-        Image1RawImage.enabled = true;
-        Image2RawImage.enabled = true;
         captureCamera2.transform.position += direction * captureIntervalDistance;
-
-
         SerialReader = GetComponent<SerialReader>();
-
 
         TrailSettings();
         nextStepButtonTextComponent = nextStepButton.GetComponentInChildren<TextMeshProUGUI>();
@@ -254,7 +243,6 @@ public partial class MoveCamera : MonoBehaviour
         if (!mouseClicked && Input.GetMouseButtonDown(0))
         {
             mouseClicked = true;
-            //Debug.Log("Mouse Clicked");
             // ボタンがクリックされたときの処理を追加 // 添加按钮点击时的处理
             nextStepButton.gameObject.SetActive(true);
             Time.timeScale = 0f;
@@ -420,9 +408,6 @@ public partial class MoveCamera : MonoBehaviour
         if (Mathf.Abs(timeMs - frameNum * updateInterval * 1000) < 0.2f)
         {
             frameNum++;
-            Image1RawImage.enabled = false;
-            Image2RawImage.enabled = false;
-
             if (experimentPattern != ExperimentPattern.CameraMove)
             {
                 // カメラが移動する目標位置を計算 // 计算摄像机沿圆锥轴线移动的目标位置
@@ -434,16 +419,25 @@ public partial class MoveCamera : MonoBehaviour
 
         }
 
-        if (frameNum % 2 == 0)
-        {
-            CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture2);       // 上层图
-            CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture1);    // 下层图  
-        }
-        else
+        if (experimentPattern == ExperimentPattern.CameraMove)
         {
             CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture1);       // 上层图
             CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture2);    // 下层图  
         }
+        else
+        {
+            if (frameNum % 2 == 0)
+            {
+                CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture2);       // 上层图
+                CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture1);    // 下层图  
+            }
+            else
+            {
+                CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture1);       // 上层图
+                CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture2);    // 下层图  
+            }
+        }
+
         //輝度値を計算する 
         float Image1ToNowDeltaTime = timeMs - (frameNum - 1) * updateInterval * 1000;
         float nextRatio = Image1ToNowDeltaTime / (updateInterval * 1000);
@@ -462,22 +456,15 @@ public partial class MoveCamera : MonoBehaviour
         // knobValue = 0.615f;//0.683 0.616 0.785 0.583 0.613 0.581 YAMA-A
         nonlinearPreviousImageRatio = BrightnessBlend.GetMixedValue(previousImageRatio, knobValue, brightnessBlendMode);
         nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, knobValue, brightnessBlendMode);
-        Debug.Log("nonlinearNextImageRatio : " + nonlinearNextImageRatio);
 
         if (frameNum % 2 == 0)
         {
-            Image1RawImage.color = new Color(1, 1, 1, nonlinearNextImageRatio);
-            Image2RawImage.color = new Color(1, 1, 1, 1.0f);
-
             CaptureCameraLinearBlendRawImage.material.SetColor("_TopColor", new Color(1, 1, 1, nonlinearNextImageRatio)); // 透明度
             CaptureCameraLinearBlendRawImage.material.SetColor("_BottomColor", new Color(1, 1, 1, 1.0f));
             alphaHistory.Add(nonlinearPreviousImageRatio);
         }
         else
         {
-            Image1RawImage.color = new Color(1, 1, 1, nonlinearPreviousImageRatio);
-            Image2RawImage.color = new Color(1, 1, 1, 1.0f);
-
             CaptureCameraLinearBlendRawImage.material.SetColor("_TopColor", new Color(1, 1, 1, nonlinearPreviousImageRatio)); // 透明度
             CaptureCameraLinearBlendRawImage.material.SetColor("_BottomColor", new Color(1, 1, 1, 1.0f));
             alphaHistory.Add(nonlinearNextImageRatio);
@@ -504,17 +491,8 @@ public partial class MoveCamera : MonoBehaviour
         }
         //------------波形end
 
-        //Debug.Log("Image1RawImage.color.r"+ Image1RawImage.color.r+"  "+ Image1RawImage.color.g +"  "+ Image1RawImage.color.b +"  " + Image1RawImage.color.a);
-        // Canvasに親オブジェクトを設定し、元のローカル位置、回転、およびスケールを保持 // 设置父对象为 Canvas，并保持原始的本地位置、旋转和缩放
-        Image1RawImage.transform.SetParent(canvas.transform, false);
-        Image2RawImage.transform.SetParent(canvas.transform, false);
-        Image1RawImage.enabled = true;
-        Image2RawImage.enabled = true;
-
         // データを記録 // 记录数据
-        // data.Add("FrondFrameNum, FrondFrameLuminance, BackFrameNum, BackFrameLuminance, Time, FrameNum, Knob, ResponsePattern, StepNumber, Amplitude, Velocity");
         data.Add($"{frameNum}, {nonlinearPreviousImageRatio:F3}, {frameNum + 1}, {nonlinearNextImageRatio:F3}, {timeMs:F3}, {SerialReader.lastSensorValue}, {responsePattern}, {(int)stepNumber}, {amplitudeToSaveData}, {v}, {knobValue:F3}, {cameraSpeed:F3}");
-        //data.Add($"{frameNum}, {Image1RawImage.color.a:F3}, {frameNum + 1}, {Image2RawImage.color.a:F3}, {timeMs :F3}, {(vectionResponse ? 1 : 0)}");
 
     }
 
@@ -559,8 +537,7 @@ public partial class MoveCamera : MonoBehaviour
 
         // 子オブジェクトのRawImageコンポーネントを取得 // 获取子对象的 RawImage 组件
         continuousImageRawImage = continuousImageTransform.GetComponent<RawImage>();
-        Image1RawImage = Image1Transform.GetComponent<RawImage>();
-        Image2RawImage = Image2Transform.GetComponent<RawImage>();
+ 
         CaptureCameraLinearBlendRawImage = CaptureCameraLinearBlendTransform.GetComponent<RawImage>();
 
         CaptureCameraLinearBlendRawImage.material = new Material(Mat_GrayscaleOverBlend);
@@ -570,9 +547,7 @@ public partial class MoveCamera : MonoBehaviour
 
         // RawImageコンポーネントを無効にする // 禁用 RawImage 组件
         continuousImageRawImage.enabled = false;
-        Image1RawImage.enabled = false;
-        Image2RawImage.enabled = false;
-
+ 
 
     }
     void QuitGame()
@@ -623,7 +598,6 @@ public partial class MoveCamera : MonoBehaviour
         string filePath = Path.Combine("D:/vectionProject/public", folderName, fileName);
         //File.WriteAllLines(filePath, data);
 
-        //Debug.Log($"Data saved to {filePath}");
     }
     public void MarkTrialCompletedAndRestart()
     {
@@ -646,8 +620,6 @@ public partial class MoveCamera : MonoBehaviour
     {
         amplitudes[index] = value;
     }
-
-
 
     public static class BrightnessBlend
     {
@@ -716,7 +688,7 @@ public partial class MoveCamera : MonoBehaviour
     {
         switch (opt)
         {
-            case SubjectOption.YAMA_A: // ⚠️ 目前用“平均值”占位 —— 拿到 YAMA 的真实参数后改这里
+            case SubjectOption.YAMA_A: //  目前用“平均值”占位 —— 拿到 YAMA 的真实参数后改这里
                 return new ModParams(0.540f, 1.849f, -0.528f, 1.462f);
 
             case SubjectOption.OMU_B:

@@ -439,7 +439,6 @@ private static float DrawBigSliderWithNumberFloat(
         // 采样（播放时把当前速度推入历史）
         // 优先用脚本提供的实时计算（确保值确实每帧更新）
         float currentCamSpeed = Application.isPlaying ? script.GetRealtimeCameraSpeedReverse() : script.cameraSpeedReverse;
-        Debug.Log($"Current CaptureCamera1 ReverseSpeed: {currentCamSpeed}");
          if (Application.isPlaying)
          {
              camReverseSpeedHistory.Enqueue(currentCamSpeed);
@@ -531,7 +530,6 @@ private static float DrawBigSliderWithNumberFloat(
         // 采样（播放时把当前速度推入历史）
         // 优先用脚本提供的实时计算（确保值确实每帧更新）
         float currentCamSpeed = script.GetRealtimeCameraSpeed();
-        Debug.Log($"Current CaptureCamera1 Speed: {currentCamSpeed}");
          if (Application.isPlaying)
          {
              camSpeedHistory.Enqueue(currentCamSpeed);

@@ -44,7 +44,7 @@ public partial class MoveCamera : MonoBehaviour
             Debug.Log("Now exp2_intro_test");
 
             devMode = DevMode.Test;
-            experimentPattern = ExperimentPattern.Phase;
+            experimentPattern = ExperimentPattern.CameraMove;
             brightnessBlendMode = BrightnessBlendMode.LinearOnly;
         }
         else if (data.progress.exp2_trials < data.exp2_trials.Count)
