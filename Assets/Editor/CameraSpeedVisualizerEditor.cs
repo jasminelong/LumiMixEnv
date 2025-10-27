@@ -9,8 +9,10 @@ public class MoveCameraEditor : Editor
     private int graphHeight = 200;
     private Texture2D graphTexture;
     private Queue<float> velocityHistory = new Queue<float>();
+    private Queue<float> camReverseSpeedTimeHistory = new Queue<float>();
+    private Queue<float> camReverseSpeedHistory = new Queue<float>();
+    private Queue<float> camSpeedTimeHistory = new Queue<float>();
     private Queue<float> camSpeedHistory = new Queue<float>();
-
     public override void OnInspectorGUI()
     {
         MoveCamera script = (MoveCamera)target;
@@ -70,7 +72,9 @@ public class MoveCameraEditor : Editor
         DrawBrightnessGraph(script);
 
         // CaptureCamera1 速度图（抽出方法，与 Brightness 一致的尺寸与横轴）
+        DrawCaptureCamera1ReverseSpeedGraph(script);
         DrawCaptureCamera1SpeedGraph(script);
+
 
         //4.5-----
         prop = serializedObject.FindProperty("omega");
@@ -248,7 +252,7 @@ void DrawVelocityGraph(MoveCamera script)
 
     // ===== 固定 Y 轴范围（不再随数据变化）=====
     float minV = -1.5f;
-    float maxV =  2.5f;
+    float maxV =  2.0f;
 
     // y=0 轴（与曲线统一用 height-1）
     int zeroY = Mathf.RoundToInt(Mathf.InverseLerp(minV, maxV, 0f) * (graphHeight - 1));
@@ -419,10 +423,10 @@ private static float DrawBigSliderWithNumberFloat(
     return v;
 }
 
-    void DrawCaptureCamera1SpeedGraph(MoveCamera script)
+    void DrawCaptureCamera1ReverseSpeedGraph(MoveCamera script)
     {
         GUILayout.Space(10);
-        EditorGUILayout.LabelField("CaptureCamera1 Speed", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField("CaptureCamera1 ReverseSpeed", EditorStyles.boldLabel);
         GUILayout.Space(10);
 
         var maxDuration = script.maxDuration;
@@ -433,24 +437,31 @@ private static float DrawBigSliderWithNumberFloat(
         EditorGUI.DrawRect(rect, new Color(0.1f, 0.1f, 0.1f));
 
         // 采样（播放时把当前速度推入历史）
-        float currentCamSpeed = script.cameraSpeedReverse;
-        Debug.Log("Current Camera Speed Reverse: " + currentCamSpeed);
-        if (Application.isPlaying)
+        // 优先用脚本提供的实时计算（确保值确实每帧更新）
+        float currentCamSpeed = Application.isPlaying ? script.GetRealtimeCameraSpeedReverse() : script.cameraSpeedReverse;
+        Debug.Log($"Current CaptureCamera1 ReverseSpeed: {currentCamSpeed}");
+         if (Application.isPlaying)
+         {
+             camReverseSpeedHistory.Enqueue(currentCamSpeed);
+             camReverseSpeedTimeHistory.Enqueue(now);
+         }
+        // 丢弃超出时间窗口的样本（与 Brightness 的 maxDuration 对齐）
+        while (camReverseSpeedTimeHistory.Count > 0 && camReverseSpeedTimeHistory.Peek() < now - maxDuration)
         {
-            camSpeedHistory.Enqueue(currentCamSpeed);
+            camReverseSpeedTimeHistory.Dequeue();
+            if (camReverseSpeedHistory.Count > 0) camReverseSpeedHistory.Dequeue();
         }
-        int maxSamples = Mathf.Max(4, Mathf.RoundToInt(rect.width));
-        while (camSpeedHistory.Count > maxSamples) camSpeedHistory.Dequeue();
 
-        // Y 轴刻度（固定 -1.5 .. 2.5，与 Brightness 风格一致）
+        // Y 轴刻度（固定 -1.5 .. 2.0，与 Brightness 风格一致）
         Handles.color = Color.gray;
         int yTicks = 5;
         for (int i = 0; i <= yTicks; i++)
         {
             float t = i / (float)yTicks;
-            float y = Mathf.Lerp(rect.yMax, rect.yMin, t);
+            // 从 top (rect.yMin) 到 bottom (rect.yMax)，保证上方显示较大（正）值，底部显示较小（负）值
+            float y = Mathf.Lerp(rect.yMin, rect.yMax, t);
             Handles.DrawLine(new Vector3(rect.xMin, y), new Vector3(rect.xMin + 5, y));
-            float yVal = Mathf.Lerp(2.5f, -1.5f, t);
+            float yVal = Mathf.Lerp(2.5f, -0.2f, t);
             GUI.Label(new Rect(rect.xMin + 8, y - 8, 40, 16), yVal.ToString("F2"));
         }
 
@@ -465,41 +476,123 @@ private static float DrawBigSliderWithNumberFloat(
             GUI.Label(new Rect(x - 20, rect.yMax + 2, 40, 16), timeLabel.ToString("F2") + "s");
         }
 
-        // 绘制速度曲线：将历史样本均匀映射到最近 maxDuration 时间轴（与 Brightness 横轴对齐）
+        // 绘制速度曲线：使用时间戳映射到横轴（与 Brightness 对齐）
         Handles.color = Color.cyan;
-        if (camSpeedHistory.Count > 0)
+        if (camReverseSpeedHistory.Count > 0 && camReverseSpeedTimeHistory.Count == camReverseSpeedHistory.Count)
         {
-            float[] samples = camSpeedHistory.ToArray();
+            float[] samples = camReverseSpeedHistory.ToArray();
+            float[] times = camReverseSpeedTimeHistory.ToArray();
             int sn = samples.Length;
-            float yMin = -1.5f, yMax = 2.5f;
+            float yMin = -0.2f, yMax = 2.5f;
             float w = rect.width, h = rect.height;
 
-            if (sn == 1)
+            // 根据时间计算 x 位置（now-maxDuration 到 now）
+            for (int i = 1; i < sn; i++)
             {
-                float x = rect.xMax;
-                float y = rect.yMax - Mathf.InverseLerp(yMin, yMax, samples[0]) * h;
-                Handles.DrawLine(new Vector3(rect.xMin, y), new Vector3(rect.xMax, y));
-            }
-            else
-            {
-                for (int i = 1; i < sn; i++)
-                {
-                    float frac0 = (i - 1) / (float)(sn - 1);
-                    float frac1 = i / (float)(sn - 1);
-
-                    float x0 = rect.xMin + frac0 * w;
-                    float y0 = rect.yMax - Mathf.InverseLerp(yMin, yMax, samples[i - 1]) * h;
-                    float x1 = rect.xMin + frac1 * w;
-                    float y1 = rect.yMax - Mathf.InverseLerp(yMin, yMax, samples[i]) * h;
-
-                    Handles.DrawLine(new Vector3(x0, y0), new Vector3(x1, y1));
-                }
+                float t0 = times[i - 1], t1 = times[i];
+                float x0 = rect.xMin + Mathf.Clamp01((t0 - (now - maxDuration)) / maxDuration) * w;
+                float x1 = rect.xMin + Mathf.Clamp01((t1 - (now - maxDuration)) / maxDuration) * w;
+                float y0 = rect.yMax - Mathf.InverseLerp(yMin, yMax, samples[i - 1]) * h;
+                float y1 = rect.yMax - Mathf.InverseLerp(yMin, yMax, samples[i]) * h;
+                Handles.DrawLine(new Vector3(x0, y0), new Vector3(x1, y1));
             }
         }
         else
         {
             // 无样本时画当前值的水平线（在时间轴右端）
-            float yy = rect.yMax - Mathf.InverseLerp(-1.5f, 2.5f, currentCamSpeed) * rect.height;
+            float yy = rect.yMax - Mathf.InverseLerp(-0.2f, 2.5f, currentCamSpeed) * rect.height;
+            Handles.DrawLine(new Vector3(rect.xMin, yy), new Vector3(rect.xMax, yy));
+        }
+
+        Handles.color = Color.white;
+        GUILayout.Space(6);
+        int count = camReverseSpeedHistory.Count;
+        EditorGUILayout.LabelField($"最新5秒間のサンプル数: {count} ");
+
+        // 在播放时强制刷新 Inspector，以便曲线实时更新
+        if (Application.isPlaying)
+        {
+            Repaint();
+        }
+    }
+        void DrawCaptureCamera1SpeedGraph(MoveCamera script)
+    {
+        GUILayout.Space(10);
+        EditorGUILayout.LabelField("CaptureCamera1 Speed", EditorStyles.boldLabel);
+        GUILayout.Space(10);
+
+        var maxDuration = script.maxDuration;
+        float now = Application.isPlaying ? Time.time : (float)UnityEditor.EditorApplication.timeSinceStartup;
+
+        // 跟 Brightness 一样的绘制区域尺寸
+        Rect rect = GUILayoutUtility.GetRect(300, 150);
+        EditorGUI.DrawRect(rect, new Color(0.1f, 0.1f, 0.1f));
+
+        // 采样（播放时把当前速度推入历史）
+        // 优先用脚本提供的实时计算（确保值确实每帧更新）
+        float currentCamSpeed = script.GetRealtimeCameraSpeed();
+        Debug.Log($"Current CaptureCamera1 Speed: {currentCamSpeed}");
+         if (Application.isPlaying)
+         {
+             camSpeedHistory.Enqueue(currentCamSpeed);
+             camSpeedTimeHistory.Enqueue(now);
+         }
+        // 丢弃超出时间窗口的样本（与 Brightness 的 maxDuration 对齐）
+        while (camSpeedTimeHistory.Count > 0 && camSpeedTimeHistory.Peek() < now - maxDuration)
+        {
+            camSpeedTimeHistory.Dequeue();
+            if (camSpeedHistory.Count > 0) camSpeedHistory.Dequeue();
+        }
+
+        // Y 轴刻度（固定 -1.5 .. 2.0，与 Brightness 风格一致）
+        Handles.color = Color.gray;
+        int yTicks = 5;
+        for (int i = 0; i <= yTicks; i++)
+        {
+            float t = i / (float)yTicks;
+            // 从 top (rect.yMin) 到 bottom (rect.yMax)，保证上方显示较大（正）值，底部显示较小（负）值
+            float y = Mathf.Lerp(rect.yMin, rect.yMax, t);
+            Handles.DrawLine(new Vector3(rect.xMin, y), new Vector3(rect.xMin + 5, y));
+            float yVal = Mathf.Lerp(2.5f, -0.2f, t);
+            GUI.Label(new Rect(rect.xMin + 8, y - 8, 40, 16), yVal.ToString("F2"));
+        }
+
+        // X 轴刻度与时间标签（和 Brightness 共用时间范围）
+        int xTicks = 5;
+        for (int i = 0; i <= xTicks; i++)
+        {
+            float t = i / (float)xTicks;
+            float x = Mathf.Lerp(rect.xMin, rect.xMax, t);
+            Handles.DrawLine(new Vector3(x, rect.yMax), new Vector3(x, rect.yMax - 5));
+            float timeLabel = now - maxDuration + t * maxDuration;
+            GUI.Label(new Rect(x - 20, rect.yMax + 2, 40, 16), timeLabel.ToString("F2") + "s");
+        }
+
+        // 绘制速度曲线：使用时间戳映射到横轴（与 Brightness 对齐）
+        Handles.color = Color.cyan;
+        if (camSpeedHistory.Count > 0 && camSpeedTimeHistory.Count == camSpeedHistory.Count)
+        {
+            float[] samples = camSpeedHistory.ToArray();
+            float[] times = camSpeedTimeHistory.ToArray();
+            int sn = samples.Length;
+            float yMin = -0.2f, yMax = 2.5f;
+            float w = rect.width, h = rect.height;
+
+            // 根据时间计算 x 位置（now-maxDuration 到 now）
+            for (int i = 1; i < sn; i++)
+            {
+                float t0 = times[i - 1], t1 = times[i];
+                float x0 = rect.xMin + Mathf.Clamp01((t0 - (now - maxDuration)) / maxDuration) * w;
+                float x1 = rect.xMin + Mathf.Clamp01((t1 - (now - maxDuration)) / maxDuration) * w;
+                float y0 = rect.yMax - Mathf.InverseLerp(yMin, yMax, samples[i - 1]) * h;
+                float y1 = rect.yMax - Mathf.InverseLerp(yMin, yMax, samples[i]) * h;
+                Handles.DrawLine(new Vector3(x0, y0), new Vector3(x1, y1));
+            }
+        }
+        else
+        {
+            // 无样本时画当前值的水平线（在时间轴右端）
+            float yy = rect.yMax - Mathf.InverseLerp(-1.5f, 2.0f, currentCamSpeed) * rect.height;
             Handles.DrawLine(new Vector3(rect.xMin, yy), new Vector3(rect.xMax, yy));
         }
 
@@ -507,6 +600,11 @@ private static float DrawBigSliderWithNumberFloat(
         GUILayout.Space(6);
         int count = camSpeedHistory.Count;
         EditorGUILayout.LabelField($"最新5秒間のサンプル数: {count} ");
-    }
 
+        // 在播放时强制刷新 Inspector，以便曲线实时更新
+        if (Application.isPlaying)
+        {
+            Repaint();
+        }
+    }
 }

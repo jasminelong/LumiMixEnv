@@ -409,14 +409,8 @@ public partial class MoveCamera : MonoBehaviour
         // 写真を撮る距離に達したかをチェック // 检查是否到了拍照的距离
         if (experimentPattern == ExperimentPattern.CameraMove)
         {
-            ModParams p = GetParams(subject);
-
-            float t = Time.time;
-            float s1 = Mathf.Sin(omega * t + p.PHI1);
-            float s2 = Mathf.Sin(2f * omega * t + p.PHI2);
-
             // 仅负的正弦调制项：
-            cameraSpeedReverse = 1.0f -(p.A1 * s1 + p.A2 * s2);
+            cameraSpeedReverse = GetRealtimeCameraSpeedReverse();
 
             Vector3 delta = direction * cameraSpeedReverse * Time.deltaTime;
             captureCamera1.transform.position += delta;
@@ -738,6 +732,28 @@ public partial class MoveCamera : MonoBehaviour
                 return new ModParams(-0.278f, 1.849f, -0.292f, 3.728f);
         }
         return new ModParams(0.540f, 1.849f, -0.528f, 1.462f);
+    }
+    public float GetRealtimeCameraSpeedReverse()
+    {
+        ModParams p = GetParams(subject);
+
+        float t = Time.time;
+        float s1 = Mathf.Sin(omega * t + p.PHI1);
+        float s2 = Mathf.Sin(2f * omega * t + p.PHI2);
+
+        // 确保 p, s1, s2 是类的成员；按你的公式直接返回
+        return 1.0f - (p.A1 * s1 + p.A2 * s2);
+    }
+        public float GetRealtimeCameraSpeed()
+    {
+        ModParams p = GetParams(subject);
+
+        float t = Time.time;
+        float s1 = Mathf.Sin(omega * t + p.PHI1);
+        float s2 = Mathf.Sin(2f * omega * t + p.PHI2);
+
+        // 确保 p, s1, s2 是类的成员；按你的公式直接返回
+        return 1.0f + (p.A1 * s1 + p.A2 * s2);
     }
     
 
