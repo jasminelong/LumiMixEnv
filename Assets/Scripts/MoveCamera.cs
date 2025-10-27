@@ -28,6 +28,7 @@ public partial class MoveCamera : MonoBehaviour
         Phase,
         FunctionMix,
         Fourier,
+        CameraMove,
     }
     public enum StepNumber
     {
@@ -184,7 +185,6 @@ public partial class MoveCamera : MonoBehaviour
    
     [Header("Subject / Condition")]
     public SubjectOption subject = SubjectOption.YAMA_A;  // Inspector 里选   择被试   
-    [SerializeField] private bool clampNonNegative = false; // 只前进（裁剪负速度）
         // T = 1 s → ω = 2π rad/s
     private const float OMEGA = 2f * Mathf.PI;
 
@@ -226,7 +226,7 @@ public partial class MoveCamera : MonoBehaviour
         SerialReader = GetComponent<SerialReader>();
 
 
-        // TrailSettings();
+        TrailSettings();
         nextStepButtonTextComponent = nextStepButton.GetComponentInChildren<TextMeshProUGUI>();
         nextStepButton.onClick.AddListener(OnNextStep); // ボタンがクリックされたときの処理を追加 // 添加按钮点击时的处理
 
@@ -244,6 +244,7 @@ public partial class MoveCamera : MonoBehaviour
         {
             experimentalCondition += "_" + "Test";
         }
+
 
     }
     void Update()
@@ -276,7 +277,7 @@ public partial class MoveCamera : MonoBehaviour
                     nextStepButtonTextComponent.text = "Next Step";
                     break;
                 case 4:
-                    if (experimentPattern == ExperimentPattern.Fourier || experimentPattern == ExperimentPattern.Phase)
+                    if (experimentPattern == ExperimentPattern.Fourier || experimentPattern == ExperimentPattern.Phase || experimentPattern == ExperimentPattern.CameraMove )
                     {
                         nextStepButtonTextComponent.text = "Entering the next trial";
                     }
@@ -335,7 +336,7 @@ public partial class MoveCamera : MonoBehaviour
                 stepNumber = StepNumber.Option4;
                 break;
             case 5:
-                if (experimentPattern == ExperimentPattern.Fourier || experimentPattern == ExperimentPattern.Phase)
+                if (experimentPattern == ExperimentPattern.Fourier || experimentPattern == ExperimentPattern.Phase  || experimentPattern == ExperimentPattern.CameraMove )
                 {
                     if (isEnd)
                     {
@@ -365,7 +366,7 @@ public partial class MoveCamera : MonoBehaviour
 
         time += Time.fixedDeltaTime;
 
-        if (experimentPattern == ExperimentPattern.Fourier || experimentPattern == ExperimentPattern.Phase)
+        if (experimentPattern == ExperimentPattern.Fourier || experimentPattern == ExperimentPattern.Phase || experimentPattern == ExperimentPattern.CameraMove )
         {
             // つまみセンサー値（0〜1）を取得し
             float knobValue = Mathf.Clamp01(SerialReader.lastSensorValue);
@@ -378,96 +379,66 @@ public partial class MoveCamera : MonoBehaviour
             }
             else if (responsePattern == ResponsePattern.Amplitude)
             {
-                switch (experimentPattern)
+                    
+                //2.v(t)=V0 + A1·sin(ωt + φ1 + Mathf.PI) + A2·sin(2ωt + φ2 + Mathf.PI)
+                //v(t)=V0 + A1·sin(ωt + A2) + A3·sin(2ωt + A4)
+                // 現在の速度を計算
+                if (step == 1 || step == 3)
                 {
-                    case ExperimentPattern.Fourier:
-                        //1.v(t)=V0+A1·sin(ωt)+A2·cos(ωt)+A3·sin(2ωt)+A4·cos(2ωt)
-                        //現在のstepのAmplitudeを計算
-                        // Amplitudeを計算
-                        amplitudeToSaveData = A_min + knobValue * (A_max - A_min);
-                        if (step >= 1 && step < amplitudes.Length)
-                        {
-                            amplitudes[step] = amplitudeToSaveData;
-                        }
-
-                        // 現在の速度を計算
-                        if (step >= 1) v += amplitudes[1] * Mathf.Sin(omega * time);
-                        if (step >= 2) v += amplitudes[2] * Mathf.Cos(omega * time);
-                        if (step >= 3) v += amplitudes[3] * Mathf.Sin(2 * omega * time);
-                        if (step >= 4) v += amplitudes[4] * Mathf.Cos(2 * omega * time);
-
-                        break;
-                    case ExperimentPattern.Phase:
-                        //2.v(t)=V0 + A1·sin(ωt + φ1 + Mathf.PI) + A2·sin(2ωt + φ2 + Mathf.PI)
-                        //v(t)=V0 + A1·sin(ωt + A2) + A3·sin(2ωt + A4)
-                        // 現在の速度を計算
-                        if (step == 1 || step == 3)
-                        {
-                            amplitudeToSaveData = A_min + knobValue * (A_max - A_min);
-                        }
-                        if (step == 2 || step == 4)
-                        {
-                            amplitudeToSaveData = knobValue * 2f * Mathf.PI; ;  // 0 … 2π
-                        }
-                        amplitudes[step] = amplitudeToSaveData;
-                        if (step >= 1) v = V0 + amplitudes[1] * Mathf.Sin(omega * time);//step1,amplitudes[1] 
-                        if (step >= 2) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI);//step2,amplitudes[2]
-                        if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time);//step3,amplitudes[3]
-                        if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);//step4,amplitudes[4] 
-
-                        break;
-                    case ExperimentPattern.FunctionMix:
-                        //NonlinearResponse(step, knobValue);
-                        break;
+                    amplitudeToSaveData = A_min + knobValue * (A_max - A_min);
                 }
+                if (step == 2 || step == 4)
+                {
+                    amplitudeToSaveData = knobValue * 2f * Mathf.PI; ;  // 0 … 2π
+                }
+                amplitudes[step] = amplitudeToSaveData;
+                if (step >= 1) v = V0 + amplitudes[1] * Mathf.Sin(omega * time);//step1,amplitudes[1] 
+                if (step >= 2) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI);//step2,amplitudes[2]
+                if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time);//step3,amplitudes[3]
+                if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);//step4,amplitudes[4] 
 
 
             }
             captureCamera0.transform.position += direction * v * Time.deltaTime;
         }
-        else if (experimentPattern == ExperimentPattern.FunctionMix)
-        {
-            captureCamera0.transform.position += direction * Time.deltaTime;
-        }
 
-        //data.Add($"{timeMs:F3}, {SerialReader.lastSensorValue}, {responsePattern}, {step}, {amplitudeToSaveData}, {v}");
     }
 
     void LuminanceMixture()
     {
 
         // 写真を撮る距離に達したかをチェック // 检查是否到了拍照的距离
-        //Debug.Log("frameNum--" + frameNum + "-----dt------" + Mathf.Abs(timeMs - frameNum * updateInterval * 1000));
+        if (experimentPattern == ExperimentPattern.CameraMove)
+        {
+            ModParams p = GetParams(subject);
+
+            float t = Time.time;
+            float s1 = Mathf.Sin(omega * t + p.PHI1);
+            float s2 = Mathf.Sin(2f * omega * t + p.PHI2);
+
+            // 仅负的正弦调制项：
+            float v_reverse = 1.0f -(p.A1 * s1 + p.A2 * s2);
+
+            Vector3 delta = direction * v_reverse * Time.deltaTime;
+            captureCamera1.transform.position += delta;
+            captureCamera2.transform.position += delta;
+
+        }
         if (Mathf.Abs(timeMs - frameNum * updateInterval * 1000) < 0.2f)
         {
             frameNum++;
             Image1RawImage.enabled = false;
             Image2RawImage.enabled = false;
-            // カメラが移動する目標位置を計算 // 计算摄像机沿圆锥轴线移动的目标位置
-            targetPosition = direction * cameraSpeed * updateInterval;
 
-            captureCamera1.transform.position = captureCamera1.transform.position + targetPosition;
-            captureCamera2.transform.position = captureCamera2.transform.position + targetPosition;
+            if (experimentPattern != ExperimentPattern.CameraMove)
+            {
+                // カメラが移動する目標位置を計算 // 计算摄像机沿圆锥轴线移动的目标位置
+                targetPosition = direction * cameraSpeed * updateInterval;
 
-        }else
-        {
-           Vector3 dir = targetPosition.sqrMagnitude > 1e-12f ? targetPosition.normalized : Vector3.zero;
-            if (dir == Vector3.zero) return;
+                captureCamera1.transform.position = captureCamera1.transform.position + targetPosition;
+                captureCamera2.transform.position = captureCamera2.transform.position + targetPosition;
+            }
 
-            ModParams p = GetParams(subject);
-
-            float t  = Time.time;
-            float s1 = Mathf.Sin(OMEGA * t + p.PHI1);
-            float s2 = Mathf.Sin(2f * OMEGA * t + p.PHI2);
-
-            // 仅负的正弦调制项（无 V0）：
-            float v = -(p.A1 * s1 + p.A2 * s2);
-
-            if (clampNonNegative) v = Mathf.Max(0f, v);
-
-            Vector3 delta = dir * v * Time.deltaTime;
-            captureCamera1.transform.position += delta;
-            captureCamera2.transform.position += delta;
         }
 
         if (frameNum % 2 == 0)
@@ -480,20 +451,16 @@ public partial class MoveCamera : MonoBehaviour
             CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture1);       // 上层图
             CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture2);    // 下层图  
         }
-
-
         //輝度値を計算する 
         float Image1ToNowDeltaTime = timeMs - (frameNum - 1) * updateInterval * 1000;
         float nextRatio = Image1ToNowDeltaTime / (updateInterval * 1000);
+
         float nextImageRatio = Math.Min(1f, Math.Max(0f, nextRatio));// x ∈ [0,1]浮動小数点の演算誤差により、減算の結果がわずかに0未満になる場合があります
         float previousImageRatio = 1.0f - nextImageRatio;
-        //Debug.Log("nextImageRatio : " + nextImageRatio + "    timeMs : " + timeMs + "     frameNum : " + frameNum + "     updateInterval : "+ updateInterval);
-        //Debug.Log("beforeImage1RawImage.color.r" + Image1RawImage.color.r + "  " + Image1RawImage.color.g + "  " + Image1RawImage.color.b + "  " + Image1RawImage.color.a);
+
 
         float nonlinearPreviousImageRatio = previousImageRatio;
         float nonlinearNextImageRatio = nextImageRatio;
-
-
         knobValue = SerialReader.lastSensorValue;
         //knobValue = 0.583f;//0.517, 0.713, 0.581, 0.583, 0.684, 1.0 ONO-C
         // knobValue = 0.218f;//0.0 0.492 0.471 0.231 0.178 0.205 LL-E
@@ -756,9 +723,6 @@ public partial class MoveCamera : MonoBehaviour
     {
         switch (opt)
         {
-            case SubjectOption.Mean:   // 平均
-                return new ModParams(0.540f, 1.849f, -0.528f, 1.462f);
-
             case SubjectOption.YAMA_A: // ⚠️ 目前用“平均值”占位 —— 拿到 YAMA 的真实参数后改这里
                 return new ModParams(0.540f, 1.849f, -0.528f, 1.462f);
 
@@ -766,15 +730,17 @@ public partial class MoveCamera : MonoBehaviour
                 return new ModParams(0.522f, 2.528f, -0.223f, 3.525f);
 
             case SubjectOption.ONO_C:
-                return new ModParams(0.632f, 3.663f,  0.461f, 5.123f);
+                return new ModParams(0.632f, 3.663f, 0.461f, 5.123f);
 
             case SubjectOption.HOU_D:
-                return new ModParams(0.275f, 3.031f,  0.920f, 5.982f);
+                return new ModParams(0.275f, 3.031f, 0.920f, 5.982f);
 
             case SubjectOption.LL_E:
                 return new ModParams(-0.278f, 1.849f, -0.292f, 3.728f);
         }
         return new ModParams(0.540f, 1.849f, -0.528f, 1.462f);
     }
+    
+
 }
 
