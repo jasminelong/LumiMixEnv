@@ -54,7 +54,7 @@ public partial class MoveCamera : MonoBehaviour
             Debug.Log("Now exp2_trials");
 
             devMode = DevMode.Normal;
-            experimentPattern = ExperimentPattern.Phase;
+            experimentPattern = ExperimentPattern.CameraMove;
             switch (currentTrial.condition)
             {
                 case 1: brightnessBlendMode = BrightnessBlendMode.LinearOnly; break;
