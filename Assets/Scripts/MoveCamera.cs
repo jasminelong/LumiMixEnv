@@ -269,8 +269,22 @@ public partial class MoveCamera : MonoBehaviour
         // knobValue = 0.316f;//0.163 0.206 0.555 0.336 0.295 0.712 HOU-D
         // knobValue = 0.734f;//0.817 0.651 0.551 0.84 0.582 0.841 OMU-B
         // knobValue = 0.615f;//0.683 0.616 0.785 0.583 0.613 0.581 YAMA-A
-        nonlinearPreviousImageRatio = BrightnessBlend.GetMixedValue(previousImageRatio, knobValue, brightnessBlendMode);
-        nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, knobValue, brightnessBlendMode);
+        // 选一个被试（也可做成 Inspector 下拉）
+        SubjectOption current = SubjectOption.YAMA_A;
+        ModParams p = GetParams(current);
+        // 灵敏度（可先粗设相同值，后续按“小步校准”微调）
+float eta1 = 0.15f, eta2 = 0.15f;
+        if (experimentPattern == ExperimentPattern.BrightnessCompensation)
+        {
+            nonlinearPreviousImageRatio = ApplyInverseCompensation(previousImageRatio, timeMs, p, eta1, eta2);
+            nonlinearNextImageRatio = ApplyInverseCompensation(nextImageRatio, timeMs, p, eta1, eta2);
+        }
+        else
+        {
+            nonlinearPreviousImageRatio = BrightnessBlend.GetMixedValue(previousImageRatio, knobValue, brightnessBlendMode);
+            nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, knobValue, brightnessBlendMode);
+        }
+
 
         if (frameNum % 2 == 0)
         {
@@ -550,7 +564,36 @@ public partial class MoveCamera : MonoBehaviour
         // 确保 p, s1, s2 是类的成员；按你的公式直接返回
         return 1.0f + (p.A1 * s1 + p.A2 * s2);
     }
-    
+/// <summary>
+/// 把“前馈逆函数补偿”叠加到已有 alpha 上并限幅到 [0,1]。
+/// p: 该被试的 (A1,phi1,A2,phi2)；eta1/eta2：灵敏度（∂v/∂α）。
+/// timeMs：你的时间戳（毫秒）。返回：补偿后的 alpha。
+/// </summary>
+public float ApplyInverseCompensation(float baseAlpha, float timeMs, ModParams p, float eta1, float eta2)
+{
+    if (!useInverseComp) return Mathf.Clamp01(baseAlpha);
+
+    float tSec = timeMs * 0.001f;
+    float dt   = (_lastTSec >= 0f) ? Mathf.Max(1e-4f, tSec - _lastTSec)
+                                   : Mathf.Max(1e-4f, Time.deltaTime);
+    _lastTSec = tSec;
+
+    // Δα(t) = -(A1/η1)sin(ωt+φ1) - (A2/η2)sin(2ωt+φ2)
+    float corrTarget =
+        -(p.A1 / Mathf.Max(1e-6f, eta1)) * Mathf.Sin(omega * tSec + p.PHI1)
+        -(p.A2 / Mathf.Max(1e-6f, eta2)) * Mathf.Sin(2f * omega * tSec + p.PHI2);
+
+    corrTarget *= compScale;
+
+    // 指数平滑 + 限速
+    float k = 1f - Mathf.Exp(-smooth * dt);     // 0..1
+    float corrSmoothed = Mathf.Lerp(_corrPrev, corrTarget, k);
+    float maxStep = maxCorrSlewPerSec * dt;
+    float corr = Mathf.Clamp(corrSmoothed, _corrPrev - maxStep, _corrPrev + maxStep);
+    _corrPrev = corr;
+
+    return Mathf.Clamp01(baseAlpha + corr);
+}
 
 }
 

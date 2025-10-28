@@ -24,7 +24,8 @@ public partial class MoveCamera : MonoBehaviour
         FunctionMix,
         Fourier,
         CameraMove,
-        CameraJumpMove
+        CameraJumpMove,
+        BrightnessCompensation
     }
     public enum StepNumber
     {
@@ -190,4 +191,18 @@ public partial class MoveCamera : MonoBehaviour
         HOU_D,    // 参与者 HOU -D
         LL_E      // 参与者 LL  -E
     }
+
+    // ===== 逆函数补偿（独立小函数，可直接调用） =====
+[Header("Perceptual Inverse Mix")]
+public bool useInverseComp = true;
+
+// 全局缩放与平滑/限速（Inspector 可调）
+[Range(0f, 2f)] public float compScale = 1.0f;
+[Range(0f, 1f)] public float smooth = 0.25f;
+public float maxCorrSlewPerSec = 5f;
+// 内部状态
+private float _corrPrev = 0f;
+private float _lastTSec = -1f;
+
+
 }
