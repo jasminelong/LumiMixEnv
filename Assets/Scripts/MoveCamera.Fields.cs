@@ -20,7 +20,6 @@ public partial class MoveCamera : MonoBehaviour
     }
     public enum ExperimentPattern
     {
-        Phase,
         FunctionMix,
         Fourier,
         CameraMove,
@@ -193,16 +192,19 @@ public partial class MoveCamera : MonoBehaviour
     }
 
     // ===== 逆函数补偿（独立小函数，可直接调用） =====
-[Header("Perceptual Inverse Mix")]
-public bool useInverseComp = true;
+// ---- 工具：logit / sigmoid ----
+static float Sigmoid(float z) => 1f / (1f + Mathf.Exp(-z));
+static float Logit(float a)   => Mathf.Log(a / (1f - a)); // a∈(0,1)
 
-// 全局缩放与平滑/限速（Inspector 可调）
-[Range(0f, 2f)] public float compScale = 1.0f;
-[Range(0f, 1f)] public float smooth = 0.25f;
-public float maxCorrSlewPerSec = 5f;
-// 内部状态
-private float _corrPrev = 0f;
-private float _lastTSec = -1f;
+// 你的被试参数
+
+public float eta1  = 0.15f, eta2 = 0.15f;   // 灵敏度（可校准）
+[Range(0,3)] public float compScale = 1.0f; // 全局增益
+[Range(0,1)] public float smooth    = 0.25f;
+public float maxDeltaZPerSec        = 8f;   // z域最大变化速率，抑制颤抖
+
+float _zCorrPrev = 0f;   // 上一帧的补偿z（用于平滑）
+float _tPrev     = -1f;
 
 
 }

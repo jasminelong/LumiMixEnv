@@ -41,10 +41,6 @@ public partial class MoveCamera : MonoBehaviour
                              + "ExperimentPattern_" + experimentPattern.ToString() + "_"
                              + "ParticipantName_" + participantName.ToString() + "_"
                              + "TrialNumber_" + trialNumber.ToString();
-        if (experimentPattern == ExperimentPattern.Phase)
-        {
-            experimentalCondition += "_" + "BrightnessBlendMode_" + brightnessBlendMode.ToString();
-        }
         if (devMode == DevMode.Test)
         {
             experimentalCondition += "_" + "Test";
@@ -81,7 +77,7 @@ public partial class MoveCamera : MonoBehaviour
                     nextStepButtonTextComponent.text = "Next Step";
                     break;
                 case 4:
-                    if (experimentPattern == ExperimentPattern.Fourier || experimentPattern == ExperimentPattern.Phase || experimentPattern == ExperimentPattern.CameraMove )
+                    if (experimentPattern == ExperimentPattern.Fourier || experimentPattern == ExperimentPattern.CameraMove )
                     {
                         nextStepButtonTextComponent.text = "Entering the next trial";
                     }
@@ -140,7 +136,7 @@ public partial class MoveCamera : MonoBehaviour
                 stepNumber = StepNumber.Option4;
                 break;
             case 5:
-                if (experimentPattern == ExperimentPattern.Fourier || experimentPattern == ExperimentPattern.Phase  || experimentPattern == ExperimentPattern.CameraMove )
+                if (experimentPattern == ExperimentPattern.Fourier || experimentPattern == ExperimentPattern.CameraMove )
                 {
                     if (isEnd)
                     {
@@ -170,9 +166,13 @@ public partial class MoveCamera : MonoBehaviour
 
         time += Time.fixedDeltaTime;
 
-        if (experimentPattern == ExperimentPattern.Fourier || experimentPattern == ExperimentPattern.Phase || experimentPattern == ExperimentPattern.CameraMove )
+        if (experimentPattern == ExperimentPattern.FunctionMix)
         {
-            // つまみセンサー値（0〜1）を取得し
+            captureCamera0.transform.position += direction * cameraSpeed * Time.deltaTime;
+        }
+        else
+        {
+                        // つまみセンサー値（0〜1）を取得し
             float knobValue = Mathf.Clamp01(SerialReader.lastSensorValue);
             int step = (int)stepNumber;
 
@@ -183,9 +183,8 @@ public partial class MoveCamera : MonoBehaviour
             }
             else if (responsePattern == ResponsePattern.Amplitude)
             {
-                    
+
                 //2.v(t)=V0 + A1·sin(ωt + φ1 + Mathf.PI) + A2·sin(2ωt + φ2 + Mathf.PI)
-                //v(t)=V0 + A1·sin(ωt + A2) + A3·sin(2ωt + A4)
                 // 現在の速度を計算
                 if (step == 1 || step == 3)
                 {
@@ -231,6 +230,7 @@ public partial class MoveCamera : MonoBehaviour
 
                 captureCamera1.transform.position = captureCamera1.transform.position + targetPosition;
                 captureCamera2.transform.position = captureCamera2.transform.position + targetPosition;
+                Debug.Log("Camera Position:  " + captureCamera1.transform.position);
             }
 
         }
@@ -269,15 +269,11 @@ public partial class MoveCamera : MonoBehaviour
         // knobValue = 0.316f;//0.163 0.206 0.555 0.336 0.295 0.712 HOU-D
         // knobValue = 0.734f;//0.817 0.651 0.551 0.84 0.582 0.841 OMU-B
         // knobValue = 0.615f;//0.683 0.616 0.785 0.583 0.613 0.581 YAMA-A
-        // 选一个被试（也可做成 Inspector 下拉）
-        SubjectOption current = SubjectOption.YAMA_A;
-        ModParams p = GetParams(current);
-        // 灵敏度（可先粗设相同值，后续按“小步校准”微调）
-float eta1 = 0.15f, eta2 = 0.15f;
+        
         if (experimentPattern == ExperimentPattern.BrightnessCompensation)
         {
-            nonlinearPreviousImageRatio = ApplyInverseCompensation(previousImageRatio, timeMs, p, eta1, eta2);
-            nonlinearNextImageRatio = ApplyInverseCompensation(nextImageRatio, timeMs, p, eta1, eta2);
+            nonlinearPreviousImageRatio = ApplyInverseCompLogit(previousImageRatio, timeMs);
+            nonlinearNextImageRatio = ApplyInverseCompLogit(nextImageRatio, timeMs);
         }
         else
         {
@@ -535,9 +531,10 @@ float eta1 = 0.15f, eta2 = 0.15f;
     {
         ModParams p = GetParams(subject);
 
-        float t = Time.time;
-        float s1 = Mathf.Sin(omega * t + p.PHI1);
-        float s2 = Mathf.Sin(2f * omega * t + p.PHI2);
+        float period = 1.0f;   // 或者 2.0f，取决于你希望完整重复周期的长度
+        float t = Time.time % period;   //  归一化时间，确保波形周期性重复
+        float s1 = Mathf.Sin(omega * t + p.PHI1 + Mathf.PI);
+        float s2 = Mathf.Sin(2f * omega * t + p.PHI2 + Mathf.PI);
 
         // 确保 p, s1, s2 是类的成员；按你的公式直接返回
         return 1.0f - (p.A1 * s1 + p.A2 * s2);
@@ -546,9 +543,10 @@ float eta1 = 0.15f, eta2 = 0.15f;
     {
         ModParams p = GetParams(subject);
 
-        float t = Time.time;
-        float s1 = Mathf.Sin(omega * t + p.PHI1);
-        float s2 = Mathf.Sin(2f * omega * t + p.PHI2);
+        float period = 1.0f;   // 或者 2.0f，取决于你希望完整重复周期的长度
+        float t = Time.time % period;   //  归一化时间，确保波形周期性重复
+        float s1 = Mathf.Sin(omega * t + p.PHI1 + Mathf.PI);
+        float s2 = Mathf.Sin(2f * omega * t + p.PHI2 + Mathf.PI);
 
         // 确保 p, s1, s2 是类的成员；按你的公式直接返回
         return - (p.A1 * s1 + p.A2 * s2);
@@ -557,42 +555,55 @@ float eta1 = 0.15f, eta2 = 0.15f;
     {
         ModParams p = GetParams(subject);
 
-        float t = Time.time;
-        float s1 = Mathf.Sin(omega * t + p.PHI1);
-        float s2 = Mathf.Sin(2f * omega * t + p.PHI2);
+        float period = 1.0f;   // 或者 2.0f，取决于你希望完整重复周期的长度
+        float t = Time.time % period;   //  归一化时间，确保波形周期性重复
+        float s1 = Mathf.Sin(omega * t + p.PHI1 + Mathf.PI);
+        float s2 = Mathf.Sin(2f * omega * t + p.PHI2 + Mathf.PI);
 
         // 确保 p, s1, s2 是类的成员；按你的公式直接返回
         return 1.0f + (p.A1 * s1 + p.A2 * s2);
     }
 /// <summary>
-/// 把“前馈逆函数补偿”叠加到已有 alpha 上并限幅到 [0,1]。
-/// p: 该被试的 (A1,phi1,A2,phi2)；eta1/eta2：灵敏度（∂v/∂α）。
-/// timeMs：你的时间戳（毫秒）。返回：补偿后的 alpha。
+/// 在 logit 域做前馈补偿：alpha' = σ( logit(alpha_base) + Δz(t) )
+/// baseAlpha 必须在 (0,1)；若恰为0/1，先做极小量偏置。
+/// 返回值严格∈(0,1)，无硬裁剪失真。
 /// </summary>
-public float ApplyInverseCompensation(float baseAlpha, float timeMs, ModParams p, float eta1, float eta2)
-{
-    if (!useInverseComp) return Mathf.Clamp01(baseAlpha);
+public float ApplyInverseCompLogit(float baseAlpha, float timeMs)
+    {
+    ModParams p = GetParams(subject);
+    // 1) 保障 baseAlpha 处在可逆域
+    const float EPS = 1e-5f;
+    float a = Mathf.Clamp(baseAlpha, EPS, 1f - EPS);
 
-    float tSec = timeMs * 0.001f;
-    float dt   = (_lastTSec >= 0f) ? Mathf.Max(1e-4f, tSec - _lastTSec)
-                                   : Mathf.Max(1e-4f, Time.deltaTime);
-    _lastTSec = tSec;
+    // 2) 当前时间与 dt
+    float t = timeMs * 0.001f;
+    float dt;
+    if (_tPrev < 0) { dt = Mathf.Max(1e-4f, Time.deltaTime); }
+    else            { dt = Mathf.Max(1e-4f, t - _tPrev); }
+    _tPrev = t;
 
-    // Δα(t) = -(A1/η1)sin(ωt+φ1) - (A2/η2)sin(2ωt+φ2)
-    float corrTarget =
-        -(p.A1 / Mathf.Max(1e-6f, eta1)) * Mathf.Sin(omega * tSec + p.PHI1)
-        -(p.A2 / Mathf.Max(1e-6f, eta2)) * Mathf.Sin(2f * omega * tSec + p.PHI2);
+    // 3) 目标在 α 域的小信号补偿：Δα*(t) = -(A1/η1)sin(...) - (A2/η2)sin(...)
+    float dAlphaTarget =
+        -(p.A1 / Mathf.Max(1e-6f, eta1)) * Mathf.Sin(omega * t + p.PHI1)
+        -(p.A2 / Mathf.Max(1e-6f, eta2)) * Mathf.Sin(2f * omega * t + p.PHI2);
 
-    corrTarget *= compScale;
+    dAlphaTarget *= compScale;
 
-    // 指数平滑 + 限速
-    float k = 1f - Mathf.Exp(-smooth * dt);     // 0..1
-    float corrSmoothed = Mathf.Lerp(_corrPrev, corrTarget, k);
-    float maxStep = maxCorrSlewPerSec * dt;
-    float corr = Mathf.Clamp(corrSmoothed, _corrPrev - maxStep, _corrPrev + maxStep);
-    _corrPrev = corr;
+    // 4) 由 α = σ(z)，有 dα/dz = α(1-α) ⇒ 期望 Δz ≈ Δα* / (α(1-α))
+    float gain = a * (1f - a) + 1e-6f;
+    float dZtarget = dAlphaTarget / gain;
 
-    return Mathf.Clamp01(baseAlpha + corr);
+    // 5) 平滑 + 限速（在 z 域做）
+    float k = 1f - Mathf.Exp(-smooth * dt);                    // 指数平滑
+    float zCorrSmoothed = Mathf.Lerp(_zCorrPrev, dZtarget, k); // 目标到当前
+    float maxStep = maxDeltaZPerSec * dt;                      // 每帧最大步长
+    float zCorr = Mathf.Clamp(zCorrSmoothed, _zCorrPrev - maxStep, _zCorrPrev + maxStep);
+    _zCorrPrev = zCorr;
+
+    // 6) 叠加到 logit，再映回 α
+    float zBase  = Logit(a);
+    float aPrime = Sigmoid(zBase + zCorr);
+    return aPrime; // ∈(0,1)
 }
 
 }
