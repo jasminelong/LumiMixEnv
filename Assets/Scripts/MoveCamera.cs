@@ -537,7 +537,7 @@ public partial class MoveCamera : MonoBehaviour
         float s2 = Mathf.Sin(2f * omega * t + p.PHI2 + Mathf.PI);
 
         // 确保 p, s1, s2 是类的成员；按你的公式直接返回
-        return 1.0f - (p.A1 * s1 + p.A2 * s2);
+        return cameraSpeed - (p.A1 * s1 + p.A2 * s2);
     }
     public float GetRealtimeCameraJumpSpeedReverse()
     {
@@ -561,7 +561,7 @@ public partial class MoveCamera : MonoBehaviour
         float s2 = Mathf.Sin(2f * omega * t + p.PHI2 + Mathf.PI);
 
         // 确保 p, s1, s2 是类的成员；按你的公式直接返回
-        return 1.0f + (p.A1 * s1 + p.A2 * s2);
+        return cameraSpeed + (p.A1 * s1 + p.A2 * s2);
     }
 /// <summary>
 /// 在 logit 域做前馈补偿：alpha' = σ( logit(alpha_base) + Δz(t) )

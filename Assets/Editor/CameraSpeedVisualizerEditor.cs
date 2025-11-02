@@ -430,7 +430,15 @@ private static float DrawBigSliderWithNumberFloat(
     void DrawCaptureCamera1ReverseSpeedGraph(MoveCamera script)
     {
         GUILayout.Space(10);
-        EditorGUILayout.LabelField("CaptureCamera1 ReverseSpeed", EditorStyles.boldLabel);
+        // EditorGUILayout.LabelField("CaptureCamera1 ReverseSpeed v(c)-v(脈動成分)", EditorStyles.boldLabel);
+         var green = new GUIStyle(EditorStyles.boldLabel);
+    green.normal.textColor = new Color(0.18f, 0.80f, 0.44f); // 近似 #2ECC71
+
+    EditorGUILayout.BeginHorizontal();
+    GUILayout.Label("CaptureCamera1 ReverseSpeed ", EditorStyles.boldLabel);
+    GUILayout.Label("v(c) - v(脈動成分)", green);
+        EditorGUILayout.EndHorizontal();
+    
         GUILayout.Space(10);
 
         var maxDuration = script.maxDuration;
@@ -521,7 +529,14 @@ private static float DrawBigSliderWithNumberFloat(
     void DrawCaptureCamera1ReverseJumpSpeedGraph(MoveCamera script)
     {
         GUILayout.Space(10);
-        EditorGUILayout.LabelField("CaptureCamera1 ReverseJumpSpeed", EditorStyles.boldLabel);
+        // EditorGUILayout.LabelField("CaptureCamera1 ReverseJumpSpeed　-v(脈動成分)", EditorStyles.boldLabel);
+         var green = new GUIStyle(EditorStyles.boldLabel);
+    green.normal.textColor = new Color(0.18f, 0.80f, 0.44f); // 近似 #2ECC71
+
+    EditorGUILayout.BeginHorizontal();
+    GUILayout.Label("CaptureCamera1 ReverseJumpSpeed　", EditorStyles.boldLabel);
+    GUILayout.Label("-v(脈動成分)", green);
+    EditorGUILayout.EndHorizontal();
         GUILayout.Space(10);
 
         var maxDuration = script.maxDuration;
@@ -612,7 +627,14 @@ private static float DrawBigSliderWithNumberFloat(
         void DrawCaptureCamera1SpeedGraph(MoveCamera script)
     {
         GUILayout.Space(10);
-        EditorGUILayout.LabelField("CaptureCamera1 Speed", EditorStyles.boldLabel);
+        // EditorGUILayout.LabelField("CaptureCamera1 Speed　v(c) + v(脈動成分)", EditorStyles.boldLabel);
+        var green = new GUIStyle(EditorStyles.boldLabel);
+        green.normal.textColor = new Color(0.18f, 0.80f, 0.44f); // 近似 #2ECC71
+
+        EditorGUILayout.BeginHorizontal();
+        GUILayout.Label("CaptureCamera1 Speed　", EditorStyles.boldLabel);
+        GUILayout.Label("v(c) + v(脈動成分)", green);
+        EditorGUILayout.EndHorizontal();
         GUILayout.Space(10);
 
         var maxDuration = script.maxDuration;
