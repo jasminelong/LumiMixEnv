@@ -75,7 +75,7 @@ public partial class MoveCamera : MonoBehaviour
                     nextStepButtonTextComponent.text = "Next Step";
                     break;
                 case 4:
-                    if (experimentPattern == ExperimentPattern.Fourier || experimentPattern == ExperimentPattern.CameraMove )
+                    if (experimentPattern == ExperimentPattern.Phase || experimentPattern == ExperimentPattern.CameraMove )
                     {
                         nextStepButtonTextComponent.text = "Entering the next trial";
                     }
@@ -133,7 +133,7 @@ public partial class MoveCamera : MonoBehaviour
                 stepNumber = StepNumber.Option4;
                 break;
             case 5:
-                if (experimentPattern == ExperimentPattern.Fourier || experimentPattern == ExperimentPattern.CameraMove )
+                if (experimentPattern == ExperimentPattern.Phase || experimentPattern == ExperimentPattern.CameraMove )
                 {
                     if (isEnd)
                     {
@@ -169,7 +169,7 @@ public partial class MoveCamera : MonoBehaviour
         }
         else
         {
-                        // つまみセンサー値（0〜1）を取得し
+            // つまみセンサー値（0〜1）を取得し
             float knobValue = Mathf.Clamp01(SerialReader.lastSensorValue);
             int step = (int)stepNumber;
 

@@ -20,8 +20,8 @@ public partial class MoveCamera : MonoBehaviour
     }
     public enum ExperimentPattern
     {
+        Phase,
         FunctionMix,
-        Fourier,
         CameraMove,
         CameraJumpMove,
         BrightnessCompensation
