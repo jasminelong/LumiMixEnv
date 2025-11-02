@@ -45,8 +45,6 @@ public partial class MoveCamera : MonoBehaviour
         {
             experimentalCondition += "_" + "Test";
         }
-
-
     }
     void Update()
     {
@@ -96,7 +94,6 @@ public partial class MoveCamera : MonoBehaviour
         timeMs = (Time.time - startTime) * 1000;
         Continuous();
         LuminanceMixture();
-
     }
 
     void OnNextStep()
@@ -199,12 +196,9 @@ public partial class MoveCamera : MonoBehaviour
                 if (step >= 2) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI);//step2,amplitudes[2]
                 if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time);//step3,amplitudes[3]
                 if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);//step4,amplitudes[4] 
-
-
             }
             captureCamera0.transform.position += direction * v * Time.deltaTime;
         }
-
     }
 
     void LuminanceMixture()
@@ -418,7 +412,7 @@ public partial class MoveCamera : MonoBehaviour
 
         // ファイルを保存（Application.dataPath：現在のプロジェクトのAssetsフォルダのパスを示す） // 保存文件（Application.dataPath：表示当前项目的Assets文件夹的路径）
         string filePath = Path.Combine("D:/vectionProject/public", folderName, fileName);
-        //File.WriteAllLines(filePath, data);
+        File.WriteAllLines(filePath, data);
 
     }
     public void MarkTrialCompletedAndRestart()
