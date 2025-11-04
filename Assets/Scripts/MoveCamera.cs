@@ -518,6 +518,9 @@ public partial class MoveCamera : MonoBehaviour
 
             case SubjectOption.LL_E:
                 return new ModParams(-0.278f, 1.849f, -0.292f, 3.728f);
+
+            case SubjectOption.KK_F:
+                return new ModParams(0.815f, 3.462f, 0.860f, 5.854f);
         }
         return new ModParams(0.540f, 1.849f, -0.528f, 1.462f);
     }

@@ -84,7 +84,7 @@ public partial class MoveCamera : MonoBehaviour
 
     private List<string> data = new List<string>();
     private float startTime;
-    private string folderName = "ExperimentData3"; // サブフォルダ名 // 子文件夹名称
+    private string folderName = "ExperimentData33"; // サブフォルダ名 // 子文件夹名称
     private float timeMs; // 現在までの経過時間 // 运行到现在的时间
     private Vector3 direction;
 
@@ -188,7 +188,8 @@ public partial class MoveCamera : MonoBehaviour
         OMU_B,    // 参与者 OMU -B
         ONO_C,    // 参与者 ONO -C
         HOU_D,    // 参与者 HOU -D
-        LL_E      // 参与者 LL  -E
+        LL_E,      // 参与者 LL  -E
+        KK_F       // 参与者 KK  -F
     }
 
     // ===== 逆函数补偿（独立小函数，可直接调用） =====
