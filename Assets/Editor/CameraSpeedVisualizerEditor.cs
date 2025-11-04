@@ -111,7 +111,7 @@ public class MoveCameraEditor : Editor
         // 1基数组：index 0 占位
         const string phi = "\u03C6";
         string[] labels = { "", "A1", phi + "1", "A2", phi + "2" };
-        float[] minValues = { 0f, -1f, -5f, -1f, -5f };
+        float[] minValues = { 0f, -2f, -5f, -2f, -5f };
         float[] maxValues = { 0f, 3f, 10f, 3f, 10f };
 
         const float rowGap = 6f;
@@ -248,8 +248,8 @@ public class MoveCameraEditor : Editor
             : new float[1] { script.v };
 
         // ===== 固定 Y 轴范围（不再随数据变化）=====
-        float minV = -1.5f;
-        float maxV = 2.0f;
+        float minV = -2f;
+        float maxV = 3.0f;
 
         // y=0 轴（与曲线统一用 height-1）
         int zeroY = Mathf.RoundToInt(Mathf.InverseLerp(minV, maxV, 0f) * (graphHeight - 1));
@@ -267,7 +267,7 @@ public class MoveCameraEditor : Editor
         graphTexture.Apply();
 
         // 标题
-        GUILayout.Label("📈 速度曲線 v(t)", EditorStyles.boldLabel);
+        GUILayout.Label("速度曲線 v(t)", EditorStyles.boldLabel);
 
         // 左刻度 + 右图像（同一坐标系）
         EditorGUILayout.BeginHorizontal();
@@ -298,8 +298,8 @@ public class MoveCameraEditor : Editor
         // 运行时信息
         if (Application.isPlaying)
         {
-            EditorGUILayout.LabelField("⏱ 時間:", Time.time.ToString("F2") + " 秒");
-            EditorGUILayout.LabelField("📌 速度 v(t):", script.v.ToString("F3"));
+            EditorGUILayout.LabelField("時間:", Time.time.ToString("F2") + " 秒");
+            EditorGUILayout.LabelField("速度 v(t):", script.v.ToString("F3"));
             Repaint();
         }
     }

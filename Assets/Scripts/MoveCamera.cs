@@ -40,6 +40,7 @@ public partial class MoveCamera : MonoBehaviour
                              + "CameraSpeed" + cameraSpeed.ToString() + "_"
                              + "ExperimentPattern_" + experimentPattern.ToString() + "_"
                              + "ParticipantName_" + participantName.ToString() + "_"
+                             + "subjectName_" + subject.ToString() + "_"
                              + "TrialNumber_" + trialNumber.ToString();
         if (devMode == DevMode.Test)
         {
@@ -75,7 +76,7 @@ public partial class MoveCamera : MonoBehaviour
                     nextStepButtonTextComponent.text = "Next Step";
                     break;
                 case 4:
-                    if (experimentPattern == ExperimentPattern.Phase || experimentPattern == ExperimentPattern.CameraMove )
+                    if (experimentPattern == ExperimentPattern.Phase || experimentPattern == ExperimentPattern.CameraMove || experimentPattern == ExperimentPattern.CameraJumpMove)
                     {
                         nextStepButtonTextComponent.text = "Entering the next trial";
                     }
@@ -133,7 +134,7 @@ public partial class MoveCamera : MonoBehaviour
                 stepNumber = StepNumber.Option4;
                 break;
             case 5:
-                if (experimentPattern == ExperimentPattern.Phase || experimentPattern == ExperimentPattern.CameraMove )
+                if (experimentPattern == ExperimentPattern.Phase || experimentPattern == ExperimentPattern.CameraMove || experimentPattern == ExperimentPattern.CameraJumpMove)
                 {
                     if (isEnd)
                     {
@@ -185,7 +186,8 @@ public partial class MoveCamera : MonoBehaviour
                 // 現在の速度を計算
                 if (step == 1 || step == 3)
                 {
-                    amplitudeToSaveData = A_min + knobValue * (A_max - A_min);
+                    // amplitudeToSaveData = A_min + knobValue * (A_max - A_min);
+                    amplitudeToSaveData = Mathf.Lerp(A_min, A_max, knobValue);
                 }
                 if (step == 2 || step == 4)
                 {
@@ -207,7 +209,8 @@ public partial class MoveCamera : MonoBehaviour
         if (experimentPattern == ExperimentPattern.CameraMove || experimentPattern == ExperimentPattern.CameraJumpMove)
         {
             // 仅负的正弦调制项：
-            cameraSpeedReverse = experimentPattern == ExperimentPattern.CameraMove ? GetRealtimeCameraSpeedReverse():GetRealtimeCameraJumpSpeedReverse();
+            // cameraSpeedReverse = experimentPattern == ExperimentPattern.CameraMove ? GetRealtimeCameraSpeedReverse():GetRealtimeCameraJumpSpeedReverse();
+            cameraSpeedReverse = GetRealtimeCameraJumpSpeedReverse();
             // cameraSpeedReverse = GetRealtimeCameraSpeed();
             
             Vector3 delta = direction * cameraSpeedReverse * Time.deltaTime;
@@ -217,25 +220,25 @@ public partial class MoveCamera : MonoBehaviour
         if (Mathf.Abs(timeMs - frameNum * updateInterval * 1000) < 0.2f)
         {
             frameNum++;
-            if (experimentPattern != ExperimentPattern.CameraMove)
-            {
+            // if (experimentPattern != ExperimentPattern.CameraMove)
+            // {
                 // カメラが移動する目標位置を計算 // 计算摄像机沿圆锥轴线移动的目标位置
-                targetPosition = direction * cameraSpeed * updateInterval;
+            targetPosition = direction * cameraSpeed * updateInterval;
 
-                captureCamera1.transform.position = captureCamera1.transform.position + targetPosition;
-                captureCamera2.transform.position = captureCamera2.transform.position + targetPosition;
-                Debug.Log("Camera Position:  " + captureCamera1.transform.position);
-            }
+            captureCamera1.transform.position = captureCamera1.transform.position + targetPosition;
+            captureCamera2.transform.position = captureCamera2.transform.position + targetPosition;
+            Debug.Log("Camera Position:  " + captureCamera1.transform.position);
+            // }
 
         }
 
-        if (experimentPattern == ExperimentPattern.CameraMove)
-        {
-            CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture1);       // 上层图
-            CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture2);    // 下层图  
-        }
-        else
-        {
+        // if (experimentPattern == ExperimentPattern.CameraMove)
+        // {
+        //     CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture1);       // 上层图
+        //     CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture2);    // 下层图  
+        // }
+        // else
+        // {
             if (frameNum % 2 == 0)
             {
                 CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture2);       // 上层图
@@ -246,7 +249,7 @@ public partial class MoveCamera : MonoBehaviour
                 CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture1);       // 上层图
                 CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture2);    // 下层图  
             }
-        }
+        // }
 
         //輝度値を計算する 
         float Image1ToNowDeltaTime = timeMs - (frameNum - 1) * updateInterval * 1000;
