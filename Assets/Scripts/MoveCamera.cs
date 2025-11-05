@@ -40,7 +40,7 @@ public partial class MoveCamera : MonoBehaviour
                              + "CameraSpeed" + cameraSpeed.ToString() + "_"
                              + "ExperimentPattern_" + experimentPattern.ToString() + "_"
                              + "ParticipantName_" + participantName.ToString() + "_"
-                             + "subjectName_" + subject.ToString() + "_"
+                             + "subject_Name_" + subject.ToString() + "_"
                              + "TrialNumber_" + trialNumber.ToString();
         if (devMode == DevMode.Test)
         {
@@ -134,7 +134,7 @@ public partial class MoveCamera : MonoBehaviour
                 stepNumber = StepNumber.Option4;
                 break;
             case 5:
-                if (experimentPattern == ExperimentPattern.Phase || experimentPattern == ExperimentPattern.CameraMove || experimentPattern == ExperimentPattern.CameraJumpMove)
+                if (experimentPattern == ExperimentPattern.Phase || experimentPattern == ExperimentPattern.CameraJumpMovePlus || experimentPattern == ExperimentPattern.CameraJumpMove)
                 {
                     if (isEnd)
                     {
@@ -206,11 +206,11 @@ public partial class MoveCamera : MonoBehaviour
     void LuminanceMixture()
     {
         // 写真を撮る距離に達したかをチェック // 检查是否到了拍照的距离
-        if (experimentPattern == ExperimentPattern.CameraMove || experimentPattern == ExperimentPattern.CameraJumpMove)
+        if (experimentPattern == ExperimentPattern.CameraJumpMovePlus || experimentPattern == ExperimentPattern.CameraJumpMove)
         {
             // 仅负的正弦调制项：
-            // cameraSpeedReverse = experimentPattern == ExperimentPattern.CameraMove ? GetRealtimeCameraSpeedReverse():GetRealtimeCameraJumpSpeedReverse();
-            cameraSpeedReverse = GetRealtimeCameraJumpSpeedReverse();
+            cameraSpeedReverse = experimentPattern == ExperimentPattern.CameraJumpMovePlus ? GetRealtimeCameraJumpSpeedPlusReverse() : GetRealtimeCameraJumpSpeedReverse();
+            // cameraSpeedReverse = GetRealtimeCameraJumpSpeedReverse();
             // cameraSpeedReverse = GetRealtimeCameraSpeed();
             
             Vector3 delta = direction * cameraSpeedReverse * Time.deltaTime;
@@ -549,7 +549,19 @@ public partial class MoveCamera : MonoBehaviour
         float s2 = Mathf.Sin(2f * omega * t + p.PHI2 + Mathf.PI);
 
         // 确保 p, s1, s2 是类的成员；按你的公式直接返回
-        return - (p.A1 * s1 + p.A2 * s2);
+        return -(p.A1 * s1 + p.A2 * s2);
+    }
+        public float GetRealtimeCameraJumpSpeedPlusReverse()
+    {
+        ModParams p = GetParams(subject);
+
+        float period = 1.0f;   // 或者 2.0f，取决于你希望完整重复周期的长度
+        float t = Time.time % period;   //  归一化时间，确保波形周期性重复
+        float s1 = Mathf.Sin(omega * t + p.PHI1 + Mathf.PI);
+        float s2 = Mathf.Sin(2f * omega * t + p.PHI2 + Mathf.PI);
+
+        // 确保 p, s1, s2 是类的成员；按你的公式直接返回
+        return + (p.A1 * s1 + p.A2 * s2);
     }
     public float GetRealtimeCameraSpeed()
     {

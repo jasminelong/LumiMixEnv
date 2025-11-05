@@ -24,6 +24,7 @@ public partial class MoveCamera : MonoBehaviour
         FunctionMix,
         CameraMove,
         CameraJumpMove,
+        CameraJumpMovePlus,
         BrightnessCompensation
     }
     public enum StepNumber
