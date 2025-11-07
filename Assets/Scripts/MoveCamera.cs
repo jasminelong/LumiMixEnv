@@ -35,17 +35,12 @@ public partial class MoveCamera : MonoBehaviour
         nextStepButtonTextComponent = nextStepButton.GetComponentInChildren<TextMeshProUGUI>();
         nextStepButton.onClick.AddListener(OnNextStep); // ボタンがクリックされたときの処理を追加 // 添加按钮点击时的处理
 
-        data.Add("FrondFrameNum, FrondFrameLuminance, BackFrameNum, BackFrameLuminance, Time, Knob, ResponsePattern, StepNumber, Amplitude, Velocity, FunctionRatio, CameraSpeed");
-        experimentalCondition = "Fps" + fps.ToString() + "_"
-                             + "CameraSpeed" + cameraSpeed.ToString() + "_"
-                             + "ExperimentPattern_" + experimentPattern.ToString() + "_"
-                             + "ParticipantName_" + participantName.ToString() + "_"
-                             + "subject_Name_" + subject.ToString() + "_"
-                             + "TrialNumber_" + trialNumber.ToString();
-        if (devMode == DevMode.Test)
-        {
-            experimentalCondition += "_" + "Test";
-        }
+        
+        if (experimentPattern == ExperimentPattern.NoLuminanceBlend)
+            data.Add("Time, Knob, ResponsePattern, StepNumber, Amplitude, Velocity, FunctionRatio, CameraSpeed");
+        else
+            data.Add("FrondFrameNum, FrondFrameLuminance, BackFrameNum, BackFrameLuminance, Time, Knob, ResponsePattern, StepNumber, Amplitude, Velocity, FunctionRatio, CameraSpeed");
+
     }
     void Update()
     {
@@ -76,13 +71,13 @@ public partial class MoveCamera : MonoBehaviour
                     nextStepButtonTextComponent.text = "Next Step";
                     break;
                 case 4:
-                    if (experimentPattern == ExperimentPattern.Phase || experimentPattern == ExperimentPattern.CameraMove || experimentPattern == ExperimentPattern.CameraJumpMove)
+                    if (experimentPattern == ExperimentPattern.FunctionMix)
                     {
-                        nextStepButtonTextComponent.text = "Entering the next trial";
+                        nextStepButtonTextComponent.text = "Next Step";
                     }
                     else
                     {
-                        nextStepButtonTextComponent.text = "Next Step";
+                        nextStepButtonTextComponent.text = "Entering the next trial";
                     }
                     break;
 
@@ -94,7 +89,13 @@ public partial class MoveCamera : MonoBehaviour
     {
         timeMs = (Time.time - startTime) * 1000;
         Continuous();
-        LuminanceMixture();
+        if (experimentPattern == ExperimentPattern.NoLuminanceBlend)
+        {
+            NoLuminanceBlend();
+        } else
+        {
+            LuminanceMixture();
+        }
     }
 
     void OnNextStep()
@@ -116,13 +117,11 @@ public partial class MoveCamera : MonoBehaviour
                     {
                         MarkTrialCompletedAndRestart();
                     }
-
                 }
                 else
                 {
                     stepNumber = StepNumber.Option1;
                 }
-
                 break;
             case 2:
                 stepNumber = StepNumber.Option2;
@@ -134,7 +133,7 @@ public partial class MoveCamera : MonoBehaviour
                 stepNumber = StepNumber.Option4;
                 break;
             case 5:
-                if (experimentPattern == ExperimentPattern.Phase || experimentPattern == ExperimentPattern.CameraJumpMovePlus || experimentPattern == ExperimentPattern.CameraJumpMove)
+                if (experimentPattern != ExperimentPattern.FunctionMix)
                 {
                     if (isEnd)
                     {
@@ -145,11 +144,6 @@ public partial class MoveCamera : MonoBehaviour
                         MarkTrialCompletedAndRestart();
                     }
                 }
-                else
-                {
-                    //stepNumber = StepNumber.Option5;
-                }
-
                 break;
         }
         nextStepButton.gameObject.SetActive(false);
@@ -157,7 +151,6 @@ public partial class MoveCamera : MonoBehaviour
 
     void Continuous()
     {
-
         continuousImageRawImage.enabled = true;
         // カメラが移動する目標位置を計算 // 计算摄像机沿圆锥轴线移动的目标位置right 
         //Vector3 targetPosition = captureCamera0.transform.position + direction * cameraSpeed * Time.fixedDeltaTime;
@@ -191,7 +184,7 @@ public partial class MoveCamera : MonoBehaviour
                 }
                 if (step == 2 || step == 4)
                 {
-                    amplitudeToSaveData = knobValue * 2f * Mathf.PI; ;  // 0 … 2π
+                    amplitudeToSaveData = knobValue * 2f * Mathf.PI;  // 0 … 2π
                 }
                 amplitudes[step] = amplitudeToSaveData;
                 if (step >= 1) v = V0 + amplitudes[1] * Mathf.Sin(omega * time);//step1,amplitudes[1] 
@@ -202,11 +195,63 @@ public partial class MoveCamera : MonoBehaviour
             captureCamera0.transform.position += direction * v * Time.deltaTime;
         }
     }
+    void NoLuminanceBlend()
+    {
+        // 计算基于 subject 的实时分量
+        ModParams p = GetParams(subject);
+        // 使用类上的 time（FixedUpdate 已更新）以保持与其它波形一致
+        // float s1 = Mathf.Sin(omega * time + p.PHI1 + Mathf.PI);
+        // float s2 = Mathf.Sin(2f * omega * time + p.PHI2 + Mathf.PI);
 
+        float s1 = Mathf.Sin(omega * time);
+        float s2 = Mathf.Sin(2f * omega * time);
+
+        float speed1 = 0f;
+        switch (captureCamera1MoveMode)
+        {
+            case CaptureCamera1MoveMode.V0:
+                speed1 = p.V0;
+                break;
+            case CaptureCamera1MoveMode.V0_A1:
+                speed1 = p.V0 + p.A1 * s1;
+                break;
+            case CaptureCamera1MoveMode.V0_A2:
+                speed1 = p.V0 + p.A2 * s2;
+                break;
+            case CaptureCamera1MoveMode.V0_A1A2:
+                speed1 = p.V0 + p.A1 * s1 + p.A2 * s2;
+                break;
+            case CaptureCamera1MoveMode.A1:
+                speed1 = p.A1 * s1;
+                break;
+            case CaptureCamera1MoveMode.A2:
+                speed1 = p.A2 * s2;
+                break;
+            case CaptureCamera1MoveMode.A1A2:
+                speed1 = p.A1 * s1 + p.A2 * s2;
+                break;
+        }
+
+        // 按计算得到的速度移动 captureCamera1（若需要同时移动 captureCamera2，也可加）
+        Vector3 delta1 = direction * speed1 * Time.deltaTime;
+        captureCamera1.transform.position += delta1;
+
+        // 把 captureCamera1 的图像显示到 CaptureCameraLinearBlendRawImage 上（简单做法：把 captureImageTexture1 放到 Top）
+        if (CaptureCameraLinearBlendRawImage != null)
+        {
+            CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture1);
+            CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture2);
+            // 确保完全显示 Top（若需要可改 alpha 或混合模式）
+            CaptureCameraLinearBlendRawImage.material.SetColor("_TopColor", new Color(1f, 1f, 1f, 1f));
+            CaptureCameraLinearBlendRawImage.material.SetColor("_BottomColor", new Color(1f, 1f, 1f, 0f));
+        }
+        // データを記録 // 记录数据
+        data.Add($"{timeMs:F3}, {SerialReader.lastSensorValue}, {responsePattern}, {(int)stepNumber}, {amplitudeToSaveData}, {v}, {knobValue:F3}, {cameraSpeed:F3}");
+    }
     void LuminanceMixture()
     {
         // 写真を撮る距離に達したかをチェック // 检查是否到了拍照的距离
-        if (experimentPattern == ExperimentPattern.CameraJumpMovePlus || experimentPattern == ExperimentPattern.CameraJumpMove)
+        if (experimentPattern == ExperimentPattern.CameraJumpMovePlus || experimentPattern == ExperimentPattern.CameraJumpMoveMinus)
         {
             // 仅负的正弦调制项：
             cameraSpeedReverse = experimentPattern == ExperimentPattern.CameraJumpMovePlus ? GetRealtimeCameraJumpSpeedPlusReverse() : GetRealtimeCameraJumpSpeedReverse();
@@ -314,7 +359,6 @@ public partial class MoveCamera : MonoBehaviour
 
         // データを記録 // 记录数据
         data.Add($"{frameNum}, {nonlinearPreviousImageRatio:F3}, {frameNum + 1}, {nonlinearNextImageRatio:F3}, {timeMs:F3}, {SerialReader.lastSensorValue}, {responsePattern}, {(int)stepNumber}, {amplitudeToSaveData}, {v}, {knobValue:F3}, {cameraSpeed:F3}");
-
     }
 
     void InitialSetup()
@@ -410,8 +454,20 @@ public partial class MoveCamera : MonoBehaviour
         string date = System.DateTime.Now.ToString("yyyyMMdd_HHmmss");
 
         // ファイル名を構築 // 构建文件名
+        experimentalCondition =
+                                // "Fps" + fps.ToString() + "_"
+                            //  + "CameraSpeed" + cameraSpeed.ToString() + "_"
+                              "ExperimentPattern_" + experimentPattern.ToString() + "_"
+                             + "ParticipantName_" + participantName.ToString() + "_"
+                             + "Subject_Name_" + subject.ToString() + "_"
+                             + "ExperimentPattern_" + experimentPattern.ToString() + "_"
+                             + captureCamera1MoveMode.ToString() + "_"
+                             + "TrialNumber_" + trialNumber.ToString();
+        if (devMode == DevMode.Test)
+        {
+            experimentalCondition += "_" + "Test";
+        }
         string fileName = $"{date}_{experimentalCondition}.csv";
-
 
         // ファイルを保存（Application.dataPath：現在のプロジェクトのAssetsフォルダのパスを示す） // 保存文件（Application.dataPath：表示当前项目的Assets文件夹的路径）
         string filePath = Path.Combine("D:/vectionProject/public", folderName, fileName);
@@ -499,33 +555,34 @@ public partial class MoveCamera : MonoBehaviour
 
     public struct ModParams
     {
-        public float A1, PHI1, A2, PHI2;
-        public ModParams(float a1, float phi1, float a2, float phi2)
-        { A1 = a1; PHI1 = phi1; A2 = a2; PHI2 = phi2; }
+        public float V0, A1, PHI1, A2, PHI2;
+        public ModParams(float v0, float a1, float phi1, float a2, float phi2)
+        { V0 = v0; A1 = a1; PHI1 = phi1; A2 = a2; PHI2 = phi2; }
     }
+
     private ModParams GetParams(SubjectOption opt)
     {
         switch (opt)
         {
-            case SubjectOption.YAMA_A: //  目前用“平均值”占位 —— 拿到 YAMA 的真实参数后改这里
-                return new ModParams(0.540f, 1.849f, -0.528f, 1.462f);
+            case SubjectOption.YAMA_A:
+                return new ModParams(0.992f, 0.540f, 1.849f, -0.528f, 1.462f);
 
             case SubjectOption.OMU_B:
-                return new ModParams(0.522f, 2.528f, -0.223f, 3.525f);
+                return new ModParams(1.131f, 0.522f, 2.528f, -0.223f, 3.525f);
 
             case SubjectOption.ONO_C:
-                return new ModParams(0.632f, 3.663f, 0.461f, 5.123f);
+                return new ModParams(1.067f, 0.632f, 3.663f, 0.461f, 5.123f);
 
             case SubjectOption.HOU_D:
-                return new ModParams(0.275f, 3.031f, 0.920f, 5.982f);
+                return new ModParams(0.951f, 0.275f, 3.031f, 0.920f, 5.982f);
 
             case SubjectOption.LL_E:
-                return new ModParams(-0.278f, 1.849f, -0.292f, 3.728f);
+                return new ModParams(1.027f, -0.278f, 1.849f, -0.292f, 3.728f);
 
             case SubjectOption.KK_F:
-                return new ModParams(0.815f, 3.462f, 0.860f, 5.854f);
+                return new ModParams(1.129f, 0.815f, 3.462f, 0.860f, 5.854f);
         }
-        return new ModParams(0.540f, 1.849f, -0.528f, 1.462f);
+        return new ModParams(0.992f, 0.540f, 1.849f, -0.528f, 1.462f);
     }
     public float GetRealtimeCameraSpeedReverse()
     {

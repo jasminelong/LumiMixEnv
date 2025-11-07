@@ -51,14 +51,16 @@ public class MoveCameraEditor : Editor
         prop = serializedObject.FindProperty("subject");
         EditorGUILayout.PropertyField(prop);
 
-
         prop = serializedObject.FindProperty("devMode");
         EditorGUILayout.PropertyField(prop);
 
         prop = serializedObject.FindProperty("experimentPattern");
         EditorGUILayout.PropertyField(prop);
 
-        prop = serializedObject.FindProperty("brightnessBlendMode");
+        // prop = serializedObject.FindProperty("brightnessBlendMode");
+        // EditorGUILayout.PropertyField(prop);
+        
+        prop = serializedObject.FindProperty("captureCamera1MoveMode");
         EditorGUILayout.PropertyField(prop);
 
         GUILayout.Space(10);

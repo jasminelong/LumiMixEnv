@@ -23,9 +23,10 @@ public partial class MoveCamera : MonoBehaviour
         Phase,
         FunctionMix,
         CameraMove,
-        CameraJumpMove,
+        CameraJumpMoveMinus,
         CameraJumpMovePlus,
-        BrightnessCompensation
+        BrightnessCompensation,
+        NoLuminanceBlend
     }
     public enum StepNumber
     {
@@ -107,7 +108,7 @@ public partial class MoveCamera : MonoBehaviour
 
     [Header("🔧記録するデータ")]
     public StepNumber stepNumber = StepNumber.Option0; // 現在のステップ番号   // 当前步骤编号
-    public ExperimentPattern experimentPattern = ExperimentPattern.CameraMove;
+    public ExperimentPattern experimentPattern = ExperimentPattern.NoLuminanceBlend;
     public int trialNumber = 1;
 
     //记录Image1RawImage的透明度使用的相关变量
@@ -185,12 +186,13 @@ public partial class MoveCamera : MonoBehaviour
 
     public enum SubjectOption
     {
+        KK_F,         // 参与者 KK  -F       
         YAMA_A,   // 新增：参与者 YAMA -A
         OMU_B,    // 参与者 OMU -B
         ONO_C,    // 参与者 ONO -C
         HOU_D,    // 参与者 HOU -D
-        LL_E,      // 参与者 LL  -E
-        KK_F       // 参与者 KK  -F
+        LL_E      // 参与者 LL  -E
+
     }
 
     // ===== 逆函数补偿（独立小函数，可直接调用） =====
@@ -208,5 +210,16 @@ public float maxDeltaZPerSec        = 8f;   // z域最大变化速率，抑制�
 float _zCorrPrev = 0f;   // 上一帧的补偿z（用于平滑）
 float _tPrev     = -1f;
 
+ public enum CaptureCamera1MoveMode
+    {
+        A1,
+        V0_A1A2,
+        V0_A2,
+        V0_A1,
+        V0,
+        A2,
+        A1A2
+    }
 
+    public CaptureCamera1MoveMode captureCamera1MoveMode = CaptureCamera1MoveMode.A1;
 }

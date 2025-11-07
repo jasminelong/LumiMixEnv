@@ -44,7 +44,7 @@ public partial class MoveCamera : MonoBehaviour
             Debug.Log("Now exp2_intro_test");
 
             devMode = DevMode.Test;
-            experimentPattern = ExperimentPattern.CameraJumpMove;
+            experimentPattern = ExperimentPattern.NoLuminanceBlend;
             brightnessBlendMode = BrightnessBlendMode.LinearOnly;
         }
         else if (data.progress.exp2_trials < data.exp2_trials.Count)
@@ -54,7 +54,7 @@ public partial class MoveCamera : MonoBehaviour
             Debug.Log("Now exp2_trials");
 
             devMode = DevMode.Normal;
-            experimentPattern = ExperimentPattern.CameraJumpMove;
+            experimentPattern = ExperimentPattern.NoLuminanceBlend;
             switch (currentTrial.condition)
             {
                 case 1: brightnessBlendMode = BrightnessBlendMode.LinearOnly; break;
