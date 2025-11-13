@@ -57,6 +57,9 @@ public class MoveCameraEditor : Editor
         prop = serializedObject.FindProperty("experimentPattern");
         EditorGUILayout.PropertyField(prop);
 
+        prop = serializedObject.FindProperty("paramOrder");
+        EditorGUILayout.PropertyField(prop);
+
         // prop = serializedObject.FindProperty("brightnessBlendMode");
         // EditorGUILayout.PropertyField(prop);
         
@@ -73,7 +76,7 @@ public class MoveCameraEditor : Editor
         DrawBrightnessGraph(script);
 
         // CaptureCamera1 速度图（抽出方法，与 Brightness 一致的尺寸与横轴）
-        DrawCaptureCamera1ReverseJumpSpeedGraph(script);
+        // DrawCaptureCamera1ReverseJumpSpeedGraph(script);
 
         //4.5-----
         prop = serializedObject.FindProperty("omega");
@@ -119,33 +122,56 @@ public class MoveCameraEditor : Editor
         const float rowGap = 6f;
         const float bigRowGap = 12f;
 
+        // Which parameter should be "big" on this step, depending on paramOrder
+        int stepIdx = (int)script.stepNumber; // 0-based
+        string focusKey = null;
+
+        // Determine focusKey based on paramOrder
+        switch (script.paramOrder)
+        {
+            case MoveCamera.ParameterOrder.V0_A1_PHI1_A2_PHI2:
+            focusKey = GetFocusKey(stepIdx, new string[] { "A1", "PHI1", "A2", "PHI2" });
+            break;
+
+            case MoveCamera.ParameterOrder.V0_PHI1_A1_PHI2_A2:
+            focusKey = GetFocusKey(stepIdx, new string[] { "PHI1", "A1", "PHI2", "A2" });
+            break;
+
+            case MoveCamera.ParameterOrder.V0_PHI1_A1_PHI1_PHI2_A2_PHI2:
+            focusKey = GetFocusKey(stepIdx, new string[] { "PHI1", "A1", "PHI1", "PHI2", "A2", "PHI2" });
+            break;
+        }
+
         for (int i = 1; i <= 4; i++)   // A1..φ2 一律 1基
         {
             string label = labels[i];
             float value = script.GetAmplitude(i);                 // ← 1基读取
-            bool isBig = ((int)script.stepNumber == i);          // Option1..4 分别聚焦 A1..φ2
 
-            float newValue;
-            if (isBig)
-            {
-                newValue = DrawBigSliderWithNumberFloat(
-                    label, value, minValues[i], maxValues[i],
-                    labelFontSize: 26, valueFontSize: 30, valueColor: Color.red);
-                GUILayout.Space(bigRowGap);
-            }
-            else
-            {
-                newValue = EditorGUILayout.Slider(label, value, minValues[i], maxValues[i]);
-                newValue = Round3(newValue);
-                GUILayout.Space(rowGap);
-            }
+            // Map i -> key
+            string keyI = (i == 1) ? "A1" : (i == 2) ? "PHI1" : (i == 3) ? "A2" : "PHI2";
+            bool isBig = (focusKey == keyI);
+
+            float newValue = isBig 
+            ? DrawBigSliderWithNumberFloat(label, value, minValues[i], maxValues[i], labelFontSize: 26, valueFontSize: 30, valueColor: Color.red)
+            : EditorGUILayout.Slider(label, value, minValues[i], maxValues[i]);
+
+            newValue = Round3(newValue);
+            GUILayout.Space(isBig ? bigRowGap : rowGap);
 
             if (!Mathf.Approximately(newValue, value))
             {
-                Undo.RecordObject(script, "Change Amplitude");
-                script.SetAmplitude(i, newValue);                  // ← 1基写回
-                EditorUtility.SetDirty(script);
+            Undo.RecordObject(script, "Change Amplitude");
+            script.SetAmplitude(i, newValue);                  // ← 1基写回
+            EditorUtility.SetDirty(script);
             }
+        }
+
+        // Helper method to get focus key based on step index and keys
+        string GetFocusKey(int stepIdx, string[] keys)
+        {
+            // stepIdx is 0-based, adjust for array access (skip Option0/V0)
+            int arrayIdx = stepIdx - 1;
+            return (arrayIdx >= 0 && arrayIdx < keys.Length) ? keys[arrayIdx] : null;
         }
 
         GUILayout.Space(10);

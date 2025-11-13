@@ -25,7 +25,6 @@ public partial class MoveCamera : MonoBehaviour
         CameraMove,
         CameraJumpMoveMinus,
         CameraJumpMovePlus,
-        BrightnessCompensation,
         NoLuminanceBlend
     }
     public enum StepNumber
@@ -222,4 +221,17 @@ float _tPrev     = -1f;
     }
 
     public CaptureCamera1MoveMode captureCamera1MoveMode = CaptureCamera1MoveMode.A1;
+    public enum ParameterOrder
+    {
+        V0_A1_PHI1_A2_PHI2, // Original order
+        V0_PHI1_A1_PHI2_A2,
+        V0_PHI1_A1_PHI1_PHI2_A2_PHI2,
+    }
+    public ParameterOrder paramOrder = ParameterOrder.V0_A1_PHI1_A2_PHI2; // Change this to switch orders
+    
+    private const int N = 1000;
+private float[] timeMap = new float[N];
+private bool mapReady = false;
+
+
 }

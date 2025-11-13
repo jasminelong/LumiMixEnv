@@ -35,11 +35,13 @@ public partial class MoveCamera : MonoBehaviour
         nextStepButtonTextComponent = nextStepButton.GetComponentInChildren<TextMeshProUGUI>();
         nextStepButton.onClick.AddListener(OnNextStep); // ボタンがクリックされたときの処理を追加 // 添加按钮点击时的处理
 
-        
+
         if (experimentPattern == ExperimentPattern.NoLuminanceBlend)
             data.Add("Time, Knob, ResponsePattern, StepNumber, Amplitude, Velocity, FunctionRatio, CameraSpeed");
         else
             data.Add("FrondFrameNum, FrondFrameLuminance, BackFrameNum, BackFrameLuminance, Time, Knob, ResponsePattern, StepNumber, Amplitude, Velocity, FunctionRatio, CameraSpeed");
+        
+
 
     }
     void Update()
@@ -80,6 +82,19 @@ public partial class MoveCamera : MonoBehaviour
                         nextStepButtonTextComponent.text = "Entering the next trial";
                     }
                     break;
+                case 5:
+                    if (paramOrder == ParameterOrder.V0_PHI1_A1_PHI1_PHI2_A2_PHI2)
+                    {
+                        nextStepButtonTextComponent.text = "Next Step";
+                    }
+                    break;
+                case 6:
+                    if (paramOrder == ParameterOrder.V0_PHI1_A1_PHI1_PHI2_A2_PHI2)
+                    {
+                        nextStepButtonTextComponent.text = "Entering the next trial";
+                    }
+                    break;
+                
 
             }
         }
@@ -177,22 +192,89 @@ public partial class MoveCamera : MonoBehaviour
 
                 //2.v(t)=V0 + A1·sin(ωt + φ1 + Mathf.PI) + A2·sin(2ωt + φ2 + Mathf.PI)
                 // 現在の速度を計算
-                if (step == 1 || step == 3)
+                // Define parameter adjustment order
+                // Parameter order is now defined at the top of the file
+                // Change this to switch orders
+
+                switch (paramOrder)
                 {
-                    // amplitudeToSaveData = A_min + knobValue * (A_max - A_min);
-                    amplitudeToSaveData = Mathf.Lerp(A_min, A_max, knobValue);
+                    case ParameterOrder.V0_A1_PHI1_A2_PHI2: // Original orderV0,  A1, φ1, A2, φ2 
+                        if (step == 1 || step == 3)
+                        {
+                            amplitudeToSaveData = Mathf.Lerp(A_min, A_max, knobValue);
+                        }
+                        if (step == 2 || step == 4)
+                        {
+                            amplitudeToSaveData = knobValue * 2f * Mathf.PI;
+                        }
+                        amplitudes[step] = amplitudeToSaveData;
+                        if (step >= 1) v = V0 + amplitudes[1] * Mathf.Sin(omega * time);// A1
+                        if (step >= 2) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI);// φ1
+                        if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time);// A2
+                        if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);// φ2 
+                        break;
+
+                    case ParameterOrder.V0_PHI1_A1_PHI2_A2: // V0, φ1, A1, φ2, A2
+                        if (step == 1 || step == 3)
+                        {
+                            amplitudeToSaveData = knobValue * 2f * Mathf.PI;
+                            amplitudes[step + 1] = amplitudeToSaveData;
+                        }
+                        if (step == 2 || step == 4)
+                        {
+                            amplitudeToSaveData = Mathf.Lerp(A_min, A_max, knobValue);
+                            amplitudes[step - 1] = amplitudeToSaveData;
+                        }
+                        if (step >= 1) v = V0 + V0 / 2 * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI);// φ1
+                        if (step >= 2) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI);// A1
+                        if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[1] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);// φ2
+                        if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);// A2
+                        break;
+
+                    case ParameterOrder.V0_PHI1_A1_PHI1_PHI2_A2_PHI2: // V0, φ1, A1, φ1, φ2, A2, φ2
+                        if (step == 1 || step == 3 || step == 4 || step == 6)
+                        {
+                            amplitudeToSaveData = knobValue * 2f * Mathf.PI;
+                            if (step == 1)
+                            {
+                                amplitudes[2] = amplitudeToSaveData;
+                            }
+                            else if (step == 3)
+                            {
+                                amplitudes[4] = amplitudeToSaveData;
+                            }
+                            else if (step == 4)
+                            {
+                                amplitudes[2] = amplitudeToSaveData;
+                            }
+                            else if (step == 6)
+                            {
+                                amplitudes[4] = amplitudeToSaveData;
+                            }
+                        }
+                        if (step == 2 || step == 5)
+                        {
+                            amplitudeToSaveData = Mathf.Lerp(A_min, A_max, knobValue);
+                            if (step == 2)
+                            {
+                                amplitudes[1] = amplitudeToSaveData;
+                            }
+                            else if (step == 5)
+                            {
+                                amplitudes[3] = amplitudeToSaveData;
+                            }
+                        }
+                        if (step >= 1) v = V0 + V0 / 2 * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI);// φ1
+                        if (step >= 2) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI);// A1
+                        if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI);// φ1
+                        if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[1] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);// φ2
+                        if (step >= 5) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);// A2
+                        if (step >= 6) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);// φ2
+                        break;
                 }
-                if (step == 2 || step == 4)
-                {
-                    amplitudeToSaveData = knobValue * 2f * Mathf.PI;  // 0 … 2π
-                }
-                amplitudes[step] = amplitudeToSaveData;
-                if (step >= 1) v = V0 + amplitudes[1] * Mathf.Sin(omega * time);//step1,amplitudes[1] 
-                if (step >= 2) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI);//step2,amplitudes[2]
-                if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time);//step3,amplitudes[3]
-                if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2]) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);//step4,amplitudes[4] 
             }
             captureCamera0.transform.position += direction * v * Time.deltaTime;
+          
         }
     }
     void NoLuminanceBlend()
@@ -250,6 +332,8 @@ public partial class MoveCamera : MonoBehaviour
     }
     void LuminanceMixture()
     {
+        ModParams p = GetParams(subject);  // 使用你已有的函数
+        GenerateTimeMap(p);
         // 写真を撮る距離に達したかをチェック // 检查是否到了拍照的距离
         if (experimentPattern == ExperimentPattern.CameraJumpMovePlus || experimentPattern == ExperimentPattern.CameraJumpMoveMinus)
         {
@@ -272,11 +356,10 @@ public partial class MoveCamera : MonoBehaviour
 
             captureCamera1.transform.position = captureCamera1.transform.position + targetPosition;
             captureCamera2.transform.position = captureCamera2.transform.position + targetPosition;
-            Debug.Log("Camera Position:  " + captureCamera1.transform.position);
             // }
 
         }
-
+        // SaveRenderTexture(captureCamera1);
         // if (experimentPattern == ExperimentPattern.CameraMove)
         // {
         //     CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture1);       // 上层图
@@ -311,17 +394,31 @@ public partial class MoveCamera : MonoBehaviour
         // knobValue = 0.316f;//0.163 0.206 0.555 0.336 0.295 0.712 HOU-D
         // knobValue = 0.734f;//0.817 0.651 0.551 0.84 0.582 0.841 OMU-B
         // knobValue = 0.615f;//0.683 0.616 0.785 0.583 0.613 0.581 YAMA-A
-        
-        if (experimentPattern == ExperimentPattern.BrightnessCompensation)
-        {
-            nonlinearPreviousImageRatio = ApplyInverseCompLogit(previousImageRatio, timeMs);
-            nonlinearNextImageRatio = ApplyInverseCompLogit(nextImageRatio, timeMs);
-        }
-        else
-        {
+
+        // nonlinearPreviousImageRatio = BrightnessBlend.GetMixedValue(previousImageRatio, knobValue, brightnessBlendMode);
+        // nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, knobValue, brightnessBlendMode);
+        // nonlinearPreviousImageRatio = BrightnessBlend.GetMixedValueWithCompensation(previousImageRatio, knobValue, brightnessBlendMode, p);
+        // nonlinearNextImageRatio = BrightnessBlend.GetMixedValueWithCompensation(nextImageRatio, knobValue, brightnessBlendMode, p);
+
+        // --- 时间映射准备 ---
+        // if (mapReady)
+        // {
+        //     // previous 映射
+        //     int idxPrev = Mathf.Clamp((int)(previousImageRatio * (N - 1)), 0, N - 1);
+        //     float prevComp = timeMap[idxPrev];
+        //     nonlinearPreviousImageRatio = BrightnessBlend.GetMixedValue(prevComp, knobValue, brightnessBlendMode);
+
+        //     // next 映射
+        //     int idxNext = Mathf.Clamp((int)(nextImageRatio * (N - 1)), 0, N - 1);
+        //     float nextComp = timeMap[idxNext];
+        //     nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextComp, knobValue, brightnessBlendMode);
+        // }
+        // else
+        // {
+            // 如果补偿表还没生成（例如初始化阶段）
             nonlinearPreviousImageRatio = BrightnessBlend.GetMixedValue(previousImageRatio, knobValue, brightnessBlendMode);
-            nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, knobValue, brightnessBlendMode);
-        }
+            nonlinearNextImageRatio     = BrightnessBlend.GetMixedValue(nextImageRatio, knobValue, brightnessBlendMode);
+        // }
 
 
         if (frameNum % 2 == 0)
@@ -511,7 +608,8 @@ public partial class MoveCamera : MonoBehaviour
                 case BrightnessBlendMode.CosineOnly:
                     return 0.5f * (1f - Mathf.Cos(Mathf.PI * x));
                 case BrightnessBlendMode.LinearOnly:
-                    return x;
+                    // return x;
+                    return 0.5f - 0.5f * Mathf.Cos(2f*Mathf.PI*x);
                 case BrightnessBlendMode.AcosOnly:
                     return Mathf.Acos(-2f * x + 1f) / Mathf.PI;
                 case BrightnessBlendMode.Dynamic:
@@ -546,11 +644,53 @@ public partial class MoveCamera : MonoBehaviour
                 float acos = Mathf.Acos(-2f * x + 1f) / Mathf.PI;//Acos 曲线：y = acos(−2x + 1) / π
                 return (1f - t) * linear + t * acos;
             }
-            else  
+            else
             {
                 return Mathf.Acos(-2f * x + 1f) / Mathf.PI;
             }
         }
+        
+        // ============================================================
+    // ✅ 新增：带“个体补偿”的混合函数
+    // ============================================================
+
+    /// <summary>
+    /// 加入个体化反相位补偿 (A1, φ1, A2, φ2)
+    /// </summary>
+   public static float GetMixedValueWithCompensation(
+    float x,
+    float knobValue,
+    BrightnessBlendMode mode,
+    ModParams p)
+{
+    float w_base = GetMixedValue(x, knobValue, mode);
+
+    // 动态收缩补偿
+    float sigmaA1 = Mathf.Abs(p.A1) * 0.5f;
+    float sigmaA2 = Mathf.Abs(p.A2) * 0.5f;
+    float alpha = 0.8f, lambda = 1.5f;
+
+    float k1 = alpha * Mathf.Abs(p.A1) / (Mathf.Abs(p.A1) + lambda * sigmaA1 + 1e-6f);
+    float k2 = alpha * Mathf.Abs(p.A2) / (Mathf.Abs(p.A2) + lambda * sigmaA2 + 1e-6f);
+
+    // 保证总振幅安全
+    float maxAmp = Mathf.Abs(k1) + Mathf.Abs(k2);
+    float safeAmp = 0.2f;
+            if (maxAmp > safeAmp)
+            {
+                float scale = safeAmp / maxAmp;
+                k1 *= scale;
+                k2 *= scale;
+            }
+    // k2 *= 0.7f; 
+    float offset = 0.1f; 
+    float w = w_base
+        - k1 * Mathf.Sin(2f * Mathf.PI * x + p.PHI1 + Mathf.PI)
+        - k2 * Mathf.Sin(4f * Mathf.PI * x + p.PHI2 + Mathf.PI)
+          + offset;;
+    return Mathf.Clamp01(w);
+}
+
     }
 
     public struct ModParams
@@ -632,47 +772,79 @@ public partial class MoveCamera : MonoBehaviour
         // 确保 p, s1, s2 是类的成员；按你的公式直接返回
         return cameraSpeed + (p.A1 * s1 + p.A2 * s2);
     }
-/// <summary>
-/// 在 logit 域做前馈补偿：alpha' = σ( logit(alpha_base) + Δz(t) )
-/// baseAlpha 必须在 (0,1)；若恰为0/1，先做极小量偏置。
-/// 返回值严格∈(0,1)，无硬裁剪失真。
-/// </summary>
-public float ApplyInverseCompLogit(float baseAlpha, float timeMs)
+
+    private int frameCount = 0;
+
+    // 保存目录（修改为你指定的路径）
+    private string saveFolder = @"D:\vectionProject\public\ExperimentData3-Images";
+    void SaveRenderTexture(Camera cam)
     {
-    ModParams p = GetParams(subject);
-    // 1) 保障 baseAlpha 处在可逆域
-    const float EPS = 1e-5f;
-    float a = Mathf.Clamp(baseAlpha, EPS, 1f - EPS);
+        RenderTexture rt = cam.targetTexture;
+        if (rt == null)
+        {
+            Debug.LogWarning("No RenderTexture assigned to this camera!");
+            return;
+        }
 
-    // 2) 当前时间与 dt
-    float t = timeMs * 0.001f;
-    float dt;
-    if (_tPrev < 0) { dt = Mathf.Max(1e-4f, Time.deltaTime); }
-    else            { dt = Mathf.Max(1e-4f, t - _tPrev); }
-    _tPrev = t;
+        // 设置当前激活的 RenderTexture
+        RenderTexture.active = rt;
 
-    // 3) 目标在 α 域的小信号补偿：Δα*(t) = -(A1/η1)sin(...) - (A2/η2)sin(...)
-    float dAlphaTarget =
-        -(p.A1 / Mathf.Max(1e-6f, eta1)) * Mathf.Sin(omega * t + p.PHI1)
-        -(p.A2 / Mathf.Max(1e-6f, eta2)) * Mathf.Sin(2f * omega * t + p.PHI2);
+        Texture2D tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+        tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+        tex.Apply();
 
-    dAlphaTarget *= compScale;
+        // 恢复
+        RenderTexture.active = null;
 
-    // 4) 由 α = σ(z)，有 dα/dz = α(1-α) ⇒ 期望 Δz ≈ Δα* / (α(1-α))
-    float gain = a * (1f - a) + 1e-6f;
-    float dZtarget = dAlphaTarget / gain;
+        // 保存文件
+        string filename = Path.Combine(saveFolder, $"capture1_{frameCount:000}.png");
+        File.WriteAllBytes(filename, tex.EncodeToPNG());
+        Debug.Log($"Saved: {filename}");
 
-    // 5) 平滑 + 限速（在 z 域做）
-    float k = 1f - Mathf.Exp(-smooth * dt);                    // 指数平滑
-    float zCorrSmoothed = Mathf.Lerp(_zCorrPrev, dZtarget, k); // 目标到当前
-    float maxStep = maxDeltaZPerSec * dt;                      // 每帧最大步长
-    float zCorr = Mathf.Clamp(zCorrSmoothed, _zCorrPrev - maxStep, _zCorrPrev + maxStep);
-    _zCorrPrev = zCorr;
+        frameCount++;
+    }
+    private void GenerateTimeMap(ModParams p)
+{
+    int N = timeMap.Length;
+    float dt = 1f / N;
+    float[] f = new float[N];
+    for (int i = 0; i < N; i++)
+    {
+        float t = i * dt;
+        f[i] = p.V0 + p.A1 * Mathf.Sin(2 * Mathf.PI * t + p.PHI1)
+                     + p.A2 * Mathf.Sin(4 * Mathf.PI * t + p.PHI2);
+    }
 
-    // 6) 叠加到 logit，再映回 α
-    float zBase  = Logit(a);
-    float aPrime = Sigmoid(zBase + zCorr);
-    return aPrime; // ∈(0,1)
+    // --- 积分 ---
+    float[] cum = new float[N];
+    cum[0] = 0f;
+    for (int i = 1; i < N; i++)
+        cum[i] = cum[i - 1] + f[i] * dt;
+
+    // --- 归一化 ---
+    float total = cum[N - 1];
+    for (int i = 0; i < N; i++)
+        cum[i] /= total;
+
+    // --- 反查表 ---
+    for (int i = 0; i < N; i++)
+    {
+        float target = i / (float)(N - 1);
+        for (int j = 1; j < N; j++)
+        {
+            if (cum[j] >= target)
+            {
+                float t1 = (j - 1) * dt;
+                float t2 = j * dt;
+                float c1 = cum[j - 1];
+                float c2 = cum[j];
+                timeMap[i] = Mathf.Lerp(t1, t2, (target - c1) / (c2 - c1));
+                break;
+            }
+        }
+    }
+
+    mapReady = true;
 }
 
 }

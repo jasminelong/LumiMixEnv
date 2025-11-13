@@ -64,6 +64,29 @@ Shader "UI/GrayscaleOverBlend"
 
                 return fixed4(outGray, outGray, outGray, outAlpha);
             }
+/*             fixed4 frag (v2f i) : SV_Target
+{
+    fixed4 top = tex2D(_TopTex, i.uv) * _TopColor;
+    fixed4 bottom = tex2D(_BottomTex, i.uv) * _BottomColor;
+
+    // --- 线性灰度
+    float topGray = dot(top.rgb, float3(0.2126, 0.7152, 0.0722));
+    float bottomGray = dot(bottom.rgb, float3(0.2126, 0.7152, 0.0722));
+
+    float w = saturate(top.a);   // 你用的混合权重
+
+    // === 感知空间混合 ===
+    // 人眼亮度近似 P = L^alpha，alpha≈0.45
+    const float alpha = 0.45;
+    float topP    = pow(topGray,    alpha);
+    float bottomP = pow(bottomGray, alpha);
+    float mixP    = lerp(bottomP, topP, w);
+    float outGray = pow(mixP, 1.0 / alpha);
+
+    float outAlpha = w + bottom.a * (1.0 - w);
+    return fixed4(outGray, outGray, outGray, outAlpha);
+} */
+
             ENDCG
         }
     }
