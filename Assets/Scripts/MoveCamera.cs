@@ -36,11 +36,11 @@ public partial class MoveCamera : MonoBehaviour
         nextStepButton.onClick.AddListener(OnNextStep); // ボタンがクリックされたときの処理を追加 // 添加按钮点击时的处理
 
 
-        if (experimentPattern == ExperimentPattern.NoLuminanceBlend)
+        if (experimentPattern == ExperimentPattern.NoLuminanceBlendSingleCameraMove)
             data.Add("Time, Knob, ResponsePattern, StepNumber, Amplitude, Velocity, FunctionRatio, CameraSpeed");
         else
             data.Add("FrondFrameNum, FrondFrameLuminance, BackFrameNum, BackFrameLuminance, Time, Knob, ResponsePattern, StepNumber, Amplitude, Velocity, FunctionRatio, CameraSpeed");
-        
+
 
 
     }
@@ -94,7 +94,7 @@ public partial class MoveCamera : MonoBehaviour
                         nextStepButtonTextComponent.text = "Entering the next trial";
                     }
                     break;
-                
+
 
             }
         }
@@ -104,10 +104,11 @@ public partial class MoveCamera : MonoBehaviour
     {
         timeMs = (Time.time - startTime) * 1000;
         Continuous();
-        if (experimentPattern == ExperimentPattern.NoLuminanceBlend)
+        if (experimentPattern == ExperimentPattern.NoLuminanceBlendSingleCameraMove)
         {
-            NoLuminanceBlend();
-        } else
+            NoLuminanceBlendSingleCameraMove();
+        }
+        else
         {
             LuminanceMixture();
         }
@@ -148,7 +149,7 @@ public partial class MoveCamera : MonoBehaviour
                 stepNumber = StepNumber.Option4;
                 break;
             case 5:
-                if (experimentPattern != ExperimentPattern.FunctionMix)
+                if (experimentPattern != ExperimentPattern.FunctionMix && paramOrder != ParameterOrder.V0_PHI1_A1_PHI1_PHI2_A2_PHI2)
                 {
                     if (isEnd)
                     {
@@ -158,6 +159,20 @@ public partial class MoveCamera : MonoBehaviour
                     {
                         MarkTrialCompletedAndRestart();
                     }
+                }
+                stepNumber = StepNumber.Option5;
+                break;
+            case 6:
+                stepNumber = StepNumber.Option6;
+                break;
+            case 7:
+                if (isEnd)
+                {
+                    QuitGame();
+                }
+                else
+                {
+                    MarkTrialCompletedAndRestart();
                 }
                 break;
         }
@@ -274,45 +289,13 @@ public partial class MoveCamera : MonoBehaviour
                 }
             }
             captureCamera0.transform.position += direction * v * Time.deltaTime;
-          
+
         }
     }
-    void NoLuminanceBlend()
+    void NoLuminanceBlendSingleCameraMove()
     {
-        // 计算基于 subject 的实时分量
-        ModParams p = GetParams(subject);
-        // 使用类上的 time（FixedUpdate 已更新）以保持与其它波形一致
-        // float s1 = Mathf.Sin(omega * time + p.PHI1 + Mathf.PI);
-        // float s2 = Mathf.Sin(2f * omega * time + p.PHI2 + Mathf.PI);
 
-        float s1 = Mathf.Sin(omega * time);
-        float s2 = Mathf.Sin(2f * omega * time);
-
-        float speed1 = 0f;
-        switch (captureCamera1MoveMode)
-        {
-            case CaptureCamera1MoveMode.V0:
-                speed1 = p.V0;
-                break;
-            case CaptureCamera1MoveMode.V0_A1:
-                speed1 = p.V0 + p.A1 * s1;
-                break;
-            case CaptureCamera1MoveMode.V0_A2:
-                speed1 = p.V0 + p.A2 * s2;
-                break;
-            case CaptureCamera1MoveMode.V0_A1A2:
-                speed1 = p.V0 + p.A1 * s1 + p.A2 * s2;
-                break;
-            case CaptureCamera1MoveMode.A1:
-                speed1 = p.A1 * s1;
-                break;
-            case CaptureCamera1MoveMode.A2:
-                speed1 = p.A2 * s2;
-                break;
-            case CaptureCamera1MoveMode.A1A2:
-                speed1 = p.A1 * s1 + p.A2 * s2;
-                break;
-        }
+        float speed1 = CameraSpeedCompensation(1);
 
         // 按计算得到的速度移动 captureCamera1（若需要同时移动 captureCamera2，也可加）
         Vector3 delta1 = direction * speed1 * Time.deltaTime;
@@ -332,16 +315,12 @@ public partial class MoveCamera : MonoBehaviour
     }
     void LuminanceMixture()
     {
-        ModParams p = GetParams(subject);  // 使用你已有的函数
-        GenerateTimeMap(p);
         // 写真を撮る距離に達したかをチェック // 检查是否到了拍照的距离
-        if (experimentPattern == ExperimentPattern.CameraJumpMovePlus || experimentPattern == ExperimentPattern.CameraJumpMoveMinus)
+        if (experimentPattern == ExperimentPattern.CameraJumpMovePlusCompensate || experimentPattern == ExperimentPattern.CameraJumpMoveMinusCompensate)
         {
             // 仅负的正弦调制项：
-            cameraSpeedReverse = experimentPattern == ExperimentPattern.CameraJumpMovePlus ? GetRealtimeCameraJumpSpeedPlusReverse() : GetRealtimeCameraJumpSpeedReverse();
-            // cameraSpeedReverse = GetRealtimeCameraJumpSpeedReverse();
-            // cameraSpeedReverse = GetRealtimeCameraSpeed();
-            
+            cameraSpeedReverse = experimentPattern == ExperimentPattern.CameraJumpMovePlusCompensate ? CameraSpeedCompensation(1) : CameraSpeedCompensation(0);
+
             Vector3 delta = direction * cameraSpeedReverse * Time.deltaTime;
             captureCamera1.transform.position += delta;
             captureCamera2.transform.position += delta;
@@ -349,35 +328,23 @@ public partial class MoveCamera : MonoBehaviour
         if (Mathf.Abs(timeMs - frameNum * updateInterval * 1000) < 0.2f)
         {
             frameNum++;
-            // if (experimentPattern != ExperimentPattern.CameraMove)
-            // {
-                // カメラが移動する目標位置を計算 // 计算摄像机沿圆锥轴线移动的目标位置
-            targetPosition = direction * cameraSpeed * updateInterval;
 
+            // カメラが移動する目標位置を計算 // 计算摄像机沿圆锥轴线移动的目标位置
+            targetPosition = direction * cameraSpeed * updateInterval;
             captureCamera1.transform.position = captureCamera1.transform.position + targetPosition;
             captureCamera2.transform.position = captureCamera2.transform.position + targetPosition;
-            // }
-
         }
-        // SaveRenderTexture(captureCamera1);
-        // if (experimentPattern == ExperimentPattern.CameraMove)
-        // {
-        //     CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture1);       // 上层图
-        //     CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture2);    // 下层图  
-        // }
-        // else
-        // {
-            if (frameNum % 2 == 0)
-            {
-                CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture2);       // 上层图
-                CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture1);    // 下层图  
-            }
-            else
-            {
-                CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture1);       // 上层图
-                CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture2);    // 下层图  
-            }
-        // }
+
+        if (frameNum % 2 == 0)
+        {
+            CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture2);       // 上层图
+            CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture1);    // 下层图  
+        }
+        else
+        {
+            CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture1);       // 上层图
+            CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture2);    // 下层图  
+        }
 
         //輝度値を計算する 
         float Image1ToNowDeltaTime = timeMs - (frameNum - 1) * updateInterval * 1000;
@@ -389,37 +356,19 @@ public partial class MoveCamera : MonoBehaviour
         float nonlinearPreviousImageRatio = previousImageRatio;
         float nonlinearNextImageRatio = nextImageRatio;
         knobValue = SerialReader.lastSensorValue;
-        //knobValue = 0.583f;//0.517, 0.713, 0.581, 0.583, 0.684, 1.0 ONO-C
-        // knobValue = 0.218f;//0.0 0.492 0.471 0.231 0.178 0.205 LL-E
-        // knobValue = 0.316f;//0.163 0.206 0.555 0.336 0.295 0.712 HOU-D
-        // knobValue = 0.734f;//0.817 0.651 0.551 0.84 0.582 0.841 OMU-B
-        // knobValue = 0.615f;//0.683 0.616 0.785 0.583 0.613 0.581 YAMA-A
 
-        // nonlinearPreviousImageRatio = BrightnessBlend.GetMixedValue(previousImageRatio, knobValue, brightnessBlendMode);
-        // nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, knobValue, brightnessBlendMode);
-        // nonlinearPreviousImageRatio = BrightnessBlend.GetMixedValueWithCompensation(previousImageRatio, knobValue, brightnessBlendMode, p);
-        // nonlinearNextImageRatio = BrightnessBlend.GetMixedValueWithCompensation(nextImageRatio, knobValue, brightnessBlendMode, p);
+        if (experimentPattern == ExperimentPattern.LuminanceMinusCompensate || experimentPattern == ExperimentPattern.LuminancePlusCompensate)
+        {
+            // --- 反相位补偿准备 ---
+            // ② 算出当前这 1s 区间内的时间（秒）
+            float tLocalSec = Image1ToNowDeltaTime / 1000f;
 
-        // --- 时间映射准备 ---
-        // if (mapReady)
-        // {
-        //     // previous 映射
-        //     int idxPrev = Mathf.Clamp((int)(previousImageRatio * (N - 1)), 0, N - 1);
-        //     float prevComp = timeMap[idxPrev];
-        //     nonlinearPreviousImageRatio = BrightnessBlend.GetMixedValue(prevComp, knobValue, brightnessBlendMode);
+            nonlinearPreviousImageRatio = BrightnessBlend.BrightnessCompensation(previousImageRatio, tLocalSec);
+            nonlinearNextImageRatio = BrightnessBlend.BrightnessCompensation(nextImageRatio, tLocalSec);
+        }
 
-        //     // next 映射
-        //     int idxNext = Mathf.Clamp((int)(nextImageRatio * (N - 1)), 0, N - 1);
-        //     float nextComp = timeMap[idxNext];
-        //     nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextComp, knobValue, brightnessBlendMode);
-        // }
-        // else
-        // {
-            // 如果补偿表还没生成（例如初始化阶段）
-            nonlinearPreviousImageRatio = BrightnessBlend.GetMixedValue(previousImageRatio, knobValue, brightnessBlendMode);
-            nonlinearNextImageRatio     = BrightnessBlend.GetMixedValue(nextImageRatio, knobValue, brightnessBlendMode);
-        // }
-
+        nonlinearPreviousImageRatio = BrightnessBlend.GetMixedValue(previousImageRatio, knobValue, brightnessBlendMode);
+        nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, knobValue, brightnessBlendMode);
 
         if (frameNum % 2 == 0)
         {
@@ -499,7 +448,7 @@ public partial class MoveCamera : MonoBehaviour
 
         // 子オブジェクトのRawImageコンポーネントを取得 // 获取子对象的 RawImage 组件
         continuousImageRawImage = continuousImageTransform.GetComponent<RawImage>();
- 
+
         CaptureCameraLinearBlendRawImage = CaptureCameraLinearBlendTransform.GetComponent<RawImage>();
 
         CaptureCameraLinearBlendRawImage.material = new Material(Mat_GrayscaleOverBlend);
@@ -552,12 +501,11 @@ public partial class MoveCamera : MonoBehaviour
 
         // ファイル名を構築 // 构建文件名
         experimentalCondition =
-                                // "Fps" + fps.ToString() + "_"
-                            //  + "CameraSpeed" + cameraSpeed.ToString() + "_"
+                              // "Fps" + fps.ToString() + "_"
+                              //  + "CameraSpeed" + cameraSpeed.ToString() + "_"
                               "ExperimentPattern_" + experimentPattern.ToString() + "_"
                              + "ParticipantName_" + participantName.ToString() + "_"
                              + "Subject_Name_" + subject.ToString() + "_"
-                             + "ExperimentPattern_" + experimentPattern.ToString() + "_"
                              + captureCamera1MoveMode.ToString() + "_"
                              + "TrialNumber_" + trialNumber.ToString();
         if (devMode == DevMode.Test)
@@ -608,8 +556,8 @@ public partial class MoveCamera : MonoBehaviour
                 case BrightnessBlendMode.CosineOnly:
                     return 0.5f * (1f - Mathf.Cos(Mathf.PI * x));
                 case BrightnessBlendMode.LinearOnly:
-                    // return x;
-                    return 0.5f - 0.5f * Mathf.Cos(2f*Mathf.PI*x);
+                    return x;
+                // return 0.5f - 0.5f * Mathf.Cos(2f*Mathf.PI*x);
                 case BrightnessBlendMode.AcosOnly:
                     return Mathf.Acos(-2f * x + 1f) / Mathf.PI;
                 case BrightnessBlendMode.Dynamic:
@@ -649,47 +597,69 @@ public partial class MoveCamera : MonoBehaviour
                 return Mathf.Acos(-2f * x + 1f) / Mathf.PI;
             }
         }
-        
+
         // ============================================================
-    // ✅ 新增：带“个体补偿”的混合函数
-    // ============================================================
+        // ✅ 新增：带“个体补偿”的混合函数
+        // ============================================================
 
-    /// <summary>
-    /// 加入个体化反相位补偿 (A1, φ1, A2, φ2)
-    /// </summary>
-   public static float GetMixedValueWithCompensation(
-    float x,
-    float knobValue,
-    BrightnessBlendMode mode,
-    ModParams p)
-{
-    float w_base = GetMixedValue(x, knobValue, mode);
+        /// <summary>
+        /// 加入个体化反相位补偿 (A1, φ1, A2, φ2)
+        /// </summary>
+        public static float BrightnessCompensation(
+                float linearRatio,
+                float tLocalSec
+        )
+        {
+            // 一秒内的角频率（你的实验里 1s 一个周期）
+            const float TAU = 6.283185307179586f; // 2π
+                                                  // ③ 设定一个补偿强度（可以做成 inspector 里的 public 变量）
+            float compensationStrength = 0.3f; // 先试 0.2~0.4，看波动减多少
+            /// <summary>
+            /// 根据实验1得到的调制参数，对辉度混合比进行补偿。
+            /// linearRatio: 原本线性混合的 alpha (0~1)
+            /// tLocalSec: 当前这 1 秒区间内的时间（单位秒，0~updateInterval）
+            /// p: 该被试的 ModParams(V0, A1, PHI1, A2, PHI2)
+            /// strength: 补偿强度 0~1，0=不补偿，1=全补偿（建议先用 0.3 左右）
+            /// </summary>
+            ModParams p = GetParams(subject);
 
-    // 动态收缩补偿
-    float sigmaA1 = Mathf.Abs(p.A1) * 0.5f;
-    float sigmaA2 = Mathf.Abs(p.A2) * 0.5f;
-    float alpha = 0.8f, lambda = 1.5f;
+            // 归一化到 0~1 的局部时间 u（这里假定 updateInterval=1s 最合适）
+            float u = Mathf.Clamp01(tLocalSec / Mathf.Max(updateInterval, 1e-3f));
 
-    float k1 = alpha * Mathf.Abs(p.A1) / (Mathf.Abs(p.A1) + lambda * sigmaA1 + 1e-6f);
-    float k2 = alpha * Mathf.Abs(p.A2) / (Mathf.Abs(p.A2) + lambda * sigmaA2 + 1e-6f);
+            // 对应到 0~1 区间里的相位时间（假设 v(t) 也是 1s 一周期）
+            float s1 = Mathf.Sin(TAU * u + p.PHI1 + Mathf.PI);
+            float s2 = Mathf.Sin(2f * TAU * u + p.PHI2 + Mathf.PI);
 
-    // 保证总振幅安全
-    float maxAmp = Mathf.Abs(k1) + Mathf.Abs(k2);
-    float safeAmp = 0.2f;
-            if (maxAmp > safeAmp)
+            // 原来主观速度的“脈動成分” m(t) = A1*sin + A2*sin2
+            float m = 0f;
+            switch (compensationClassification)
             {
-                float scale = safeAmp / maxAmp;
-                k1 *= scale;
-                k2 *= scale;
+                case CompensationClassification.V0:
+                    m = p.V0;
+                    break;
+                case CompensationClassification.V0_A1:
+                    m = p.V0 + p.A1 * s1;
+                    break;
+                case CompensationClassification.V0_A2:
+                    m = p.V0 + p.A2 * s2;
+                    break;
+                case CompensationClassification.V0_A1A2:
+                    m = p.V0 + p.A1 * s1 + p.A2 * s2;
+                    break;
             }
-    // k2 *= 0.7f; 
-    float offset = 0.1f; 
-    float w = w_base
-        - k1 * Mathf.Sin(2f * Mathf.PI * x + p.PHI1 + Mathf.PI)
-        - k2 * Mathf.Sin(4f * Mathf.PI * x + p.PHI2 + Mathf.PI)
-          + offset;;
-    return Mathf.Clamp01(w);
-}
+
+            // 用 V0 做个简单归一化，得到一个相对波动量 m_norm
+            float m_norm = m / Mathf.Max(Mathf.Abs(p.V0), 1e-3f);
+
+            // 关键补偿：把混合比往「脈動的反方向」推一点
+            // strength 越大，补偿越强；建议先用 0.2~0.4 之间试
+            float compensated = linearRatio - compensationStrength * m_norm;
+
+            // 限制在 0~1，避免 alpha 溢出
+            return Mathf.Clamp01(compensated);
+
+        }
+
 
     }
 
@@ -724,53 +694,32 @@ public partial class MoveCamera : MonoBehaviour
         }
         return new ModParams(0.992f, 0.540f, 1.849f, -0.528f, 1.462f);
     }
-    public float GetRealtimeCameraSpeedReverse()
+
+    public float CameraSpeedCompensation(int classification)
     {
         ModParams p = GetParams(subject);
 
-        float period = 1.0f;   // 或者 2.0f，取决于你希望完整重复周期的长度
-        float t = Time.time % period;   //  归一化时间，确保波形周期性重复
-        float s1 = Mathf.Sin(omega * t + p.PHI1 + Mathf.PI);
-        float s2 = Mathf.Sin(2f * omega * t + p.PHI2 + Mathf.PI);
+        float s1 = Mathf.Sin(omega * time + p.PHI1 + Mathf.PI);
+        float s2 = Mathf.Sin(2f * omega * time + p.PHI2 + Mathf.PI);
 
         // 确保 p, s1, s2 是类的成员；按你的公式直接返回
-        return cameraSpeed - (p.A1 * s1 + p.A2 * s2);
-    }
-    public float GetRealtimeCameraJumpSpeedReverse()
-    {
-        ModParams p = GetParams(subject);
-
-        float period = 1.0f;   // 或者 2.0f，取决于你希望完整重复周期的长度
-        float t = Time.time % period;   //  归一化时间，确保波形周期性重复
-        float s1 = Mathf.Sin(omega * t + p.PHI1 + Mathf.PI);
-        float s2 = Mathf.Sin(2f * omega * t + p.PHI2 + Mathf.PI);
-
-        // 确保 p, s1, s2 是类的成员；按你的公式直接返回
-        return -(p.A1 * s1 + p.A2 * s2);
-    }
-        public float GetRealtimeCameraJumpSpeedPlusReverse()
-    {
-        ModParams p = GetParams(subject);
-
-        float period = 1.0f;   // 或者 2.0f，取决于你希望完整重复周期的长度
-        float t = Time.time % period;   //  归一化时间，确保波形周期性重复
-        float s1 = Mathf.Sin(omega * t + p.PHI1 + Mathf.PI);
-        float s2 = Mathf.Sin(2f * omega * t + p.PHI2 + Mathf.PI);
-
-        // 确保 p, s1, s2 是类的成员；按你的公式直接返回
-        return + (p.A1 * s1 + p.A2 * s2);
-    }
-    public float GetRealtimeCameraSpeed()
-    {
-        ModParams p = GetParams(subject);
-
-        float period = 1.0f;   // 或者 2.0f，取决于你希望完整重复周期的长度
-        float t = Time.time % period;   //  归一化时间，确保波形周期性重复
-        float s1 = Mathf.Sin(omega * t + p.PHI1 + Mathf.PI);
-        float s2 = Mathf.Sin(2f * omega * t + p.PHI2 + Mathf.PI);
-
-        // 确保 p, s1, s2 是类的成员；按你的公式直接返回
-        return cameraSpeed + (p.A1 * s1 + p.A2 * s2);
+        float speed = 0f;
+        switch (compensationClassification)
+        {
+            case CompensationClassification.V0:
+                speed = p.V0;
+                break;
+            case CompensationClassification.V0_A1:
+                speed = p.V0 + p.A1 * s1;
+                break;
+            case CompensationClassification.V0_A2:
+                speed = p.V0 + p.A2 * s2;
+                break;
+            case CompensationClassification.V0_A1A2:
+                speed = p.V0 + p.A1 * s1 + p.A2 * s2;
+                break;
+        }
+        return classification == 1 ? speed : -speed;
     }
 
     private int frameCount = 0;
@@ -803,49 +752,7 @@ public partial class MoveCamera : MonoBehaviour
 
         frameCount++;
     }
-    private void GenerateTimeMap(ModParams p)
-{
-    int N = timeMap.Length;
-    float dt = 1f / N;
-    float[] f = new float[N];
-    for (int i = 0; i < N; i++)
-    {
-        float t = i * dt;
-        f[i] = p.V0 + p.A1 * Mathf.Sin(2 * Mathf.PI * t + p.PHI1)
-                     + p.A2 * Mathf.Sin(4 * Mathf.PI * t + p.PHI2);
-    }
 
-    // --- 积分 ---
-    float[] cum = new float[N];
-    cum[0] = 0f;
-    for (int i = 1; i < N; i++)
-        cum[i] = cum[i - 1] + f[i] * dt;
-
-    // --- 归一化 ---
-    float total = cum[N - 1];
-    for (int i = 0; i < N; i++)
-        cum[i] /= total;
-
-    // --- 反查表 ---
-    for (int i = 0; i < N; i++)
-    {
-        float target = i / (float)(N - 1);
-        for (int j = 1; j < N; j++)
-        {
-            if (cum[j] >= target)
-            {
-                float t1 = (j - 1) * dt;
-                float t2 = j * dt;
-                float c1 = cum[j - 1];
-                float c2 = cum[j];
-                timeMap[i] = Mathf.Lerp(t1, t2, (target - c1) / (c2 - c1));
-                break;
-            }
-        }
-    }
-
-    mapReady = true;
-}
 
 }
 

@@ -20,12 +20,13 @@ public partial class MoveCamera : MonoBehaviour
     }
     public enum ExperimentPattern
     {
-        Phase,
-        FunctionMix,
-        CameraMove,
-        CameraJumpMoveMinus,
-        CameraJumpMovePlus,
-        NoLuminanceBlend
+        LuminanceLinearMix,
+        // FunctionMix,
+        NoLuminanceBlendSingleCameraMove,
+        CameraJumpMoveMinusCompensate,
+        CameraJumpMovePlusCompensate,
+        LuminanceMinusCompensate,
+        LuminancePlusCompensate,
     }
     public enum StepNumber
     {
@@ -33,7 +34,10 @@ public partial class MoveCamera : MonoBehaviour
         Option1 = 1,
         Option2 = 2,
         Option3 = 3,
-        Option4 = 4
+        Option4 = 4,
+        Option5 = 5,
+        Option6 = 6,
+        Option7 = 7
     }
     public enum BrightnessBlendMode
     {
@@ -209,18 +213,15 @@ public float maxDeltaZPerSec        = 8f;   // z域最大变化速率，抑制�
 float _zCorrPrev = 0f;   // 上一帧的补偿z（用于平滑）
 float _tPrev     = -1f;
 
- public enum CaptureCamera1MoveMode
+ public enum CompensationClassification
     {
-        A1,
         V0_A1A2,
         V0_A2,
         V0_A1,
         V0,
-        A2,
-        A1A2
     }
 
-    public CaptureCamera1MoveMode captureCamera1MoveMode = CaptureCamera1MoveMode.A1;
+    public CompensationClassification compensationClassification = CompensationClassification.A1;
     public enum ParameterOrder
     {
         V0_A1_PHI1_A2_PHI2, // Original order
