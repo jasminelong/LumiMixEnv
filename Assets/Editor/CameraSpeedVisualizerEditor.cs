@@ -63,7 +63,7 @@ public class MoveCameraEditor : Editor
         // prop = serializedObject.FindProperty("brightnessBlendMode");
         // EditorGUILayout.PropertyField(prop);
         
-        prop = serializedObject.FindProperty("captureCamera1MoveMode");
+        prop = serializedObject.FindProperty("compensationClassification");
         EditorGUILayout.PropertyField(prop);
 
         GUILayout.Space(10);
@@ -131,7 +131,11 @@ public class MoveCameraEditor : Editor
         {
             case MoveCamera.ParameterOrder.V0_A1_PHI1_A2_PHI2:
             focusKey = GetFocusKey(stepIdx, new string[] { "A1", "PHI1", "A2", "PHI2" });
-            break;
+                break;
+
+            case MoveCamera.ParameterOrder.V0_A1_PHI1_A2_PHI2_A1_PHI1_A2_PHI2:
+                focusKey = GetFocusKey(stepIdx, new string[] { "A1", "PHI1", "A2", "PHI2","A1", "PHI1", "A2", "PHI2" });
+                break;
 
             case MoveCamera.ParameterOrder.V0_PHI1_A1_PHI2_A2:
             focusKey = GetFocusKey(stepIdx, new string[] { "PHI1", "A1", "PHI2", "A2" });
@@ -472,7 +476,7 @@ public class MoveCameraEditor : Editor
 
         // 采样（播放时把当前速度推入历史）
         // 优先用脚本提供的实时计算（确保值确实每帧更新）
-        float currentCamSpeed = script.GetRealtimeCameraJumpSpeedReverse();
+        float currentCamSpeed = script.CameraSpeedCompensation(1);
         if (Application.isPlaying)
         {
             camReverseJumpSpeedHistory.Enqueue(currentCamSpeed);

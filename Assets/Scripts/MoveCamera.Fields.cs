@@ -21,7 +21,7 @@ public partial class MoveCamera : MonoBehaviour
     public enum ExperimentPattern
     {
         LuminanceLinearMix,
-        // FunctionMix,
+        FunctionMix,
         NoLuminanceBlendSingleCameraMove,
         CameraJumpMoveMinusCompensate,
         CameraJumpMovePlusCompensate,
@@ -37,7 +37,9 @@ public partial class MoveCamera : MonoBehaviour
         Option4 = 4,
         Option5 = 5,
         Option6 = 6,
-        Option7 = 7
+        Option7 = 7,
+        Option8 = 8,
+        Option9 = 9,
     }
     public enum BrightnessBlendMode
     {
@@ -111,7 +113,7 @@ public partial class MoveCamera : MonoBehaviour
 
     [Header("🔧記録するデータ")]
     public StepNumber stepNumber = StepNumber.Option0; // 現在のステップ番号   // 当前步骤编号
-    public ExperimentPattern experimentPattern = ExperimentPattern.NoLuminanceBlend;
+    public ExperimentPattern experimentPattern = ExperimentPattern.NoLuminanceBlendSingleCameraMove;
     public int trialNumber = 1;
 
     //记录Image1RawImage的透明度使用的相关变量
@@ -213,18 +215,22 @@ public float maxDeltaZPerSec        = 8f;   // z域最大变化速率，抑制�
 float _zCorrPrev = 0f;   // 上一帧的补偿z（用于平滑）
 float _tPrev     = -1f;
 
- public enum CompensationClassification
+    public enum CompensationClassification
     {
         V0_A1A2,
         V0_A2,
         V0_A1,
         V0,
+        A1A2,
+        A2,
+        A1
     }
 
-    public CompensationClassification compensationClassification = CompensationClassification.A1;
+    public CompensationClassification compensationClassification = CompensationClassification.V0;
     public enum ParameterOrder
     {
         V0_A1_PHI1_A2_PHI2, // Original order
+        V0_A1_PHI1_A2_PHI2_A1_PHI1_A2_PHI2, 
         V0_PHI1_A1_PHI2_A2,
         V0_PHI1_A1_PHI1_PHI2_A2_PHI2,
     }

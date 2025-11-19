@@ -174,7 +174,22 @@ public partial class MoveCamera : MonoBehaviour
                 {
                     MarkTrialCompletedAndRestart();
                 }
+                stepNumber = StepNumber.Option7;
                 break;
+            case 8:
+                stepNumber = StepNumber.Option8;
+                break;
+            case 9:
+            if (isEnd)
+                {
+                    QuitGame();
+                }
+                else
+                {
+                    MarkTrialCompletedAndRestart();
+                }
+                stepNumber = StepNumber.Option9;
+                break;  
         }
         nextStepButton.gameObject.SetActive(false);
     }
@@ -228,7 +243,40 @@ public partial class MoveCamera : MonoBehaviour
                         if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time);// A2
                         if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);// φ2 
                         break;
-
+                    case ParameterOrder.V0_A1_PHI1_A2_PHI2_A1_PHI1_A2_PHI2:
+                        if (step == 1 || step == 3 || step == 5 || step == 7)
+                        {
+                            amplitudeToSaveData = Mathf.Lerp(A_min, A_max, knobValue);
+                            if (step == 1 || step == 5)
+                            {
+                                amplitudes[1] = amplitudeToSaveData;
+                            }
+                            else if (step == 3 || step == 7)
+                            {
+                                amplitudes[3] = amplitudeToSaveData;
+                            }
+                        }
+                        if (step == 2 || step == 4 || step == 6 || step == 8)
+                        {
+                            amplitudeToSaveData = knobValue * 2f * Mathf.PI;
+                            if (step == 2 || step == 6)
+                            {
+                                amplitudes[2] = amplitudeToSaveData;
+                            }
+                            else if (step == 4 || step == 8)
+                            {
+                                amplitudes[4] = amplitudeToSaveData;
+                            }
+                        }
+                        if (step >= 1) v = V0 + amplitudes[1] * Mathf.Sin(omega * time);// A1
+                        if (step >= 2) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI);// φ1
+                        if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time);// A2
+                        if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);// φ2 
+                        if (step >= 5) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);// A1
+                        if (step >= 6) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);// φ1 
+                        if (step >= 7) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);// A2
+                        if (step >= 8) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);// φ2 
+                        break;
                     case ParameterOrder.V0_PHI1_A1_PHI2_A2: // V0, φ1, A1, φ2, A2
                         if (step == 1 || step == 3)
                         {
@@ -294,7 +342,6 @@ public partial class MoveCamera : MonoBehaviour
     }
     void NoLuminanceBlendSingleCameraMove()
     {
-
         float speed1 = CameraSpeedCompensation(1);
 
         // 按计算得到的速度移动 captureCamera1（若需要同时移动 captureCamera2，也可加）
@@ -362,13 +409,15 @@ public partial class MoveCamera : MonoBehaviour
             // --- 反相位补偿准备 ---
             // ② 算出当前这 1s 区间内的时间（秒）
             float tLocalSec = Image1ToNowDeltaTime / 1000f;
-
-            nonlinearPreviousImageRatio = BrightnessBlend.BrightnessCompensation(previousImageRatio, tLocalSec);
-            nonlinearNextImageRatio = BrightnessBlend.BrightnessCompensation(nextImageRatio, tLocalSec);
+            ModParams p = GetParams(subject);
+            nonlinearPreviousImageRatio = BrightnessBlend.BrightnessCompensation(previousImageRatio, tLocalSec, updateInterval, p, compensationClassification, experimentPattern);
+            nonlinearNextImageRatio = BrightnessBlend.BrightnessCompensation(nextImageRatio, tLocalSec, updateInterval, p, compensationClassification, experimentPattern);
         }
-
-        nonlinearPreviousImageRatio = BrightnessBlend.GetMixedValue(previousImageRatio, knobValue, brightnessBlendMode);
-        nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, knobValue, brightnessBlendMode);
+        else
+        {
+            nonlinearPreviousImageRatio = BrightnessBlend.GetMixedValue(previousImageRatio, knobValue, brightnessBlendMode);
+            nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, knobValue, brightnessBlendMode);
+        }
 
         if (frameNum % 2 == 0)
         {
@@ -501,12 +550,10 @@ public partial class MoveCamera : MonoBehaviour
 
         // ファイル名を構築 // 构建文件名
         experimentalCondition =
-                              // "Fps" + fps.ToString() + "_"
-                              //  + "CameraSpeed" + cameraSpeed.ToString() + "_"
                               "ExperimentPattern_" + experimentPattern.ToString() + "_"
                              + "ParticipantName_" + participantName.ToString() + "_"
                              + "Subject_Name_" + subject.ToString() + "_"
-                             + captureCamera1MoveMode.ToString() + "_"
+                             + compensationClassification.ToString() + "_"
                              + "TrialNumber_" + trialNumber.ToString();
         if (devMode == DevMode.Test)
         {
@@ -557,7 +604,6 @@ public partial class MoveCamera : MonoBehaviour
                     return 0.5f * (1f - Mathf.Cos(Mathf.PI * x));
                 case BrightnessBlendMode.LinearOnly:
                     return x;
-                // return 0.5f - 0.5f * Mathf.Cos(2f*Mathf.PI*x);
                 case BrightnessBlendMode.AcosOnly:
                     return Mathf.Acos(-2f * x + 1f) / Mathf.PI;
                 case BrightnessBlendMode.Dynamic:
@@ -606,60 +652,61 @@ public partial class MoveCamera : MonoBehaviour
         /// 加入个体化反相位补偿 (A1, φ1, A2, φ2)
         /// </summary>
         public static float BrightnessCompensation(
-                float linearRatio,
-                float tLocalSec
+            float linearRatio,
+            float tLocalSec,
+            float updateInterval,
+            ModParams p,
+            CompensationClassification compensationClassification = CompensationClassification.V0_A1A2,
+            ExperimentPattern experimentPattern = ExperimentPattern.LuminanceMinusCompensate
         )
         {
-            // 一秒内的角频率（你的实验里 1s 一个周期）
             const float TAU = 6.283185307179586f; // 2π
-                                                  // ③ 设定一个补偿强度（可以做成 inspector 里的 public 变量）
-            float compensationStrength = 0.3f; // 先试 0.2~0.4，看波动减多少
-            /// <summary>
-            /// 根据实验1得到的调制参数，对辉度混合比进行补偿。
-            /// linearRatio: 原本线性混合的 alpha (0~1)
-            /// tLocalSec: 当前这 1 秒区间内的时间（单位秒，0~updateInterval）
-            /// p: 该被试的 ModParams(V0, A1, PHI1, A2, PHI2)
-            /// strength: 补偿强度 0~1，0=不补偿，1=全补偿（建议先用 0.3 左右）
-            /// </summary>
-            ModParams p = GetParams(subject);
 
-            // 归一化到 0~1 的局部时间 u（这里假定 updateInterval=1s 最合适）
+            // 建议先用更温和的强度，比如 0.05~0.1
+            float compensationStrength = 0.1f;
+
             float u = Mathf.Clamp01(tLocalSec / Mathf.Max(updateInterval, 1e-3f));
 
-            // 对应到 0~1 区间里的相位时间（假设 v(t) 也是 1s 一周期）
             float s1 = Mathf.Sin(TAU * u + p.PHI1 + Mathf.PI);
             float s2 = Mathf.Sin(2f * TAU * u + p.PHI2 + Mathf.PI);
 
-            // 原来主观速度的“脈動成分” m(t) = A1*sin + A2*sin2
             float m = 0f;
             switch (compensationClassification)
             {
-                case CompensationClassification.V0:
-                    m = p.V0;
+                case CompensationClassification.A1:
+                    m = p.A1 * s1;
                     break;
-                case CompensationClassification.V0_A1:
-                    m = p.V0 + p.A1 * s1;
+                case CompensationClassification.A2:
+                    m = p.A2 * s2;
                     break;
-                case CompensationClassification.V0_A2:
-                    m = p.V0 + p.A2 * s2;
-                    break;
-                case CompensationClassification.V0_A1A2:
-                    m = p.V0 + p.A1 * s1 + p.A2 * s2;
+                case CompensationClassification.A1A2:
+                    m = p.A1 * s1 + p.A2 * s2;
                     break;
             }
 
-            // 用 V0 做个简单归一化，得到一个相对波动量 m_norm
             float m_norm = m / Mathf.Max(Mathf.Abs(p.V0), 1e-3f);
 
-            // 关键补偿：把混合比往「脈動的反方向」推一点
-            // strength 越大，补偿越强；建议先用 0.2~0.4 之间试
-            float compensated = linearRatio - compensationStrength * m_norm;
+            // ★ 新增：在 0~1 上加一个平滑窗，使补偿在端点自动收敛到 0
+            // 简单版：w(u) = u*(1-u)，在 0 和 1 为 0，中间最大 0.25，很柔和
+            float window =4f * u * (1f - u);          // 0→中间峰→0
+                                                  // 可以按需要放大一点：
+                                                  // float window = 4f * u * (1f - u);  // 0→中间1→0
 
-            // 限制在 0~1，避免 alpha 溢出
+            // 根据实验模式反向
+            if (experimentPattern == ExperimentPattern.LuminancePlusCompensate)
+                compensationStrength = -compensationStrength;
+
+            // ★ 把窗函数乘进去，让补偿主作用在区间中部，端点变小
+            float rawDelta = -compensationStrength * window * m_norm;
+
+            // clamp 防止 alpha 溢出
+            float maxDown = linearRatio;
+            float maxUp = 1f - linearRatio;
+            float clampedDelta = Mathf.Clamp(rawDelta, -maxDown, maxUp);
+
+            float compensated = linearRatio + clampedDelta;
             return Mathf.Clamp01(compensated);
-
         }
-
 
     }
 
@@ -718,8 +765,18 @@ public partial class MoveCamera : MonoBehaviour
             case CompensationClassification.V0_A1A2:
                 speed = p.V0 + p.A1 * s1 + p.A2 * s2;
                 break;
+            case CompensationClassification.A1:
+                speed = p.A1 * s1;
+                break;
+            case CompensationClassification.A2:
+                speed = p.A2 * s2;
+                break;
+            case CompensationClassification.A1A2:
+                speed = p.A1 * s1 + p.A2 * s2;
+                break;
         }
-        return classification == 1 ? speed : -speed;
+        float beta = 0.5f;
+        return classification == 1 ? beta * speed : -beta * speed;
     }
 
     private int frameCount = 0;

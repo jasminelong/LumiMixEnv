@@ -45,7 +45,7 @@ public partial class MoveCamera : MonoBehaviour
 
             devMode = DevMode.Test;
             // experimentPattern = ExperimentPattern.NoLuminanceBlend;
-            experimentPattern = ExperimentPattern.Phase;
+            experimentPattern = ExperimentPattern.LuminanceLinearMix;
             brightnessBlendMode = BrightnessBlendMode.LinearOnly;
         }
         else if (data.progress.exp2_trials < data.exp2_trials.Count)
@@ -56,7 +56,7 @@ public partial class MoveCamera : MonoBehaviour
 
             devMode = DevMode.Normal;
             // experimentPattern = ExperimentPattern.NoLuminanceBlend;
-            experimentPattern = ExperimentPattern.Phase;
+            experimentPattern = ExperimentPattern.LuminanceLinearMix;
             switch (currentTrial.condition)
             {
                 case 1: brightnessBlendMode = BrightnessBlendMode.LinearOnly; break;
