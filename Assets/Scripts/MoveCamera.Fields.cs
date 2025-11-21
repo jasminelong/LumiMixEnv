@@ -126,6 +126,8 @@ public partial class MoveCamera : MonoBehaviour
     // 存时间戳（秒）和对应的 alpha
     [HideInInspector] public List<float> timeStamps = new List<float>();
     [HideInInspector] public List<float> alphaHistory = new List<float>();
+    [HideInInspector] public List<float> velocityHistory = new List<float>();
+
 
     //速度を調整
     [Space(20)]
@@ -217,19 +219,23 @@ float _tPrev     = -1f;
 
     public enum CompensationClassification
     {
+        A1A2,
+        A2,
+        
+        
+        A1,
         V0_A1A2,
         V0_A2,
         V0_A1,
         V0,
-        A1A2,
-        A2,
-        A1
+        
     }
 
     public CompensationClassification compensationClassification = CompensationClassification.V0;
     public enum ParameterOrder
     {
         V0_A1_PHI1_A2_PHI2, // Original order
+        V0_A1_PHI1_A1_A2_PHI2_A2, 
         V0_A1_PHI1_A2_PHI2_A1_PHI1_A2_PHI2, 
         V0_PHI1_A1_PHI2_A2,
         V0_PHI1_A1_PHI1_PHI2_A2_PHI2,

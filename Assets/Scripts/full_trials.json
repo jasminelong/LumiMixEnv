@@ -4,7 +4,7 @@
     "exp2_intro_test": [
         {
             "condition": 1,
-            "repetition": 1000
+            "repetition": 3
         }
     ],
     "exp2_trials": [
@@ -19,14 +19,6 @@
         {
             "condition": 1,
             "repetition": 3
-        },
-        {
-            "condition": 1,
-            "repetition": 4
-        },
-        {
-            "condition": 1,
-            "repetition": 5
         }
     ],
     "progress": {

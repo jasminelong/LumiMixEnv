@@ -41,8 +41,6 @@ public partial class MoveCamera : MonoBehaviour
         else
             data.Add("FrondFrameNum, FrondFrameLuminance, BackFrameNum, BackFrameLuminance, Time, Knob, ResponsePattern, StepNumber, Amplitude, Velocity, FunctionRatio, CameraSpeed");
 
-
-
     }
     void Update()
     {
@@ -51,6 +49,9 @@ public partial class MoveCamera : MonoBehaviour
 
         if (!mouseClicked && Input.GetMouseButtonDown(0))
         {
+            //上部カメラの位置を下部カメラの位置に設定します。
+            captureCamera0.transform.position = captureCamera1.transform.position;
+
             mouseClicked = true;
             // ボタンがクリックされたときの処理を追加 // 添加按钮点击时的处理
             nextStepButton.gameObject.SetActive(true);
@@ -73,20 +74,14 @@ public partial class MoveCamera : MonoBehaviour
                     nextStepButtonTextComponent.text = "Next Step";
                     break;
                 case 4:
-                    if (experimentPattern == ExperimentPattern.FunctionMix)
-                    {
-                        nextStepButtonTextComponent.text = "Next Step";
-                    }
-                    else
+                    if (paramOrder == ParameterOrder.V0_A1_PHI1_A2_PHI2)
                     {
                         nextStepButtonTextComponent.text = "Entering the next trial";
                     }
                     break;
                 case 5:
-                    if (paramOrder == ParameterOrder.V0_PHI1_A1_PHI1_PHI2_A2_PHI2)
-                    {
-                        nextStepButtonTextComponent.text = "Next Step";
-                    }
+
+                    nextStepButtonTextComponent.text = "Next Step";
                     break;
                 case 6:
                     if (paramOrder == ParameterOrder.V0_PHI1_A1_PHI1_PHI2_A2_PHI2)
@@ -94,8 +89,16 @@ public partial class MoveCamera : MonoBehaviour
                         nextStepButtonTextComponent.text = "Entering the next trial";
                     }
                     break;
-
-
+                case 7:
+                case 8:
+                    nextStepButtonTextComponent.text = "Next Step";
+                    break;
+                case 9:
+                    if (paramOrder == ParameterOrder.V0_A1_PHI1_A2_PHI2_A1_PHI1_A2_PHI2)
+                    {
+                        nextStepButtonTextComponent.text = "Entering the next trial";
+                    }
+                    break;
             }
         }
     }
@@ -111,6 +114,10 @@ public partial class MoveCamera : MonoBehaviour
         else
         {
             LuminanceMixture();
+        }
+        if (Application.isPlaying)
+        {
+            velocityHistory.Add(v);           // 新增
         }
     }
 
@@ -149,7 +156,7 @@ public partial class MoveCamera : MonoBehaviour
                 stepNumber = StepNumber.Option4;
                 break;
             case 5:
-                if (experimentPattern != ExperimentPattern.FunctionMix && paramOrder != ParameterOrder.V0_PHI1_A1_PHI1_PHI2_A2_PHI2)
+                if (paramOrder == ParameterOrder.V0_A1_PHI1_A2_PHI2)
                 {
                     if (isEnd)
                     {
@@ -166,30 +173,25 @@ public partial class MoveCamera : MonoBehaviour
                 stepNumber = StepNumber.Option6;
                 break;
             case 7:
-                if (isEnd)
-                {
-                    QuitGame();
-                }
-                else
-                {
-                    MarkTrialCompletedAndRestart();
-                }
                 stepNumber = StepNumber.Option7;
                 break;
             case 8:
                 stepNumber = StepNumber.Option8;
                 break;
             case 9:
-            if (isEnd)
+                if (paramOrder == ParameterOrder.V0_A1_PHI1_A2_PHI2_A1_PHI1_A2_PHI2)
                 {
-                    QuitGame();
-                }
-                else
-                {
-                    MarkTrialCompletedAndRestart();
+                    if (isEnd)
+                    {
+                        QuitGame();
+                    }
+                    else
+                    {
+                        MarkTrialCompletedAndRestart();
+                    }
                 }
                 stepNumber = StepNumber.Option9;
-                break;  
+                break;
         }
         nextStepButton.gameObject.SetActive(false);
     }
@@ -197,9 +199,6 @@ public partial class MoveCamera : MonoBehaviour
     void Continuous()
     {
         continuousImageRawImage.enabled = true;
-        // カメラが移動する目標位置を計算 // 计算摄像机沿圆锥轴线移动的目标位置right 
-        //Vector3 targetPosition = captureCamera0.transform.position + direction * cameraSpeed * Time.fixedDeltaTime;
-
         time += Time.fixedDeltaTime;
 
         if (experimentPattern == ExperimentPattern.FunctionMix)
@@ -442,6 +441,7 @@ public partial class MoveCamera : MonoBehaviour
         {
             timeStamps.RemoveAt(0);
             alphaHistory.RemoveAt(0);
+            velocityHistory.RemoveAt(0);
         }
 
         // 上限を超えた場合は最古データから削除 //如果依然过多，按最早移除
@@ -449,6 +449,7 @@ public partial class MoveCamera : MonoBehaviour
         {
             timeStamps.RemoveAt(0);
             alphaHistory.RemoveAt(0);
+            velocityHistory.RemoveAt(0);
         }
         //------------波形end
 
@@ -688,9 +689,9 @@ public partial class MoveCamera : MonoBehaviour
 
             // ★ 新增：在 0~1 上加一个平滑窗，使补偿在端点自动收敛到 0
             // 简单版：w(u) = u*(1-u)，在 0 和 1 为 0，中间最大 0.25，很柔和
-            float window =4f * u * (1f - u);          // 0→中间峰→0
-                                                  // 可以按需要放大一点：
-                                                  // float window = 4f * u * (1f - u);  // 0→中间1→0
+            float window = 4f * u * (1f - u);          // 0→中间峰→0
+                                                       // 可以按需要放大一点：
+                                                       // float window = 4f * u * (1f - u);  // 0→中间1→0
 
             // 根据实验模式反向
             if (experimentPattern == ExperimentPattern.LuminancePlusCompensate)
@@ -811,5 +812,49 @@ public partial class MoveCamera : MonoBehaviour
     }
 
 
+    // 在编辑器中绘制 Gizmos 以可视化摄像头位置和方向
+#if UNITY_EDITOR
+private void OnDrawGizmos()
+{
+    // 摄像头的“父物体”
+    Transform parent = captureCamera0.transform.parent;
+
+    // 你 script 里设置的“local 值”
+    Vector3 localPos = new Vector3(4f, 28f, 130f);
+    Quaternion localRot = Quaternion.Euler(0f, 48.5f, 0f);
+
+    Vector3 worldPos;
+    Quaternion worldRot;
+
+    if (parent != null)
+    {
+        // local → world
+        worldPos = parent.TransformPoint(localPos);
+        worldRot = parent.rotation * localRot;
+        Debug.Log($"captureCamera0 world position: {worldPos}, world rotation: {worldRot.eulerAngles}");
+    }
+    else
+    {
+        // 没有父对象，local = world
+        worldPos = localPos;
+        worldRot = localRot;
+        Debug.LogWarning("captureCamera0 has no parent; using local as world.");
+    }
+
+    // 世界方向
+    Vector3 worldDir = worldRot * Vector3.right;
+
+    // 画线
+    Gizmos.color = Color.red;
+    Gizmos.DrawLine(worldPos, worldPos + worldDir * 2000f);
+    Gizmos.DrawSphere(worldPos, 2f);
 }
+#endif
+
+
+
+
+}
+
+
 

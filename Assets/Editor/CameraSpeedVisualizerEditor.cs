@@ -62,7 +62,7 @@ public class MoveCameraEditor : Editor
 
         // prop = serializedObject.FindProperty("brightnessBlendMode");
         // EditorGUILayout.PropertyField(prop);
-        
+
         prop = serializedObject.FindProperty("compensationClassification");
         EditorGUILayout.PropertyField(prop);
 
@@ -130,20 +130,20 @@ public class MoveCameraEditor : Editor
         switch (script.paramOrder)
         {
             case MoveCamera.ParameterOrder.V0_A1_PHI1_A2_PHI2:
-            focusKey = GetFocusKey(stepIdx, new string[] { "A1", "PHI1", "A2", "PHI2" });
+                focusKey = GetFocusKey(stepIdx, new string[] { "A1", "PHI1", "A2", "PHI2" });
                 break;
 
             case MoveCamera.ParameterOrder.V0_A1_PHI1_A2_PHI2_A1_PHI1_A2_PHI2:
-                focusKey = GetFocusKey(stepIdx, new string[] { "A1", "PHI1", "A2", "PHI2","A1", "PHI1", "A2", "PHI2" });
+                focusKey = GetFocusKey(stepIdx, new string[] { "A1", "PHI1", "A2", "PHI2", "A1", "PHI1", "A2", "PHI2" });
                 break;
 
             case MoveCamera.ParameterOrder.V0_PHI1_A1_PHI2_A2:
-            focusKey = GetFocusKey(stepIdx, new string[] { "PHI1", "A1", "PHI2", "A2" });
-            break;
+                focusKey = GetFocusKey(stepIdx, new string[] { "PHI1", "A1", "PHI2", "A2" });
+                break;
 
             case MoveCamera.ParameterOrder.V0_PHI1_A1_PHI1_PHI2_A2_PHI2:
-            focusKey = GetFocusKey(stepIdx, new string[] { "PHI1", "A1", "PHI1", "PHI2", "A2", "PHI2" });
-            break;
+                focusKey = GetFocusKey(stepIdx, new string[] { "PHI1", "A1", "PHI1", "PHI2", "A2", "PHI2" });
+                break;
         }
 
         for (int i = 1; i <= 4; i++)   // A1..φ2 一律 1基
@@ -155,7 +155,7 @@ public class MoveCameraEditor : Editor
             string keyI = (i == 1) ? "A1" : (i == 2) ? "PHI1" : (i == 3) ? "A2" : "PHI2";
             bool isBig = (focusKey == keyI);
 
-            float newValue = isBig 
+            float newValue = isBig
             ? DrawBigSliderWithNumberFloat(label, value, minValues[i], maxValues[i], labelFontSize: 26, valueFontSize: 30, valueColor: Color.red)
             : EditorGUILayout.Slider(label, value, minValues[i], maxValues[i]);
 
@@ -164,9 +164,9 @@ public class MoveCameraEditor : Editor
 
             if (!Mathf.Approximately(newValue, value))
             {
-            Undo.RecordObject(script, "Change Amplitude");
-            script.SetAmplitude(i, newValue);                  // ← 1基写回
-            EditorUtility.SetDirty(script);
+                Undo.RecordObject(script, "Change Amplitude");
+                script.SetAmplitude(i, newValue);                  // ← 1基写回
+                EditorUtility.SetDirty(script);
             }
         }
 
@@ -245,96 +245,76 @@ public class MoveCameraEditor : Editor
     // 画速度曲线 v(t) —— y 轴刻度与曲线完全对齐
     void DrawVelocityGraph(MoveCamera script)
     {
-        if (script == null) return;
-        if (velocityHistory == null) velocityHistory = new Queue<float>(2048);
+        GUILayout.Space(20);
+        EditorGUILayout.LabelField("Velocity v(t)", EditorStyles.boldLabel);
+        GUILayout.Space(10);
 
-        // 动态宽度 & 纹理
-        int desiredWidth = Mathf.Max(64, (int)(EditorGUIUtility.currentViewWidth - 80));
-        if (graphTexture == null || graphTexture.width != desiredWidth || graphTexture.height != graphHeight)
+        var times = script.timeStamps;
+        var vel = script.velocityHistory;   // 你需要同样保存一个 List<float>，与 alphaHistory 同步追加
+        var maxDuration = script.maxDuration;
+        float now = Application.isPlaying ? Time.time : (float)UnityEditor.EditorApplication.timeSinceStartup;
+
+        // ==== 与 Brightness 完全一致的大小 ====
+        Rect rect = GUILayoutUtility.GetRect(300, 150);
+        EditorGUI.DrawRect(rect, new Color(0.1f, 0.1f, 0.1f));
+
+        float w = rect.width;
+        float h = rect.height;
+
+        // ====== Y 轴固定范围 ======
+        float minV = -2f, maxV = 3f;
+
+        // ------- Y ticks -------
+        Handles.color = Color.gray;
+        int yTicks = 5;
+        for (int i = 0; i <= yTicks; i++)
         {
-            graphWidth = desiredWidth;
-            graphTexture = new Texture2D(graphWidth, graphHeight, TextureFormat.RGBA32, false)
+            float t = i / (float)yTicks;
+            float y = Mathf.Lerp(rect.yMax, rect.yMin, t);
+            Handles.DrawLine(new Vector3(rect.xMin, y), new Vector3(rect.xMin + 5, y));
+
+            float v = Mathf.Lerp(minV, maxV, t);
+            GUI.Label(new Rect(rect.xMin + 8, y - 8, 40, 16), v.ToString("F2"));
+        }
+
+        // ------- X ticks (time axis) -------
+        int xTicks = 5;
+        for (int i = 0; i <= xTicks; i++)
+        {
+            float t = i / (float)xTicks;
+            float x = Mathf.Lerp(rect.xMin, rect.xMax, t);
+            Handles.DrawLine(new Vector3(x, rect.yMax), new Vector3(x, rect.yMax - 5));
+
+            float timeLabel = now - maxDuration + t * maxDuration;
+            GUI.Label(new Rect(x - 20, rect.yMax + 2, 40, 16), timeLabel.ToString("F2") + "s");
+        }
+
+        // ====== 曲线 ======
+        Handles.color = Color.cyan;
+        int count = (times != null) ? times.Count : 0;
+
+        if (count > 1)
+        {
+            for (int i = 1; i < count; i++)
             {
-                filterMode = FilterMode.Point,
-                wrapMode = TextureWrapMode.Clamp
-            };
-            velocityHistory.Clear();
+                float t0 = times[i - 1];
+                float t1 = times[i];
+
+                float x0 = rect.xMin + Mathf.Clamp01((t0 - (now - maxDuration)) / maxDuration) * w;
+                float x1 = rect.xMin + Mathf.Clamp01((t1 - (now - maxDuration)) / maxDuration) * w;
+
+                float y0 = rect.yMax - Mathf.InverseLerp(minV, maxV, vel[i - 1]) * h;
+                float y1 = rect.yMax - Mathf.InverseLerp(minV, maxV, vel[i]) * h;
+
+                Handles.DrawLine(new Vector3(x0, y0), new Vector3(x1, y1));
+            }
         }
 
-        // 采样历史（播放时）
-        if (Application.isPlaying)
-        {
-            velocityHistory.Enqueue(script.v);
-            while (velocityHistory.Count > graphWidth) velocityHistory.Dequeue();
-        }
-
-        // 背景
-        var bg = new Color(0.12f, 0.12f, 0.12f);
-        var pixels = new Color[graphWidth * graphHeight];
-        for (int i = 0; i < pixels.Length; i++) pixels[i] = bg;
-        graphTexture.SetPixels(pixels);
-
-        // 历史数组（为空则用当前值）
-        float[] values = (velocityHistory != null && velocityHistory.Count > 0)
-            ? velocityHistory.ToArray()
-            : new float[1] { script.v };
-
-        // ===== 固定 Y 轴范围（不再随数据变化）=====
-        float minV = -2f;
-        float maxV = 3.0f;
-
-        // y=0 轴（与曲线统一用 height-1）
-        int zeroY = Mathf.RoundToInt(Mathf.InverseLerp(minV, maxV, 0f) * (graphHeight - 1));
-        if (zeroY >= 0 && zeroY < graphHeight)
-            for (int x = 0; x < graphWidth; x++)
-                graphTexture.SetPixel(x, zeroY, new Color(0.7f, 0.7f, 0.7f, 1f));
-
-        // 曲线
-        for (int x = 0; x < values.Length - 1; x++)
-        {
-            int y1 = Mathf.RoundToInt(Mathf.InverseLerp(minV, maxV, values[x]) * (graphHeight - 1));
-            int y2 = Mathf.RoundToInt(Mathf.InverseLerp(minV, maxV, values[x + 1]) * (graphHeight - 1));
-            DrawLineOnTexture(graphTexture, x, y1, x + 1, y2, Color.cyan);
-        }
-        graphTexture.Apply();
-
-        // 标题
-        GUILayout.Label("速度曲線 v(t)", EditorStyles.boldLabel);
-
-        // 左刻度 + 右图像（同一坐标系）
-        EditorGUILayout.BeginHorizontal();
-        Rect yAxisRect = GUILayoutUtility.GetRect(60, graphHeight);
-        Rect graphRect = GUILayoutUtility.GetRect(graphWidth, graphHeight, GUILayout.ExpandWidth(true));
-
-        GUI.DrawTexture(graphRect, graphTexture, ScaleMode.StretchToFill);
-
-        int yDiv = 5;
-        var tickStyle = new GUIStyle(EditorStyles.miniLabel) { alignment = TextAnchor.MiddleRight };
-
-        Handles.BeginGUI();
-        for (int i = 0; i <= yDiv; i++)
-        {
-            float t = i / (float)yDiv;           // 顶(0)→底(1)
-            float v = Mathf.Lerp(maxV, minV, t); // 固定范围内的刻度值
-            float y = Mathf.Lerp(graphRect.yMin, graphRect.yMax, t);
-
-            GUI.Label(new Rect(yAxisRect.x, y - 8, yAxisRect.width - 4, 16), v.ToString("F2"), tickStyle);
-
-            Handles.color = new Color(1f, 1f, 1f, 0.12f);
-            Handles.DrawLine(new Vector2(graphRect.xMin, y), new Vector2(graphRect.xMax, y));
-        }
-        Handles.EndGUI();
-
-        EditorGUILayout.EndHorizontal();
-
-        // 运行时信息
-        if (Application.isPlaying)
-        {
-            EditorGUILayout.LabelField("時間:", Time.time.ToString("F2") + " 秒");
-            EditorGUILayout.LabelField("速度 v(t):", script.v.ToString("F3"));
-            Repaint();
-        }
+        GUILayout.Space(20);
+        EditorGUILayout.LabelField($"最新5秒間の速度サンプル数: {count} ");
     }
+
+
 
     // 绘制线段（Bresenham風）
     void DrawLineOnTexture(Texture2D tex, int x0, int y0, int x1, int y1, Color col)
