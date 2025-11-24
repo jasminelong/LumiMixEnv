@@ -342,7 +342,7 @@ public partial class MoveCamera : MonoBehaviour
     void NoLuminanceBlendSingleCameraMove()
     {
         float speed1 = CameraSpeedCompensation(1);
-
+        Debug.Log($"Camera Speed: {speed1}");
         // 按计算得到的速度移动 captureCamera1（若需要同时移动 captureCamera2，也可加）
         Vector3 delta1 = direction * speed1 * Time.deltaTime;
         captureCamera1.transform.position += delta1;
@@ -776,8 +776,8 @@ public partial class MoveCamera : MonoBehaviour
                 speed = p.A1 * s1 + p.A2 * s2;
                 break;
         }
-        float beta = 0.5f;
-        return classification == 1 ? beta * speed : -beta * speed;
+         
+        return classification == 1 ? speed : -speed;
     }
 
     private int frameCount = 0;

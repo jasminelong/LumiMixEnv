@@ -91,7 +91,7 @@ public partial class MoveCamera : MonoBehaviour
 
     private List<string> data = new List<string>();
     private float startTime;
-    private string folderName = "ExperimentData33"; // サブフォルダ名 // 子文件夹名称
+    private string folderName = "ExperimentData44"; // サブフォルダ名 // 子文件夹名称
     private float timeMs; // 現在までの経過時間 // 运行到现在的时间
     private Vector3 direction;
 
@@ -219,19 +219,19 @@ float _tPrev     = -1f;
 
     public enum CompensationClassification
     {
+        V0_A1,
         A1A2,
         A2,
-        
         
         A1,
         V0_A1A2,
         V0_A2,
-        V0_A1,
+        
         V0,
         
     }
 
-    public CompensationClassification compensationClassification = CompensationClassification.V0;
+    public CompensationClassification compensationClassification = CompensationClassification.A1A2;
     public enum ParameterOrder
     {
         V0_A1_PHI1_A2_PHI2, // Original order

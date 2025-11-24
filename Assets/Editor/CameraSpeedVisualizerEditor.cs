@@ -76,7 +76,7 @@ public class MoveCameraEditor : Editor
         DrawBrightnessGraph(script);
 
         // CaptureCamera1 速度图（抽出方法，与 Brightness 一致的尺寸与横轴）
-        // DrawCaptureCamera1ReverseJumpSpeedGraph(script);
+        DrawCaptureCamera1ReverseJumpSpeedGraph(script);
 
         //4.5-----
         prop = serializedObject.FindProperty("omega");
