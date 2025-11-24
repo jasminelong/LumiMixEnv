@@ -242,97 +242,6 @@ public partial class MoveCamera : MonoBehaviour
                         if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time);// A2
                         if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);// φ2 
                         break;
-                    case ParameterOrder.V0_A1_PHI1_A2_PHI2_A1_PHI1_A2_PHI2:
-                        if (step == 1 || step == 3 || step == 5 || step == 7)
-                        {
-                            amplitudeToSaveData = Mathf.Lerp(A_min, A_max, knobValue);
-                            if (step == 1 || step == 5)
-                            {
-                                amplitudes[1] = amplitudeToSaveData;
-                            }
-                            else if (step == 3 || step == 7)
-                            {
-                                amplitudes[3] = amplitudeToSaveData;
-                            }
-                        }
-                        if (step == 2 || step == 4 || step == 6 || step == 8)
-                        {
-                            amplitudeToSaveData = knobValue * 2f * Mathf.PI;
-                            if (step == 2 || step == 6)
-                            {
-                                amplitudes[2] = amplitudeToSaveData;
-                            }
-                            else if (step == 4 || step == 8)
-                            {
-                                amplitudes[4] = amplitudeToSaveData;
-                            }
-                        }
-                        if (step >= 1) v = V0 + amplitudes[1] * Mathf.Sin(omega * time);// A1
-                        if (step >= 2) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI);// φ1
-                        if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time);// A2
-                        if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);// φ2 
-                        if (step >= 5) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);// A1
-                        if (step >= 6) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);// φ1 
-                        if (step >= 7) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);// A2
-                        if (step >= 8) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);// φ2 
-                        break;
-                    case ParameterOrder.V0_PHI1_A1_PHI2_A2: // V0, φ1, A1, φ2, A2
-                        if (step == 1 || step == 3)
-                        {
-                            amplitudeToSaveData = knobValue * 2f * Mathf.PI;
-                            amplitudes[step + 1] = amplitudeToSaveData;
-                        }
-                        if (step == 2 || step == 4)
-                        {
-                            amplitudeToSaveData = Mathf.Lerp(A_min, A_max, knobValue);
-                            amplitudes[step - 1] = amplitudeToSaveData;
-                        }
-                        if (step >= 1) v = V0 + V0 / 2 * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI);// φ1
-                        if (step >= 2) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI);// A1
-                        if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[1] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);// φ2
-                        if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);// A2
-                        break;
-
-                    case ParameterOrder.V0_PHI1_A1_PHI1_PHI2_A2_PHI2: // V0, φ1, A1, φ1, φ2, A2, φ2
-                        if (step == 1 || step == 3 || step == 4 || step == 6)
-                        {
-                            amplitudeToSaveData = knobValue * 2f * Mathf.PI;
-                            if (step == 1)
-                            {
-                                amplitudes[2] = amplitudeToSaveData;
-                            }
-                            else if (step == 3)
-                            {
-                                amplitudes[4] = amplitudeToSaveData;
-                            }
-                            else if (step == 4)
-                            {
-                                amplitudes[2] = amplitudeToSaveData;
-                            }
-                            else if (step == 6)
-                            {
-                                amplitudes[4] = amplitudeToSaveData;
-                            }
-                        }
-                        if (step == 2 || step == 5)
-                        {
-                            amplitudeToSaveData = Mathf.Lerp(A_min, A_max, knobValue);
-                            if (step == 2)
-                            {
-                                amplitudes[1] = amplitudeToSaveData;
-                            }
-                            else if (step == 5)
-                            {
-                                amplitudes[3] = amplitudeToSaveData;
-                            }
-                        }
-                        if (step >= 1) v = V0 + V0 / 2 * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI);// φ1
-                        if (step >= 2) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI);// A1
-                        if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI);// φ1
-                        if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[1] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);// φ2
-                        if (step >= 5) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);// A2
-                        if (step >= 6) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);// φ2
-                        break;
                 }
             }
             captureCamera0.transform.position += direction * v * Time.deltaTime;
@@ -519,31 +428,6 @@ public partial class MoveCamera : MonoBehaviour
 #endif
     }
 
-    void UpdateProgress()
-    {
-        string json = File.ReadAllText(savePath);
-        ExperimentData data = JsonUtility.FromJson<ExperimentData>(json);
-        switch (currentProgress)
-        {
-            case "exp1_intro_test":
-                data.progress.exp1_intro_test++;
-                break;
-            case "exp1_trials":
-                data.progress.exp1_trials++;
-                break;
-            case "exp2_intro_test":
-                data.progress.exp2_intro_test++;
-                break;
-            case "exp2_trials":
-                data.progress.exp2_trials++;
-                break;
-        }
-
-        // 保存
-        string updatedJson = JsonUtility.ToJson(data, true);
-        File.WriteAllText(savePath, updatedJson);
-    }
-
     void OnDestroy()
     {
         // 現在の日付を取得 // 获取当前日期
@@ -687,8 +571,10 @@ public partial class MoveCamera : MonoBehaviour
 
             float m_norm = m / Mathf.Max(Mathf.Abs(p.V0), 1e-3f);
 
-            // ★ 新增：在 0~1 上加一个平滑窗，使补偿在端点自动收敛到 0
+            // 新增：在 0~1 上加一个平滑窗，使补偿在端点自动收敛到 0
             // 简单版：w(u) = u*(1-u)，在 0 和 1 为 0，中间最大 0.25，很柔和
+            // 0〜1 の区間で滑らかに効くウィンドウを掛けて，端点では補償量が 0 になるようにする
+            // シンプルな形：w(u) = u * (1 - u)（u=0,1 で 0，中点 u=0.5 で最大 0.25 のなだらかな山形）
             float window = 4f * u * (1f - u);          // 0→中间峰→0
                                                        // 可以按需要放大一点：
                                                        // float window = 4f * u * (1f - u);  // 0→中间1→0
@@ -776,7 +662,7 @@ public partial class MoveCamera : MonoBehaviour
                 speed = p.A1 * s1 + p.A2 * s2;
                 break;
         }
-         
+
         return classification == 1 ? speed : -speed;
     }
 
