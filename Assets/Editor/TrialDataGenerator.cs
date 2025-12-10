@@ -11,8 +11,11 @@ public static class TrialDataGenerator
     {
         ExperimentData data = new ExperimentData
         {
-            // practice: LuminanceLinearMix -> condition 1
-            exp2_intro_test = new List<Trial> { new Trial { condition = 1, repetition = 1 } },
+            // practice: LuminanceLinearMix -> condition 1, 以及 condition 2 作为额外练习
+            exp2_intro_test = new List<Trial> {
+                new Trial { condition = 1, repetition = 1 },
+                new Trial { condition = 2, repetition = 1 } 
+            },
             // experimental trials: other 4 conditions (2..5), each repeated 3 times and randomized
             exp2_trials = GenerateRandomExp2Trials(),
             progress = new Progress()

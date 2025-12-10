@@ -22,7 +22,7 @@ public partial class MoveCamera : MonoBehaviour
 
         Trial currentTrial = null;
 
-        // 1) Practice: exp2_intro_test (LuminanceLinearMix) — always first if present
+        // 1) Practice: exp2_intro_test — 现在 practice 可以包含不同 condition
         if (data.exp2_intro_test != null && data.progress.exp2_intro_test < data.exp2_intro_test.Count)
         {
             currentTrial = data.exp2_intro_test[data.progress.exp2_intro_test];
@@ -30,8 +30,21 @@ public partial class MoveCamera : MonoBehaviour
             Debug.Log("Now exp2_intro_test (practice)");
 
             devMode = DevMode.Test;
-            experimentPattern = ExperimentPattern.LuminanceLinearMix;
-            brightnessBlendMode = BrightnessBlendMode.LinearOnly;
+
+            // 根据 practice 条目的 condition 设置对应的实验模式（允许 condition=2 作为练习）
+            switch (currentTrial.condition)
+            {
+                case 1:
+                    experimentPattern = ExperimentPattern.LuminanceLinearMix;
+                    break;
+                case 2:
+                    experimentPattern = ExperimentPattern.CameraJumpMoveMinusCompensate;
+                    break;
+                // 如有需要可加入更多练习 condition 的映射
+                default:
+                    experimentPattern = ExperimentPattern.LuminanceLinearMix;
+                    break;
+            }
 
             // If this is the last item and no real trials exist, mark end
             if (data.progress.exp2_intro_test + 1 == data.exp2_intro_test.Count &&
@@ -59,28 +72,22 @@ public partial class MoveCamera : MonoBehaviour
             {
                 case 1:
                     experimentPattern = ExperimentPattern.LuminanceLinearMix;
-                    brightnessBlendMode = BrightnessBlendMode.LinearOnly;
                     break;
                 case 2:
                     experimentPattern = ExperimentPattern.CameraJumpMoveMinusCompensate;
-                    brightnessBlendMode = BrightnessBlendMode.Dynamic;
                     break;
                 case 3:
                     experimentPattern = ExperimentPattern.CameraJumpMovePlusCompensate;
-                    brightnessBlendMode = BrightnessBlendMode.Dynamic;
                     break;
                 case 4:
                     experimentPattern = ExperimentPattern.LuminanceMinusCompensate;
-                    brightnessBlendMode = BrightnessBlendMode.LinearOnly;
                     break;
                 case 5:
                     experimentPattern = ExperimentPattern.LuminancePlusCompensate;
-                    brightnessBlendMode = BrightnessBlendMode.LinearOnly;
                     break;
                 default:
                     // safe fallback
                     experimentPattern = ExperimentPattern.LuminanceLinearMix;
-                    brightnessBlendMode = BrightnessBlendMode.LinearOnly;
                     break;
             }
 

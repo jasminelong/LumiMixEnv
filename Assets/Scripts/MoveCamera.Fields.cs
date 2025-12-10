@@ -185,7 +185,7 @@ public partial class MoveCamera : MonoBehaviour
 
    
     [Header("Subject / Condition")]
-    public SubjectOption subject = SubjectOption.KK_F;  // Inspector 里选   择被试   
+    public SubjectOption subject = SubjectOption.OMU_B;  // Inspector 里选   择被试   
         // T = 1 s → ω = 2π rad/s
     private const float OMEGA = 2f * Mathf.PI;
 
