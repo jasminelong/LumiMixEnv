@@ -42,7 +42,7 @@ public partial class MoveCamera : MonoBehaviour
             data.Add("FrondFrameNum, FrondFrameLuminance, BackFrameNum, BackFrameLuminance, Time, Knob, ResponsePattern, StepNumber, Amplitude, Velocity, FunctionRatio, CameraSpeed");
 
     }
-        void Awake()
+    void Awake()
     {
         // 强制运行时初始为 Option1（避免被旧序列化值影响）
         if ((int)stepNumber < 1) stepNumber = StepNumber.Option1;
@@ -111,7 +111,10 @@ public partial class MoveCamera : MonoBehaviour
     // Update is called once per frame
     void FixedUpdate()
     {
-        timeMs = (Time.time - startTime) * 1000;
+        // timeMs = (Time.time - startTime) * 1000;
+        // 使用固定步长计算 timeMs，确保每次增加为 Time.fixedDeltaTime（约 16.6667ms）
+        timeMs = fixedUpdateCounter * Time.fixedDeltaTime * 1000f;
+       
         Continuous();
         if (experimentPattern == ExperimentPattern.NoLuminanceBlendSingleCameraMove)
         {
@@ -125,6 +128,8 @@ public partial class MoveCamera : MonoBehaviour
         {
             velocityHistory.Add(v);           // 新增
         }
+        // 在帧末自增计数器（保证本帧使用当前计数器值）
+        fixedUpdateCounter++;
     }
 
     void OnNextStep()
@@ -133,6 +138,7 @@ public partial class MoveCamera : MonoBehaviour
         Time.timeScale = 1f;
         currentStep++;
         responsePattern = ResponsePattern.Amplitude;
+        ResetCamerasAndBlendState();
         switch (currentStep)
         {
             case 1:
@@ -216,7 +222,6 @@ public partial class MoveCamera : MonoBehaviour
             // つまみセンサー値（0〜1）を取得し
             float knobValue = Mathf.Clamp01(SerialReader.lastSensorValue);
             int step = (int)stepNumber;
-            Debug.Log($"Step Number: {step}, Knob Value: {knobValue}");
             V0 = 1.0f;
             // if (responsePattern == ResponsePattern.Velocity)
             // {
@@ -228,27 +233,27 @@ public partial class MoveCamera : MonoBehaviour
             // if (responsePattern == ResponsePattern.Amplitude)
             // {
 
-                //2.v(t)=V0 + A1·sin(ωt + φ1 + Mathf.PI) + A2·sin(2ωt + φ2 + Mathf.PI)
-                // 現在の速度を計算
-                // Define parameter adjustment order
-                // Parameter order is now defined at the top of the file
-                // Change this to switch orders
+            //2.v(t)=V0 + A1·sin(ωt + φ1 + Mathf.PI) + A2·sin(2ωt + φ2 + Mathf.PI)
+            // 現在の速度を計算
+            // Define parameter adjustment order
+            // Parameter order is now defined at the top of the file
+            // Change this to switch orders
 
-                if (step == 1 || step == 3)
-                {
-                    amplitudeToSaveData = Mathf.Lerp(A_min, A_max, knobValue);
-                }
-                if (step == 2 || step == 4)
-                {
-                    amplitudeToSaveData = knobValue * 2f * Mathf.PI;
-                }
-                amplitudes[step] = amplitudeToSaveData;
-                if (step >= 1) v = V0 + amplitudes[1] * Mathf.Sin(omega * time);// A1
-                if (step >= 2) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI);// φ1
-                if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time);// A2
-                if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);// φ2 
-            // }
-            
+            if (step == 1 || step == 3)
+            {
+                amplitudeToSaveData = Mathf.Lerp(A_min, A_max, knobValue);
+            }
+            if (step == 2 || step == 4)
+            {
+                amplitudeToSaveData = knobValue * 2f * Mathf.PI;
+            }
+            amplitudes[step] = amplitudeToSaveData;
+            if (step >= 1) v = V0 + amplitudes[1] * Mathf.Sin(omega * time);// A1
+            if (step >= 2) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI);// φ1
+            if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time);// A2
+            if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);// φ2 
+                                                                                                                                                                                // }
+
             captureCamera0.transform.position += direction * v * Time.deltaTime;
 
         }
@@ -285,6 +290,8 @@ public partial class MoveCamera : MonoBehaviour
             captureCamera1.transform.position += delta;
             captureCamera2.transform.position += delta;
         }
+        Debug.Log($"timeMs: {timeMs}, frameNum: {frameNum}, targetTimeMs: {frameNum * updateInterval * 1000}");
+        Debug.Log($"setime: {Mathf.Abs(timeMs - frameNum * updateInterval * 1000)}");
         if (Mathf.Abs(timeMs - frameNum * updateInterval * 1000) < 0.2f)
         {
             frameNum++;
@@ -399,6 +406,53 @@ public partial class MoveCamera : MonoBehaviour
                 captureCamera0.transform.position = new Vector3(39f, 28f, 90f);
                 break;
         }
+        // 保存初始位姿（第一次初始化）
+        if (!initPoseSaved)
+        {
+            initPos0 = captureCamera0.transform.position;
+            initPos1 = captureCamera1.transform.position;
+            initPos2 = captureCamera2.transform.position;
+            initRot0 = captureCamera0.transform.rotation;
+            initRot1 = captureCamera1.transform.rotation;
+            initRot2 = captureCamera2.transform.rotation;
+            initPoseSaved = true;
+        }
+    }
+    public void ResetCamerasAndBlendState()
+    {
+        if (!initPoseSaved) InitialSetup(); // 保底
+
+        // 恢复位姿
+        captureCamera0.transform.position = initPos0;
+        captureCamera0.transform.rotation = initRot0;
+        captureCamera1.transform.position = initPos1;
+        captureCamera1.transform.rotation = initRot1;
+        captureCamera2.transform.position = initPos2;
+        captureCamera2.transform.rotation = initRot2;
+        captureCamera2.transform.position += direction * captureIntervalDistance;
+        // 重置帧/时间/历史，使混合从干净状态开始（避免残留上一组的 alpha/帧计数）
+        frameNum = 1;
+        
+        // startTime = Time.time;
+        // 关键：把固定帧计数器清零，timeMs 将从 0 严格按 Time.fixedDeltaTime 递增
+        fixedUpdateCounter = 0;
+        timeMs = 0f;
+
+        timeStamps.Clear();
+        alphaHistory.Clear();
+        velocityHistory.Clear();
+
+        // 重新初始化 CaptureCameraLinearBlendRawImage 的贴图与 alpha（保证上/下层确定）
+        if (CaptureCameraLinearBlendRawImage != null)
+        {
+            CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture1);
+            CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture2);
+            CaptureCameraLinearBlendRawImage.material.SetColor("_TopColor", new Color(1f, 1f, 1f, 1f));
+            CaptureCameraLinearBlendRawImage.material.SetColor("_BottomColor", new Color(1f, 1f, 1f, 0f));
+        }
+
+        // 重新计算与摄像机速度相关的参数（如需要）
+        // captureIntervalDistance = cameraSpeed / Mathf.Max(fps, 1f);
     }
 
     void GetRawImage()

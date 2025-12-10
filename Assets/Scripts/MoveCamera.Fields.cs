@@ -247,5 +247,10 @@ float _tPrev     = -1f;
 private float[] timeMap = new float[N];
 private bool mapReady = false;
 
+    private Vector3 initPos0, initPos1, initPos2;
+    private Quaternion initRot0, initRot1, initRot2;
+    private bool initPoseSaved = false;
+    // 新增：标记刚刚重置时间
+    private int fixedUpdateCounter = 0;
 
 }
