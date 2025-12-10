@@ -57,9 +57,11 @@ public class MoveCameraEditor : Editor
         prop = serializedObject.FindProperty("experimentPattern");
         EditorGUILayout.PropertyField(prop);
 
-        prop = serializedObject.FindProperty("paramOrder");
-        EditorGUILayout.PropertyField(prop);
+        // prop = serializedObject.FindProperty("paramOrder");
+        // EditorGUILayout.PropertyField(prop);
 
+        prop = serializedObject.FindProperty("stepNumber");
+        EditorGUILayout.PropertyField(prop);
         // prop = serializedObject.FindProperty("brightnessBlendMode");
         // EditorGUILayout.PropertyField(prop);
 
@@ -90,20 +92,19 @@ public class MoveCameraEditor : Editor
         EditorGUILayout.PropertyField(prop);
         // === 由 StepNumber 控制哪个参数用“大样式” ===
         var current = script.stepNumber; // MoveCamera.StepNumber
-
         // 1) V0
         var propV0 = serializedObject.FindProperty("V0");
-        bool v0IsBig = (current == MoveCamera.StepNumber.Option0);
-        if (v0IsBig)
-        {
-            DrawBigSliderWithNumber(propV0, "V0", -2f, 2f,
-                                    labelFontSize: 26, valueFontSize: 30,
-                                    valueColor: Color.red);
-        }
-        else
-        {
+        // bool v0IsBig = (current == MoveCamera.StepNumber.Option0);
+        // if (v0IsBig)
+        // {
+        //     DrawBigSliderWithNumber(propV0, "V0", -2f, 2f,
+        //                             labelFontSize: 26, valueFontSize: 30,
+        //                             valueColor: Color.red);
+        // }
+        // else
+        // {
             EditorGUILayout.Slider(propV0, -2f, 2f);
-        }
+        // }
         serializedObject.ApplyModifiedProperties();
 
         GUILayout.Space(10);

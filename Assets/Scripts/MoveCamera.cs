@@ -42,6 +42,12 @@ public partial class MoveCamera : MonoBehaviour
             data.Add("FrondFrameNum, FrondFrameLuminance, BackFrameNum, BackFrameLuminance, Time, Knob, ResponsePattern, StepNumber, Amplitude, Velocity, FunctionRatio, CameraSpeed");
 
     }
+        void Awake()
+    {
+        // 强制运行时初始为 Option1（避免被旧序列化值影响）
+        if ((int)stepNumber < 1) stepNumber = StepNumber.Option1;
+        Debug.Log($"[MoveCamera] stepNumber = {(int)stepNumber} ({stepNumber}) in Awake");
+    }
     void Update()
     {
         /// マウス入力は1フレームのみ検出されるため、Update() で処理する必要があります。
@@ -210,14 +216,17 @@ public partial class MoveCamera : MonoBehaviour
             // つまみセンサー値（0〜1）を取得し
             float knobValue = Mathf.Clamp01(SerialReader.lastSensorValue);
             int step = (int)stepNumber;
-
-            if (responsePattern == ResponsePattern.Velocity)
-            {
-                V0 = knobValue * 2f;
-                v = V0;
-            }
-            else if (responsePattern == ResponsePattern.Amplitude)
-            {
+            Debug.Log($"Step Number: {step}, Knob Value: {knobValue}");
+            V0 = 1.0f;
+            // if (responsePattern == ResponsePattern.Velocity)
+            // {
+            //     // V0 = knobValue * 2f;
+            //     V0 = 1.0f;
+            //     v = V0;
+            // }
+            // else 
+            // if (responsePattern == ResponsePattern.Amplitude)
+            // {
 
                 //2.v(t)=V0 + A1·sin(ωt + φ1 + Mathf.PI) + A2·sin(2ωt + φ2 + Mathf.PI)
                 // 現在の速度を計算
@@ -225,25 +234,21 @@ public partial class MoveCamera : MonoBehaviour
                 // Parameter order is now defined at the top of the file
                 // Change this to switch orders
 
-                switch (paramOrder)
+                if (step == 1 || step == 3)
                 {
-                    case ParameterOrder.V0_A1_PHI1_A2_PHI2: // Original orderV0,  A1, φ1, A2, φ2 
-                        if (step == 1 || step == 3)
-                        {
-                            amplitudeToSaveData = Mathf.Lerp(A_min, A_max, knobValue);
-                        }
-                        if (step == 2 || step == 4)
-                        {
-                            amplitudeToSaveData = knobValue * 2f * Mathf.PI;
-                        }
-                        amplitudes[step] = amplitudeToSaveData;
-                        if (step >= 1) v = V0 + amplitudes[1] * Mathf.Sin(omega * time);// A1
-                        if (step >= 2) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI);// φ1
-                        if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time);// A2
-                        if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);// φ2 
-                        break;
+                    amplitudeToSaveData = Mathf.Lerp(A_min, A_max, knobValue);
                 }
-            }
+                if (step == 2 || step == 4)
+                {
+                    amplitudeToSaveData = knobValue * 2f * Mathf.PI;
+                }
+                amplitudes[step] = amplitudeToSaveData;
+                if (step >= 1) v = V0 + amplitudes[1] * Mathf.Sin(omega * time);// A1
+                if (step >= 2) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI);// φ1
+                if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time);// A2
+                if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);// φ2 
+            // }
+            
             captureCamera0.transform.position += direction * v * Time.deltaTime;
 
         }
@@ -389,9 +394,9 @@ public partial class MoveCamera : MonoBehaviour
                 captureCamera2.transform.rotation = Quaternion.Euler(0, 48.5f, 0);
                 captureCamera1.transform.rotation = Quaternion.Euler(0, 48.5f, 0);
                 captureCamera0.transform.rotation = Quaternion.Euler(0, 48.5f, 0);
-                captureCamera2.transform.position = new Vector3(4f, 28f, 130f);
-                captureCamera1.transform.position = new Vector3(4f, 28f, 130f);
-                captureCamera0.transform.position = new Vector3(4f, 28f, 130f);
+                captureCamera2.transform.position = new Vector3(39f, 28f, 90f);
+                captureCamera1.transform.position = new Vector3(39f, 28f, 90f);
+                captureCamera0.transform.position = new Vector3(39f, 28f, 90f);
                 break;
         }
     }
