@@ -46,7 +46,8 @@ public partial class MoveCamera : MonoBehaviour
         Dynamic,      // Cosine → Linear → Acos → Cosine
         CosineOnly,
         LinearOnly,
-        AcosOnly
+        AcosOnly,
+        PhaseLinearized  // 相位线性化
     }
     public enum DevMode
     {
@@ -252,5 +253,6 @@ private bool mapReady = false;
     private bool initPoseSaved = false;
     // 新增：标记刚刚重置时间
     private int fixedUpdateCounter = 0;
-
+public static float dEffRad = 2.9943305f; 
+// 这是目前结果推出来的：d_mod=3.2888548 => d_eff = 2π - d_mod = 2.9943305 rad (~0.954π)
 }

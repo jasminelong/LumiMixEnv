@@ -34,7 +34,6 @@ public static class FullscreenGameView
         {
             Debug.LogWarning("GameView.showToolbar property not found.");
         }
-
         if (instance != null)
         {
             instance.Close();

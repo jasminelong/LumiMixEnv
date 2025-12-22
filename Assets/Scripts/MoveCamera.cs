@@ -114,7 +114,7 @@ public partial class MoveCamera : MonoBehaviour
         // timeMs = (Time.time - startTime) * 1000;
         // 使用固定步长计算 timeMs，确保每次增加为 Time.fixedDeltaTime（约 16.6667ms）
         timeMs = fixedUpdateCounter * Time.fixedDeltaTime * 1000f;
-       
+
         Continuous();
         if (experimentPattern == ExperimentPattern.NoLuminanceBlendSingleCameraMove)
         {
@@ -290,8 +290,6 @@ public partial class MoveCamera : MonoBehaviour
             captureCamera1.transform.position += delta;
             captureCamera2.transform.position += delta;
         }
-        Debug.Log($"timeMs: {timeMs}, frameNum: {frameNum}, targetTimeMs: {frameNum * updateInterval * 1000}");
-        Debug.Log($"setime: {Mathf.Abs(timeMs - frameNum * updateInterval * 1000)}");
         if (Mathf.Abs(timeMs - frameNum * updateInterval * 1000) < 0.2f)
         {
             frameNum++;
@@ -330,13 +328,17 @@ public partial class MoveCamera : MonoBehaviour
             // ② 算出当前这 1s 区间内的时间（秒）
             float tLocalSec = Image1ToNowDeltaTime / 1000f;
             ModParams p = GetParams(subject);
-            nonlinearPreviousImageRatio = BrightnessBlend.BrightnessCompensation(previousImageRatio, tLocalSec, updateInterval, p, compensationClassification, experimentPattern);
-            nonlinearNextImageRatio = BrightnessBlend.BrightnessCompensation(nextImageRatio, tLocalSec, updateInterval, p, compensationClassification, experimentPattern);
+            // nonlinearPreviousImageRatio = BrightnessBlend.BrightnessCompensation(previousImageRatio, tLocalSec, updateInterval, p, compensationClassification, experimentPattern);
+            // nonlinearNextImageRatio = BrightnessBlend.BrightnessCompensation(nextImageRatio, tLocalSec, updateInterval, p, compensationClassification, experimentPattern);
+            nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, knobValue, brightnessBlendMode);
+            nonlinearPreviousImageRatio = 1f - nonlinearNextImageRatio;
         }
         else
         {
-            nonlinearPreviousImageRatio = BrightnessBlend.GetMixedValue(previousImageRatio, knobValue, brightnessBlendMode);
+            // nonlinearPreviousImageRatio = BrightnessBlend.GetMixedValue(previousImageRatio, knobValue, brightnessBlendMode);
+            // nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, knobValue, brightnessBlendMode);
             nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, knobValue, brightnessBlendMode);
+            nonlinearPreviousImageRatio = 1f - nonlinearNextImageRatio;
         }
 
         if (frameNum % 2 == 0)
@@ -432,7 +434,7 @@ public partial class MoveCamera : MonoBehaviour
         captureCamera2.transform.position += direction * captureIntervalDistance;
         // 重置帧/时间/历史，使混合从干净状态开始（避免残留上一组的 alpha/帧计数）
         frameNum = 1;
-        
+
         // startTime = Time.time;
         // 关键：把固定帧计数器清零，timeMs 将从 0 严格按 Time.fixedDeltaTime 递增
         fixedUpdateCounter = 0;
@@ -550,12 +552,60 @@ public partial class MoveCamera : MonoBehaviour
                     return x;
                 case BrightnessBlendMode.AcosOnly:
                     return Mathf.Acos(-2f * x + 1f) / Mathf.PI;
+                case BrightnessBlendMode.PhaseLinearized:
+                    {
+                        float w0 = PhaseLinearizedWeight(x, dEffRad);
+
+                        // gamma建议先从 3~8 试
+                        float gamma = Mathf.Lerp(1f, 8f, knobValue);
+                        return SharpenWeight(w0, gamma);
+                    }
+
                 case BrightnessBlendMode.Dynamic:
                 default:
                     return GetDynamicBlend(x, knobValue);
             }
         }
+        static float WithDeadZone(float p, float dead)
+        {
+            p = Mathf.Clamp01(p);
+            dead = Mathf.Clamp(dead, 0f, 0.49f);
 
+            if (p <= dead) return 0f;
+            if (p >= 1f - dead) return 1f;
+            return (p - dead) / (1f - 2f * dead);
+        }
+
+        static float SharpenWeight(float w, float gamma)
+        {
+            w = Mathf.Clamp01(w);
+            gamma = Mathf.Max(1f, gamma);
+
+            float a = Mathf.Pow(w, gamma);
+            float b = Mathf.Pow(1f - w, gamma);
+            float denom = a + b;
+            if (denom < 1e-6f) return w;
+            return a / denom;
+        }
+        static float PhaseLinearizedWeight(float p, float dEff)
+        {
+            p = Mathf.Clamp01(p);
+            if (p <= 0f) return 0f;
+            if (p >= 1f) return 1f;
+
+            // 目标：让相位 k = dEff * p 线性变化
+            float k = dEff * p;
+
+            float a = Mathf.Sin(k);
+            float b = Mathf.Sin(dEff - k);
+            float denom = a + b;
+
+            // 极端情况下避免除0
+            if (Mathf.Abs(denom) < 1e-6f) return p;
+
+            float w = a / denom;
+            return Mathf.Clamp01(w);
+        }
         /// <summary>
         /// Cosine → Linear → Acos 的动态混合实现
         /// </summary>
