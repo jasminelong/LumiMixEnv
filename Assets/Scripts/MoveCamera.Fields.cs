@@ -45,9 +45,10 @@ public partial class MoveCamera : MonoBehaviour
     {
         Dynamic,      // Cosine → Linear → Acos → Cosine
         CosineOnly,
-        LinearOnly,
         AcosOnly,
-        PhaseLinearized  // 相位线性化
+        LinearOnly,
+        PhaseLinearized, // 相位线性化,
+        InverseMapLUT
     }
     public enum DevMode
     {
@@ -57,7 +58,7 @@ public partial class MoveCamera : MonoBehaviour
     }
 
     [SerializeField] DevMode devMode = DevMode.Test;
-    [SerializeField] BrightnessBlendMode brightnessBlendMode = BrightnessBlendMode.LinearOnly;
+    [SerializeField] BrightnessBlendMode brightnessBlendMode = BrightnessBlendMode.PhaseLinearized;
   
     public Camera captureCamera0; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
     public Camera captureCamera1; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
@@ -253,6 +254,23 @@ private bool mapReady = false;
     private bool initPoseSaved = false;
     // 新增：标记刚刚重置时间
     private int fixedUpdateCounter = 0;
-public static float dEffRad = 2.9943305f; 
+// public static float dEffRad = 2.9943305f; 
 // 这是目前结果推出来的：d_mod=3.2888548 => d_eff = 2π - d_mod = 2.9943305 rad (~0.954π)
+// d = 0.50π（先从 0.3π~0.9π 之间试）
+//   public static float dEffRad = 0.5f * Mathf.PI;
+// private static float dEffRad = 0.30f * Mathf.PI;
+
+// private static float dEffRad = 0.40f * Mathf.PI;
+
+// private  static float dEffRad = 0.50f * Mathf.PI;
+
+private static float dEffRad = 0.60f * Mathf.PI;
+
+// private static float dEffRad = 0.70f * Mathf.PI;
+
+// private static float dEffRad = 0.80f * Mathf.PI;
+
+// private static float dEffRad = 0.90f * Mathf.PI;
+
+
 }

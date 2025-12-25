@@ -281,15 +281,15 @@ public partial class MoveCamera : MonoBehaviour
     void LuminanceMixture()
     {
         // 写真を撮る距離に達したかをチェック // 检查是否到了拍照的距离
-        if (experimentPattern == ExperimentPattern.CameraJumpMovePlusCompensate || experimentPattern == ExperimentPattern.CameraJumpMoveMinusCompensate)
-        {
-            // 仅负的正弦调制项：
-            cameraSpeedReverse = experimentPattern == ExperimentPattern.CameraJumpMovePlusCompensate ? CameraSpeedCompensation(1) : CameraSpeedCompensation(0);
+        // if (experimentPattern == ExperimentPattern.CameraJumpMovePlusCompensate || experimentPattern == ExperimentPattern.CameraJumpMoveMinusCompensate)
+        // {
+        //     // 仅负的正弦调制项：
+        //     cameraSpeedReverse = experimentPattern == ExperimentPattern.CameraJumpMovePlusCompensate ? CameraSpeedCompensation(1) : CameraSpeedCompensation(0);
 
-            Vector3 delta = direction * cameraSpeedReverse * Time.deltaTime;
-            captureCamera1.transform.position += delta;
-            captureCamera2.transform.position += delta;
-        }
+        //     Vector3 delta = direction * cameraSpeedReverse * Time.deltaTime;
+        //     captureCamera1.transform.position += delta;
+        //     captureCamera2.transform.position += delta;
+        // }
         if (Mathf.Abs(timeMs - frameNum * updateInterval * 1000) < 0.2f)
         {
             frameNum++;
@@ -322,24 +322,22 @@ public partial class MoveCamera : MonoBehaviour
         float nonlinearNextImageRatio = nextImageRatio;
         knobValue = SerialReader.lastSensorValue;
 
-        if (experimentPattern == ExperimentPattern.LuminanceMinusCompensate || experimentPattern == ExperimentPattern.LuminancePlusCompensate)
+        // if (experimentPattern == ExperimentPattern.LuminanceMinusCompensate || experimentPattern == ExperimentPattern.LuminancePlusCompensate)
+        // {
+        // --- 反相位补偿准备 ---
+        // ② 算出当前这 1s 区间内的时间（秒）
+        float tLocalSec = Image1ToNowDeltaTime / 1000f;
+        ModParams p = GetParams(subject);
+        // nonlinearPreviousImageRatio = BrightnessBlend.BrightnessCompensation(previousImageRatio, tLocalSec, updateInterval, p, compensationClassification, experimentPattern);
+        // nonlinearNextImageRatio = BrightnessBlend.BrightnessCompensation(nextImageRatio, tLocalSec, updateInterval, p, compensationClassification, experimentPattern);
+        if (brightnessBlendMode == BrightnessBlendMode.InverseMapLUT)
         {
-            // --- 反相位补偿准备 ---
-            // ② 算出当前这 1s 区间内的时间（秒）
-            float tLocalSec = Image1ToNowDeltaTime / 1000f;
-            ModParams p = GetParams(subject);
-            // nonlinearPreviousImageRatio = BrightnessBlend.BrightnessCompensation(previousImageRatio, tLocalSec, updateInterval, p, compensationClassification, experimentPattern);
-            // nonlinearNextImageRatio = BrightnessBlend.BrightnessCompensation(nextImageRatio, tLocalSec, updateInterval, p, compensationClassification, experimentPattern);
-            nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, knobValue, brightnessBlendMode);
-            nonlinearPreviousImageRatio = 1f - nonlinearNextImageRatio;
+            EnsureInverseLut(subject, updateInterval, p);
         }
-        else
-        {
-            // nonlinearPreviousImageRatio = BrightnessBlend.GetMixedValue(previousImageRatio, knobValue, brightnessBlendMode);
-            // nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, knobValue, brightnessBlendMode);
-            nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, knobValue, brightnessBlendMode);
-            nonlinearPreviousImageRatio = 1f - nonlinearNextImageRatio;
-        }
+
+        nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, knobValue, brightnessBlendMode);
+        nonlinearPreviousImageRatio = 1f - nonlinearNextImageRatio;
+
 
         if (frameNum % 2 == 0)
         {
@@ -554,13 +552,36 @@ public partial class MoveCamera : MonoBehaviour
                     return Mathf.Acos(-2f * x + 1f) / Mathf.PI;
                 case BrightnessBlendMode.PhaseLinearized:
                     {
-                        float w0 = PhaseLinearizedWeight(x, dEffRad);
+                        float u = Mathf.Clamp01(x);
 
-                        // gamma建议先从 3~8 试
-                        float gamma = Mathf.Lerp(1f, 8f, knobValue);
-                        return SharpenWeight(w0, gamma);
+                        // B-1：位相線形化で得た補償重み
+                        float w0 = PhaseLinearizedWeight(u, dEffRad);
+
+                        // λ：補償強度（0=補償なし, 1=フル補償）
+                        // 先固定试：0.3 / 0.5 / 0.7
+                        const float lambda = 1f;
+
+                        // 混合：避免全补偿过矫正
+                        float w = Mathf.Lerp(u, w0, lambda);
+
+                        return w; // 先不要 Sharpen
+                                  //     float gamma = 1f;
+                                  // return SharpenWeight(w, gamma);
+
                     }
 
+
+                case BrightnessBlendMode.InverseMapLUT:
+                    {
+                        // x 视为 u（线性进度 0..1）
+                        float u = Mathf.Clamp01(x);
+
+                        // 逆映射 alpha
+                        float a = LookupLut(u);
+
+                        // knobValue 用来控制“补偿强度”（0=不用补偿，1=全补偿）
+                        return Mathf.Lerp(u, a, knobValue);
+                    }
                 case BrightnessBlendMode.Dynamic:
                 default:
                     return GetDynamicBlend(x, knobValue);
@@ -846,6 +867,103 @@ private void OnDrawGizmos()
 }
 #endif
 
+    // 建议 256 或 512
+    const int LUT_M = 256;
+    const int SAMPLE_N = 2000;
+
+    static float[] _alphaLut = null;
+    static SubjectOption _lutForSubject;
+    static float _lutForInterval = -1f;
+
+    public static void EnsureInverseLut(SubjectOption subject, float updateInterval, ModParams p)
+    {
+        if (_alphaLut != null && _lutForSubject == subject && Mathf.Approximately(_lutForInterval, updateInterval))
+            return;
+
+        _alphaLut = BuildInverseAlphaLut(updateInterval, p, SAMPLE_N, LUT_M);
+        _lutForSubject = subject;
+        _lutForInterval = updateInterval;
+    }
+
+    static float[] BuildInverseAlphaLut(float T, ModParams p, int N, int M)
+    {
+        // 1) sample t -> v(t)
+        float[] S = new float[N];     // normalized cumulative progress
+        float dt = T / (N - 1);
+
+        float omega = 2f * Mathf.PI / Mathf.Max(T, 1e-6f);
+
+        float vPrev = EvalV(0f, omega, p);
+        vPrev = Mathf.Max(vPrev, 1e-4f);
+
+        float cum = 0f;
+        S[0] = 0f;
+
+        for (int i = 1; i < N; i++)
+        {
+            float t = i * dt;
+            float v = EvalV(t, omega, p);
+            v = Mathf.Max(v, 1e-4f); // 保证单调（很重要）
+
+            // trapezoid integral
+            cum += 0.5f * (vPrev + v) * dt;
+            S[i] = cum;
+
+            vPrev = v;
+        }
+
+        float total = S[N - 1];
+        if (total <= 1e-8f) total = 1e-8f;
+        for (int i = 0; i < N; i++) S[i] /= total; // normalize to [0,1]
+
+        // 2) invert S(t): for each u in [0,1], find t s.t. S(t)=u
+        float[] lut = new float[M];
+        int k = 0;
+
+        for (int j = 0; j < M; j++)
+        {
+            float u = (float)j / (M - 1);
+
+            while (k < N - 2 && S[k + 1] < u) k++;
+
+            float s0 = S[k];
+            float s1 = S[k + 1];
+            float t0 = (float)k / (N - 1);       // normalized time
+            float t1 = (float)(k + 1) / (N - 1);
+
+            float a;
+            if (s1 <= s0 + 1e-8f) a = t0;
+            else
+            {
+                float w = Mathf.Clamp01((u - s0) / (s1 - s0));
+                a = Mathf.Lerp(t0, t1, w);
+            }
+
+            lut[j] = a; // already normalized to [0,1]
+        }
+
+        return lut;
+    }
+
+    static float EvalV(float t, float omega, ModParams p)
+    {
+        // 你已有 V0,A1,PHI1,A2,PHI2；可继续加更多项
+        return p.V0
+               + p.A1 * Mathf.Sin(omega * t + p.PHI1)
+               + p.A2 * Mathf.Sin(2f * omega * t + p.PHI2);
+    }
+
+    // LUT lookup (linear interpolation)
+    static float LookupLut(float u)
+    {
+        if (_alphaLut == null) return u;
+        u = Mathf.Clamp01(u);
+        float x = u * (LUT_M - 1);
+        int i = Mathf.FloorToInt(x);
+        int i1 = Mathf.Min(i + 1, LUT_M - 1);
+        float w = x - i;
+        return Mathf.Lerp(_alphaLut[i], _alphaLut[i1], w);
+    }
 
 
 
