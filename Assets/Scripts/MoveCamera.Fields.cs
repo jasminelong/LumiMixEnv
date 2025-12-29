@@ -7,7 +7,7 @@ using System.IO;
 
 public partial class MoveCamera : MonoBehaviour
 {
-    
+
     public enum DirectionPattern
     {
         right,
@@ -30,7 +30,7 @@ public partial class MoveCamera : MonoBehaviour
     }
     public enum StepNumber
     {
-         None = 0, 
+        None = 0,
         Option1 = 1,
         Option2 = 2,
         Option3 = 3,
@@ -59,7 +59,7 @@ public partial class MoveCamera : MonoBehaviour
 
     [SerializeField] DevMode devMode = DevMode.Test;
     [SerializeField] BrightnessBlendMode brightnessBlendMode = BrightnessBlendMode.PhaseLinearized;
-  
+
     public Camera captureCamera0; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
     public Camera captureCamera1; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
     public Camera captureCamera2; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
@@ -186,10 +186,10 @@ public partial class MoveCamera : MonoBehaviour
     private bool isEnd = false; // 是否结束实验
     private string currentProgress; // 
 
-   
+
     [Header("Subject / Condition")]
     public SubjectOption subject = SubjectOption.OMU_B;  // Inspector 里选   择被试   
-        // T = 1 s → ω = 2π rad/s
+                                                         // T = 1 s → ω = 2π rad/s
     private const float OMEGA = 2f * Mathf.PI;
 
     public float cameraSpeedReverse;
@@ -206,71 +206,59 @@ public partial class MoveCamera : MonoBehaviour
     }
 
     // ===== 逆函数补偿（独立小函数，可直接调用） =====
-// ---- 工具：logit / sigmoid ----
-static float Sigmoid(float z) => 1f / (1f + Mathf.Exp(-z));
-static float Logit(float a)   => Mathf.Log(a / (1f - a)); // a∈(0,1)
+    // ---- 工具：logit / sigmoid ----
+    static float Sigmoid(float z) => 1f / (1f + Mathf.Exp(-z));
+    static float Logit(float a) => Mathf.Log(a / (1f - a)); // a∈(0,1)
 
-// 你的被试参数
+    // 你的被试参数
 
-public float eta1  = 0.15f, eta2 = 0.15f;   // 灵敏度（可校准）
-[Range(0,3)] public float compScale = 1.0f; // 全局增益
-[Range(0,1)] public float smooth    = 0.25f;
-public float maxDeltaZPerSec        = 8f;   // z域最大变化速率，抑制颤抖
+    public float eta1 = 0.15f, eta2 = 0.15f;   // 灵敏度（可校准）
+    [Range(0, 3)] public float compScale = 1.0f; // 全局增益
+    [Range(0, 1)] public float smooth = 0.25f;
+    public float maxDeltaZPerSec = 8f;   // z域最大变化速率，抑制颤抖
 
-float _zCorrPrev = 0f;   // 上一帧的补偿z（用于平滑）
-float _tPrev     = -1f;
+    float _zCorrPrev = 0f;   // 上一帧的补偿z（用于平滑）
+    float _tPrev = -1f;
 
     public enum CompensationClassification
     {
         V0_A1,
         A1A2,
         A2,
-        
+
         A1,
         V0_A1A2,
         V0_A2,
-        
+
         V0,
-        
+
     }
 
     public CompensationClassification compensationClassification = CompensationClassification.A1A2;
     public enum ParameterOrder
     {
         V0_A1_PHI1_A2_PHI2, // Original order
-        V0_A1_PHI1_A1_A2_PHI2_A2, 
-        V0_A1_PHI1_A2_PHI2_A1_PHI1_A2_PHI2, 
+        V0_A1_PHI1_A1_A2_PHI2_A2,
+        V0_A1_PHI1_A2_PHI2_A1_PHI1_A2_PHI2,
         V0_PHI1_A1_PHI2_A2,
         V0_PHI1_A1_PHI1_PHI2_A2_PHI2,
     }
     public ParameterOrder paramOrder = ParameterOrder.V0_A1_PHI1_A2_PHI2; // Change this to switch orders
-    
+
     private const int N = 1000;
-private float[] timeMap = new float[N];
-private bool mapReady = false;
+    private float[] timeMap = new float[N];
+    private bool mapReady = false;
 
     private Vector3 initPos0, initPos1, initPos2;
     private Quaternion initRot0, initRot1, initRot2;
     private bool initPoseSaved = false;
     // 新增：标记刚刚重置时间
     private int fixedUpdateCounter = 0;
-// public static float dEffRad = 2.9943305f; 
-// 这是目前结果推出来的：d_mod=3.2888548 => d_eff = 2π - d_mod = 2.9943305 rad (~0.954π)
-// d = 0.50π（先从 0.3π~0.9π 之间试）
-//   public static float dEffRad = 0.5f * Mathf.PI;
-// private static float dEffRad = 0.30f * Mathf.PI;
-
-// private static float dEffRad = 0.40f * Mathf.PI;
-
-// private  static float dEffRad = 0.50f * Mathf.PI;
-
-private static float dEffRad = 0.60f * Mathf.PI;
-
-// private static float dEffRad = 0.70f * Mathf.PI;
-
-// private static float dEffRad = 0.80f * Mathf.PI;
-
-// private static float dEffRad = 0.90f * Mathf.PI;
 
 
+    public float dEffRad = 0.60f * Mathf.PI;
+
+private bool isInGray = false;
+[SerializeField] private int segmentMs = 25000;   // 25s
+[SerializeField] private int grayMs = 200;        // 200ms
 }

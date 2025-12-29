@@ -116,14 +116,20 @@ public partial class MoveCamera : MonoBehaviour
         timeMs = fixedUpdateCounter * Time.fixedDeltaTime * 1000f;
 
         Continuous();
-        if (experimentPattern == ExperimentPattern.NoLuminanceBlendSingleCameraMove)
+        // if (experimentPattern == ExperimentPattern.NoLuminanceBlendSingleCameraMove)
+        // {
+        //     NoLuminanceBlendSingleCameraMove();
+        // }
+        // else
+        // {
+        if (!isInGray && timeMs >= segmentMs)
         {
-            NoLuminanceBlendSingleCameraMove();
+            StartCoroutine(GrayBreakRoutine());
         }
-        else
-        {
-            LuminanceMixture();
-        }
+
+        LuminanceMixture();
+
+        // }
         if (Application.isPlaying)
         {
             velocityHistory.Add(v);           // 新增
@@ -280,16 +286,7 @@ public partial class MoveCamera : MonoBehaviour
     }
     void LuminanceMixture()
     {
-        // 写真を撮る距離に達したかをチェック // 检查是否到了拍照的距离
-        // if (experimentPattern == ExperimentPattern.CameraJumpMovePlusCompensate || experimentPattern == ExperimentPattern.CameraJumpMoveMinusCompensate)
-        // {
-        //     // 仅负的正弦调制项：
-        //     cameraSpeedReverse = experimentPattern == ExperimentPattern.CameraJumpMovePlusCompensate ? CameraSpeedCompensation(1) : CameraSpeedCompensation(0);
-
-        //     Vector3 delta = direction * cameraSpeedReverse * Time.deltaTime;
-        //     captureCamera1.transform.position += delta;
-        //     captureCamera2.transform.position += delta;
-        // }
+        // 写真を撮る距離に達したかをチェック //
         if (Mathf.Abs(timeMs - frameNum * updateInterval * 1000) < 0.2f)
         {
             frameNum++;
@@ -300,16 +297,8 @@ public partial class MoveCamera : MonoBehaviour
             captureCamera2.transform.position = captureCamera2.transform.position + targetPosition;
         }
 
-        if (frameNum % 2 == 0)
-        {
-            CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture2);       // 上层图
-            CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture1);    // 下层图  
-        }
-        else
-        {
-            CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture1);       // 上层图
-            CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture2);    // 下层图  
-        }
+        CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture2);       // 上层图
+        CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture1);    // 下层图  
 
         //輝度値を計算する 
         float Image1ToNowDeltaTime = timeMs - (frameNum - 1) * updateInterval * 1000;
@@ -322,33 +311,26 @@ public partial class MoveCamera : MonoBehaviour
         float nonlinearNextImageRatio = nextImageRatio;
         knobValue = SerialReader.lastSensorValue;
 
-        // if (experimentPattern == ExperimentPattern.LuminanceMinusCompensate || experimentPattern == ExperimentPattern.LuminancePlusCompensate)
-        // {
         // --- 反相位补偿准备 ---
         // ② 算出当前这 1s 区间内的时间（秒）
         float tLocalSec = Image1ToNowDeltaTime / 1000f;
         ModParams p = GetParams(subject);
-        // nonlinearPreviousImageRatio = BrightnessBlend.BrightnessCompensation(previousImageRatio, tLocalSec, updateInterval, p, compensationClassification, experimentPattern);
-        // nonlinearNextImageRatio = BrightnessBlend.BrightnessCompensation(nextImageRatio, tLocalSec, updateInterval, p, compensationClassification, experimentPattern);
         if (brightnessBlendMode == BrightnessBlendMode.InverseMapLUT)
         {
             EnsureInverseLut(subject, updateInterval, p);
         }
-
         nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, knobValue, brightnessBlendMode);
         nonlinearPreviousImageRatio = 1f - nonlinearNextImageRatio;
 
+        CaptureCameraLinearBlendRawImage.material.SetColor("_TopColor", new Color(1, 1, 1, nonlinearNextImageRatio)); // 透明度
+        CaptureCameraLinearBlendRawImage.material.SetColor("_BottomColor", new Color(1, 1, 1, 1.0f));
 
         if (frameNum % 2 == 0)
         {
-            CaptureCameraLinearBlendRawImage.material.SetColor("_TopColor", new Color(1, 1, 1, nonlinearNextImageRatio)); // 透明度
-            CaptureCameraLinearBlendRawImage.material.SetColor("_BottomColor", new Color(1, 1, 1, 1.0f));
             alphaHistory.Add(nonlinearPreviousImageRatio);
         }
         else
         {
-            CaptureCameraLinearBlendRawImage.material.SetColor("_TopColor", new Color(1, 1, 1, nonlinearPreviousImageRatio)); // 透明度
-            CaptureCameraLinearBlendRawImage.material.SetColor("_BottomColor", new Color(1, 1, 1, 1.0f));
             alphaHistory.Add(nonlinearNextImageRatio);
         }
 
@@ -460,6 +442,7 @@ public partial class MoveCamera : MonoBehaviour
         // Canvas内で指定された名前の子オブジェクトを検索 // 在 Canvas 中查找指定名称的子对象
         canvas = GameObject.Find("Canvas");
         continuousImageTransform = canvas.transform.Find("CaptureCamera0");
+        continuousImageTransform.gameObject.SetActive(false);
         Image1Transform = canvas.transform.Find("CaptureCamera1");
         Image2Transform = canvas.transform.Find("CaptureCamera2");
         CaptureCameraLinearBlendTransform = canvas.transform.Find("CaptureCameraLinearBlend");
@@ -552,21 +535,15 @@ public partial class MoveCamera : MonoBehaviour
                     return Mathf.Acos(-2f * x + 1f) / Mathf.PI;
                 case BrightnessBlendMode.PhaseLinearized:
                     {
-                        float u = Mathf.Clamp01(x);
+                        float dEffRad = GetDEffRad(knobValue);   // 用旋钮控制 d
 
-                        // B-1：位相線形化で得た補償重み
-                        float w0 = PhaseLinearizedWeight(u, dEffRad);
+                        float w0 = PhaseLinearizedWeight(x, dEffRad);
 
-                        // λ：補償強度（0=補償なし, 1=フル補償）
-                        // 先固定试：0.3 / 0.5 / 0.7
-                        const float lambda = 1f;
+                        // 你原本 gamma 也用 knobValue，这会冲突（一个旋钮控制两个参数）
+                        // 建议先固定 gamma，专心调 d
+                        float gamma = 1f;
 
-                        // 混合：避免全补偿过矫正
-                        float w = Mathf.Lerp(u, w0, lambda);
-
-                        return w; // 先不要 Sharpen
-                                  //     float gamma = 1f;
-                                  // return SharpenWeight(w, gamma);
+                        return SharpenWeight(w0, gamma);
 
                     }
 
@@ -963,6 +940,50 @@ private void OnDrawGizmos()
         int i1 = Mathf.Min(i + 1, LUT_M - 1);
         float w = x - i;
         return Mathf.Lerp(_alphaLut[i], _alphaLut[i1], w);
+    }
+    // 旋钮 knobValue 期望是 [0,1]
+    private static float GetDEffRad(float knobValue)
+    {
+        // 你之前试的范围：0.10π ~ 0.90π（可改）
+        float dMin = 0.10f * Mathf.PI;
+        float dMax = 0.90f * Mathf.PI;
+
+        // 线性映射（如果你想让低端更细腻，可用 SmoothStep）
+        return Mathf.Lerp(dMin, dMax, Mathf.Clamp01(knobValue));
+    }
+
+    private void SetCaptureViewsActive(bool active)
+    {
+        if (continuousImageTransform != null) continuousImageTransform.gameObject.SetActive(active);
+        if (CaptureCameraLinearBlendTransform != null) CaptureCameraLinearBlendTransform.gameObject.SetActive(active);
+    }
+    private IEnumerator GrayBreakRoutine()
+    {
+        isInGray = true;
+
+        ResetCamerasAndBlendState();
+
+        // OFF: 隐藏两个显示对象（Transform -> gameObject）
+        // if (continuousImageTransform != null)
+        //     continuousImageTransform.gameObject.SetActive(false);
+
+        if (CaptureCameraLinearBlendTransform != null)
+            CaptureCameraLinearBlendTransform.gameObject.SetActive(false);
+
+        yield return new WaitForSecondsRealtime(0.2f);
+
+        // ON
+        // if (continuousImageTransform != null)
+        //     continuousImageTransform.gameObject.SetActive(true);
+
+        if (CaptureCameraLinearBlendTransform != null)
+            CaptureCameraLinearBlendTransform.gameObject.SetActive(true);
+
+        // 如果你要开始下一段 25s，记得重置计时
+        fixedUpdateCounter = 0;  // 或者 timeMs=0，取决于你怎么计时
+        timeMs = 0;
+
+        isInGray = false;
     }
 
 
