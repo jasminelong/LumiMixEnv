@@ -76,8 +76,10 @@ public partial class MoveCamera : MonoBehaviour
     private Transform Image1Transform;
     private Transform Image2Transform;
     private Transform CaptureCameraLinearBlendTransform;
+    private Transform CaptureCameraLinearBlendTopTransform;
     private RawImage continuousImageRawImage;// 撮影した画像を表示するためのUIコンポーネント // 用于显示拍摄图像的UI组件
     private RawImage CaptureCameraLinearBlendRawImage;// 撮影した画像を表示するためのUIコンポーネント // 用于显示拍摄图像的UI组件
+    private RawImage CaptureCameraLinearBlendTopRawImage;// 撮影した画像を表示するためのUIコンポーネント // 用于显示拍摄图像的UI组件
 
     public float updateInterval; // 更新間隔 (秒) // 更新间隔，单位秒
 

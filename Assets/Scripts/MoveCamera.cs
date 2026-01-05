@@ -36,10 +36,8 @@ public partial class MoveCamera : MonoBehaviour
         nextStepButton.onClick.AddListener(OnNextStep); // ボタンがクリックされたときの処理を追加 // 添加按钮点击时的处理
 
 
-        if (experimentPattern == ExperimentPattern.NoLuminanceBlendSingleCameraMove)
-            data.Add("Time, Knob, ResponsePattern, StepNumber, Amplitude, Velocity, FunctionRatio, CameraSpeed");
-        else
-            data.Add("FrondFrameNum, FrondFrameLuminance, BackFrameNum, BackFrameLuminance, Time, Knob, ResponsePattern, StepNumber, Amplitude, Velocity, FunctionRatio, CameraSpeed");
+
+        data.Add("FrondFrameNum, FrondFrameLuminance, BackFrameNum, BackFrameLuminance, Time, Knob, ResponsePattern, StepNumber, Amplitude, Velocity, FunctionRatio, CameraSpeed");
 
     }
     void Awake()
@@ -116,12 +114,7 @@ public partial class MoveCamera : MonoBehaviour
         timeMs = fixedUpdateCounter * Time.fixedDeltaTime * 1000f;
 
         Continuous();
-        // if (experimentPattern == ExperimentPattern.NoLuminanceBlendSingleCameraMove)
-        // {
-        //     NoLuminanceBlendSingleCameraMove();
-        // }
-        // else
-        // {
+
         if (!isInGray && timeMs >= segmentMs)
         {
             StartCoroutine(GrayBreakRoutine());
@@ -129,7 +122,6 @@ public partial class MoveCamera : MonoBehaviour
 
         LuminanceMixture();
 
-        // }
         if (Application.isPlaying)
         {
             velocityHistory.Add(v);           // 新增
@@ -264,26 +256,7 @@ public partial class MoveCamera : MonoBehaviour
 
         }
     }
-    void NoLuminanceBlendSingleCameraMove()
-    {
-        float speed1 = CameraSpeedCompensation(1);
-        Debug.Log($"Camera Speed: {speed1}");
-        // 按计算得到的速度移动 captureCamera1（若需要同时移动 captureCamera2，也可加）
-        Vector3 delta1 = direction * speed1 * Time.deltaTime;
-        captureCamera1.transform.position += delta1;
 
-        // 把 captureCamera1 的图像显示到 CaptureCameraLinearBlendRawImage 上（简单做法：把 captureImageTexture1 放到 Top）
-        if (CaptureCameraLinearBlendRawImage != null)
-        {
-            CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture1);
-            CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture2);
-            // 确保完全显示 Top（若需要可改 alpha 或混合模式）
-            CaptureCameraLinearBlendRawImage.material.SetColor("_TopColor", new Color(1f, 1f, 1f, 1f));
-            CaptureCameraLinearBlendRawImage.material.SetColor("_BottomColor", new Color(1f, 1f, 1f, 0f));
-        }
-        // データを記録 // 记录数据
-        data.Add($"{timeMs:F3}, {SerialReader.lastSensorValue}, {responsePattern}, {(int)stepNumber}, {amplitudeToSaveData}, {v}, {knobValue:F3}, {cameraSpeed:F3}");
-    }
     void LuminanceMixture()
     {
         // 写真を撮る距離に達したかをチェック //
@@ -298,7 +271,10 @@ public partial class MoveCamera : MonoBehaviour
         }
 
         CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture2);       // 上层图
-        CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture1);    // 下层图  
+        CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture1);    // 下层图 
+
+        CaptureCameraLinearBlendTopRawImage.material.SetTexture("_TopTex", captureImageTexture2);       // 上层图 CaptureCameraLinearBlendTop
+        CaptureCameraLinearBlendTopRawImage.material.SetTexture("_BottomTex", captureImageTexture1);    // 下层图   
 
         //輝度値を計算する 
         float Image1ToNowDeltaTime = timeMs - (frameNum - 1) * updateInterval * 1000;
@@ -311,7 +287,12 @@ public partial class MoveCamera : MonoBehaviour
         float nonlinearNextImageRatio = nextImageRatio;
         knobValue = SerialReader.lastSensorValue;
 
-        // --- 反相位补偿准备 ---
+        // ---top 准备 ---
+        nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, knobValue, BrightnessBlendMode.LinearOnly);
+        CaptureCameraLinearBlendTopRawImage.material.SetColor("_TopColor", new Color(1, 1, 1, nonlinearNextImageRatio)); // 透明度
+        CaptureCameraLinearBlendTopRawImage.material.SetColor("_BottomColor", new Color(1, 1, 1, 1.0f));
+
+        // ---bottom 反相位补偿准备 ---
         // ② 算出当前这 1s 区间内的时间（秒）
         float tLocalSec = Image1ToNowDeltaTime / 1000f;
         ModParams p = GetParams(subject);
@@ -321,9 +302,18 @@ public partial class MoveCamera : MonoBehaviour
         }
         nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, knobValue, brightnessBlendMode);
         nonlinearPreviousImageRatio = 1f - nonlinearNextImageRatio;
-
+        
+        Debug.Log($"p={nextImageRatio:F3}  wPh={nonlinearNextImageRatio:F3}  |w-p|={Mathf.Abs(nonlinearNextImageRatio-nextImageRatio):F3}");
         CaptureCameraLinearBlendRawImage.material.SetColor("_TopColor", new Color(1, 1, 1, nonlinearNextImageRatio)); // 透明度
         CaptureCameraLinearBlendRawImage.material.SetColor("_BottomColor", new Color(1, 1, 1, 1.0f));
+
+        float dEffRad = GetDEffRad(knobValue); // 受试者在调的 d
+        CaptureCameraLinearBlendRawImage.material.SetFloat("_EnableAmpNorm", 1f);
+        CaptureCameraLinearBlendRawImage.material.SetFloat("_DEffRad", dEffRad);
+        CaptureCameraLinearBlendRawImage.material.SetFloat("_Eps", 0.08f);
+        CaptureCameraLinearBlendRawImage.material.SetFloat("_GainCap", 3.0f);
+
+
 
         if (frameNum % 2 == 0)
         {
@@ -359,6 +349,7 @@ public partial class MoveCamera : MonoBehaviour
         // データを記録 // 记录数据
         data.Add($"{frameNum}, {nonlinearPreviousImageRatio:F3}, {frameNum + 1}, {nonlinearNextImageRatio:F3}, {timeMs:F3}, {SerialReader.lastSensorValue}, {responsePattern}, {(int)stepNumber}, {amplitudeToSaveData}, {v}, {knobValue:F3}, {cameraSpeed:F3}");
     }
+
 
     void InitialSetup()
     {
@@ -446,17 +437,23 @@ public partial class MoveCamera : MonoBehaviour
         Image1Transform = canvas.transform.Find("CaptureCamera1");
         Image2Transform = canvas.transform.Find("CaptureCamera2");
         CaptureCameraLinearBlendTransform = canvas.transform.Find("CaptureCameraLinearBlend");
+        CaptureCameraLinearBlendTopTransform = canvas.transform.Find("CaptureCameraLinearBlendTop");
 
         // 子オブジェクトのRawImageコンポーネントを取得 // 获取子对象的 RawImage 组件
         continuousImageRawImage = continuousImageTransform.GetComponent<RawImage>();
 
         CaptureCameraLinearBlendRawImage = CaptureCameraLinearBlendTransform.GetComponent<RawImage>();
+        CaptureCameraLinearBlendTopRawImage = CaptureCameraLinearBlendTopTransform.GetComponent<RawImage>();
 
         CaptureCameraLinearBlendRawImage.material = new Material(Mat_GrayscaleOverBlend);
 
         CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture1);       // 上层图
         CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture2);    // 下层图  
 
+        CaptureCameraLinearBlendTopRawImage.material = new Material(Mat_GrayscaleOverBlend);
+
+        CaptureCameraLinearBlendTopRawImage.material.SetTexture("_TopTex", captureImageTexture1);       // 上层图
+        CaptureCameraLinearBlendTopRawImage.material.SetTexture("_BottomTex", captureImageTexture2);
         // RawImageコンポーネントを無効にする // 禁用 RawImage 组件
         continuousImageRawImage.enabled = false;
     }
@@ -537,17 +534,18 @@ public partial class MoveCamera : MonoBehaviour
                     {
                         float dEffRad = GetDEffRad(knobValue);   // 用旋钮控制 d
 
-                        float w0 = PhaseLinearizedWeight(x, dEffRad);
+                        // float w0 = PhaseLinearizedWeight(x, dEffRad);
+                        float alpha = 1.0f; // 先固定试：0.8, 1.0, 1.2, 1.5 都扫一遍
+                        float w0 = PhaseLinearizedWeightAlpha(x, dEffRad, alpha);
 
                         // 你原本 gamma 也用 knobValue，这会冲突（一个旋钮控制两个参数）
                         // 建议先固定 gamma，专心调 d
                         float gamma = 1f;
-
-                        return SharpenWeight(w0, gamma);
+                        // return SoftCenterAntiStall(w0, gamma: 1.5f, centerWidth: 0.16f, strength: 0.45f); // 先试 2~4
+                        // return SharpenWeight(w0, gamma);
+                        return w0;
 
                     }
-
-
                 case BrightnessBlendMode.InverseMapLUT:
                     {
                         // x 视为 u（线性进度 0..1）
@@ -555,8 +553,9 @@ public partial class MoveCamera : MonoBehaviour
 
                         // 逆映射 alpha
                         float a = LookupLut(u);
-
+                        Debug.Log($"[InverseMapLUT] u={u:F3} -> a={a:F3}");
                         // knobValue 用来控制“补偿强度”（0=不用补偿，1=全补偿）
+
                         return Mathf.Lerp(u, a, knobValue);
                     }
                 case BrightnessBlendMode.Dynamic:
@@ -604,6 +603,39 @@ public partial class MoveCamera : MonoBehaviour
             float w = a / denom;
             return Mathf.Clamp01(w);
         }
+        static float PhaseLinearizedWeightAlpha(float p, float dEff, float alpha)
+        {
+            p = Mathf.Clamp01(p);
+            if (p <= 0f) return 0f;
+            if (p >= 1f) return 1f;
+
+            // 避免 alpha 太极端导致不稳定
+            alpha = Mathf.Clamp(alpha, 0.2f, 5.0f);
+
+            // 目标：k = dEff * p 线性变化
+            float k = dEff * p;
+
+            // 用 tan(k) 解 t（推导来自论文式(5)）
+            float cosK = Mathf.Cos(k);
+            float sinK = Mathf.Sin(k);
+
+            // tan 在 π/2 附近会爆，做个保护
+            if (Mathf.Abs(cosK) < 1e-5f)
+                cosK = 1e-5f * (cosK >= 0 ? 1f : -1f);
+
+            float s = sinK / cosK; // tan(k)
+
+            float sinD = Mathf.Sin(dEff);
+            float cosD = Mathf.Cos(dEff);
+
+            // t = (s*alpha) / (sinD + s*alpha - s*cosD)
+            float denom = sinD + s * alpha - s * cosD;
+            if (Mathf.Abs(denom) < 1e-6f) return p;
+
+            float w = (s * alpha) / denom;
+            return Mathf.Clamp01(w);
+        }
+
         /// <summary>
         /// Cosine → Linear → Acos 的动态混合实现
         /// </summary>
@@ -731,7 +763,8 @@ public partial class MoveCamera : MonoBehaviour
                 return new ModParams(1.027f, -0.278f, 1.849f, -0.292f, 3.728f);
 
             case SubjectOption.KK_F:
-                return new ModParams(1.129f, 0.815f, 3.462f, 0.860f, 5.854f);
+                return new ModParams(1f, 0.524f, 2.777f, -0.31f, 1.859f);
+                // return new ModParams(1.129f, 0.815f, 3.462f, 0.860f, 5.854f);
         }
         return new ModParams(0.992f, 0.540f, 1.849f, -0.528f, 1.462f);
     }
@@ -945,8 +978,8 @@ private void OnDrawGizmos()
     private static float GetDEffRad(float knobValue)
     {
         // 你之前试的范围：0.10π ~ 0.90π（可改）
-        float dMin = 0.10f * Mathf.PI;
-        float dMax = 0.90f * Mathf.PI;
+        float dMin = 0.40f * Mathf.PI;
+        float dMax = 0.99f * Mathf.PI;
 
         // 线性映射（如果你想让低端更细腻，可用 SmoothStep）
         return Mathf.Lerp(dMin, dMax, Mathf.Clamp01(knobValue));
@@ -985,6 +1018,47 @@ private void OnDrawGizmos()
 
         isInGray = false;
     }
+    static float SmoothStep01(float t)
+    {
+        t = Mathf.Clamp01(t);
+        return t * t * (3f - 2f * t);
+    }
+
+    // 只在中心附近做轻微加速，避免中点停太久；同时不让整体变“跳”
+    static float SoftCenterAntiStall(float w0, float gamma, float centerWidth, float strength)
+    {
+        w0 = Mathf.Clamp01(w0);
+
+        // 1) anti-stall 版本（gamma 越大越“跳”）
+        float s = w0 - 0.5f;
+        float a = Mathf.Pow(Mathf.Abs(s) * 2f, 1f / gamma) * 0.5f;  // gamma>1 加速离开中心
+        float wFast = Mathf.Clamp01(0.5f + Mathf.Sign(s) * a);
+
+        // 2) 中心遮罩：只在 w0 接近 0.5 时生效
+        // centerWidth：0.08~0.18 之间试（越小越只动中心）
+        float dist = Mathf.Abs(w0 - 0.5f);
+        float m = 1f - SmoothStep01(dist / Mathf.Max(1e-6f, centerWidth)); // dist=0 -> 1, dist>=width -> 0
+
+        // 3) strength：混入比例（0~1）
+        float k = Mathf.Clamp01(strength) * m;
+
+        return Mathf.Lerp(w0, wFast, k);
+    }
+static float MixAmplitude(float w, float dEffRad)
+{
+    // A(w,d)=sqrt((1-w)^2+w^2+2w(1-w)cos(d))
+    float c = Mathf.Cos(dEffRad);
+    float A2 = (1f - w) * (1f - w) + w * w + 2f * w * (1f - w) * c;
+    return Mathf.Sqrt(Mathf.Max(0f, A2));
+}
+
+static float GainFromAmplitude(float A, float eps = 0.10f, float cap = 2.0f)
+{
+    // gain = min(cap, 1/max(eps, A))
+    float g = 1f / Mathf.Max(eps, A);
+    return Mathf.Min(g, cap);
+}
+
 
 
 
