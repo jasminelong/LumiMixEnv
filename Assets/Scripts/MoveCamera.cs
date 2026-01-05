@@ -962,7 +962,6 @@ private void OnDrawGizmos()
                + p.A1 * Mathf.Sin(omega * t + p.PHI1)
                + p.A2 * Mathf.Sin(2f * omega * t + p.PHI2);
     }
-
     // LUT lookup (linear interpolation)
     static float LookupLut(float u)
     {
