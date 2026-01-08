@@ -16,12 +16,13 @@ public partial class MoveCamera : MonoBehaviour
     // 对数刻度
     void Start()
     {
+        UseGrating = false;
         // 垂直同期を無効にする // 关闭垂直同步
         QualitySettings.vSyncCount = 0;
         // 目標フレームレートを60フレーム/秒に設定 // 设置目标帧率为60帧每秒
         Time.fixedDeltaTime = 1.0f / 60.0f;
 
-        updateInterval = 1 / fps; // 各フレームの表示間隔時間を計算 // 计算每一帧显示的间隔时间
+        updateInterval = 1f / fps; // 各フレームの表示間隔時間を計算 // 计算每一帧显示的间隔时间
         captureIntervalDistance = cameraSpeed / fps; // 各フレームの間隔距離を計算 // 计算每帧之间的间隔距离
 
         GetRawImage();
@@ -35,7 +36,10 @@ public partial class MoveCamera : MonoBehaviour
         nextStepButtonTextComponent = nextStepButton.GetComponentInChildren<TextMeshProUGUI>();
         nextStepButton.onClick.AddListener(OnNextStep); // ボタンがクリックされたときの処理を追加 // 添加按钮点击时的处理
 
-
+        if (UseGrating)
+        {
+            InitGratingOnce();   // ✅ 关键：先生成一对 gratingA/B
+        }
 
         data.Add("FrondFrameNum, FrondFrameLuminance, BackFrameNum, BackFrameLuminance, Time, Knob, ResponsePattern, StepNumber, Amplitude, Velocity, FunctionRatio, CameraSpeed");
 
@@ -259,39 +263,95 @@ public partial class MoveCamera : MonoBehaviour
 
     void LuminanceMixture()
     {
+
         // 写真を撮る距離に達したかをチェック //
-        if (Mathf.Abs(timeMs - frameNum * updateInterval * 1000) < 0.2f)
+        float frameMs = updateInterval * 1000f;
+        // if (Mathf.Abs(timeMs - frameNum * updateInterval * 1000) < 0.2f)
+        while (timeMs >= frameNum * frameMs)
         {
             frameNum++;
+            // ====== 60 秒采集：自动开始 / 自动停止 ======
+            /*          if (!_capturing)
+                     {
+                         _capturing = true;
+                         _savedCount = 0;
+                         _captureStartTime = Time.time;
+                         Debug.Log("[Capture] START 60s");
+                     }
 
+                     if (_capturing && _savedCount < CaptureDurationSeconds)
+                     {
+                         // 为了避免保存到“上一帧”，强制渲染一次（推荐）
+                         captureCamera1.Render();
+                         if (SaveCam2Png) captureCamera2.Render();
+
+                             string dir = Camera1SaveDir;
+                     Directory.CreateDirectory(dir);
+                         int secIndex = _savedCount; // 0..59
+
+                         if (SaveCam1Png)
+                         {
+                             var rt1 = captureCamera1.targetTexture;
+                             string path1 = Path.Combine(dir, $"cam1_{secIndex:000}.png");
+                             SaveRenderTextureToPng(rt1, path1);
+                         }
+
+                         if (SaveCam2Png)
+                         {
+                             var rt2 = captureCamera2.targetTexture;
+                             string path2 = Path.Combine(dir, $"cam2_{secIndex:000}.png");
+                             SaveRenderTextureToPng(rt2, path2);
+                         }
+
+                         _savedCount++;
+                         Debug.Log($"[Capture] saved {_savedCount}/{CaptureDurationSeconds}");
+                     }
+
+                     if (_capturing && _savedCount >= CaptureDurationSeconds)
+                     {
+                         _capturing = false;
+                         float elapsed = Time.time - _captureStartTime;
+                         Debug.Log($"[Capture] DONE: {CaptureDurationSeconds} frames in {elapsed:F1}s  folder=../{SaveFolderName}");
+                     } 
+          */
+            if (UseGrating) OnAdvanceSegment();
             // カメラが移動する目標位置を計算 // 计算摄像机沿圆锥轴线移动的目标位置
             targetPosition = direction * cameraSpeed * updateInterval;
             captureCamera1.transform.position = captureCamera1.transform.position + targetPosition;
             captureCamera2.transform.position = captureCamera2.transform.position + targetPosition;
         }
 
-        CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture2);       // 上层图
-        CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture1);    // 下层图 
 
-        CaptureCameraLinearBlendTopRawImage.material.SetTexture("_TopTex", captureImageTexture2);       // 上层图 CaptureCameraLinearBlendTop
-        CaptureCameraLinearBlendTopRawImage.material.SetTexture("_BottomTex", captureImageTexture1);    // 下层图   
+        Texture topTex = UseGrating ? (Texture)gratingB : (Texture)captureImageTexture2;
+        Texture botTex = UseGrating ? (Texture)gratingA : (Texture)captureImageTexture1;
+        Debug.Log($"UseGrating={UseGrating}, cap1={(captureImageTexture1 ? captureImageTexture1.name : "null")}, cap2={(captureImageTexture2 ? captureImageTexture2.name : "null")}, top={topTex.name}, bot={botTex.name}");
+
+        CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", topTex);
+        CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", botTex);
+
+        CaptureCameraLinearBlendTopRawImage.material.SetTexture("_TopTex", topTex);
+        CaptureCameraLinearBlendTopRawImage.material.SetTexture("_BottomTex", botTex);
 
         //輝度値を計算する 
         float Image1ToNowDeltaTime = timeMs - (frameNum - 1) * updateInterval * 1000;
         float nextRatio = Image1ToNowDeltaTime / (updateInterval * 1000);
 
-        float nextImageRatio = Math.Min(1f, Math.Max(0f, nextRatio));// x ∈ [0,1]浮動小数点の演算誤差により、減算の結果がわずかに0未満になる場合があります
+        float nextImageRatio = Mathf.Clamp01(nextRatio);
         float previousImageRatio = 1.0f - nextImageRatio;
 
         float nonlinearPreviousImageRatio = previousImageRatio;
         float nonlinearNextImageRatio = nextImageRatio;
         knobValue = SerialReader.lastSensorValue;
-
+        Debug.Log($"updateInterval={updateInterval:F4}s frameNum={frameNum} timeMs={timeMs:F1} nextRatio={nextRatio:F3}");
         // ---top 准备 ---
         nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, knobValue, BrightnessBlendMode.LinearOnly);
+        // 将混合权重从 [0,1] 映射到 [0.1,0.9]
+        nonlinearNextImageRatio = Mathf.Lerp(0.1f, 0.9f, Mathf.Clamp01(nonlinearNextImageRatio));
+        nonlinearPreviousImageRatio = 1f - nonlinearNextImageRatio;
+
         CaptureCameraLinearBlendTopRawImage.material.SetColor("_TopColor", new Color(1, 1, 1, nonlinearNextImageRatio)); // 透明度
         CaptureCameraLinearBlendTopRawImage.material.SetColor("_BottomColor", new Color(1, 1, 1, 1.0f));
-
+        
         // ---bottom 反相位补偿准备 ---
         // ② 算出当前这 1s 区间内的时间（秒）
         float tLocalSec = Image1ToNowDeltaTime / 1000f;
@@ -301,18 +361,25 @@ public partial class MoveCamera : MonoBehaviour
             EnsureInverseLut(subject, updateInterval, p);
         }
         nonlinearNextImageRatio = BrightnessBlend.GetMixedValue(nextImageRatio, knobValue, brightnessBlendMode);
+        // 再次映射最终值到 [0.1,0.9]
+        nonlinearNextImageRatio = Mathf.Lerp(0.1f, 0.9f, Mathf.Clamp01(nonlinearNextImageRatio));
         nonlinearPreviousImageRatio = 1f - nonlinearNextImageRatio;
-        
-        Debug.Log($"p={nextImageRatio:F3}  wPh={nonlinearNextImageRatio:F3}  |w-p|={Mathf.Abs(nonlinearNextImageRatio-nextImageRatio):F3}");
+
+        Debug.Log($"p={nextImageRatio:F3}  wPh={nonlinearNextImageRatio:F3}  |w-p|={Mathf.Abs(nonlinearNextImageRatio - nextImageRatio):F3}");
         CaptureCameraLinearBlendRawImage.material.SetColor("_TopColor", new Color(1, 1, 1, nonlinearNextImageRatio)); // 透明度
         CaptureCameraLinearBlendRawImage.material.SetColor("_BottomColor", new Color(1, 1, 1, 1.0f));
 
         float dEffRad = GetDEffRad(knobValue); // 受试者在调的 d
         CaptureCameraLinearBlendRawImage.material.SetFloat("_EnableAmpNorm", 1f);
-        CaptureCameraLinearBlendRawImage.material.SetFloat("_DEffRad", dEffRad);
-        CaptureCameraLinearBlendRawImage.material.SetFloat("_Eps", 0.08f);
-        CaptureCameraLinearBlendRawImage.material.SetFloat("_GainCap", 3.0f);
+        CaptureCameraLinearBlendRawImage.material.SetFloat("_DEffRad", DStepRad);  // 关键：固定 0.9π
+        CaptureCameraLinearBlendRawImage.material.SetFloat("_Eps", 0.08f);         // Python amp_eps
+        CaptureCameraLinearBlendRawImage.material.SetFloat("_GainCap", 2.5f);      // Python gain_cap
 
+        CaptureCameraLinearBlendRawImage.material.SetFloat("_BaseMode", 0f);    // avg(top,bottom)
+        CaptureCameraLinearBlendRawImage.material.SetFloat("_SoftClip", 1f);
+        CaptureCameraLinearBlendRawImage.material.SetFloat("_EdgeK", 0.01f);    // 先用 0.01
+        CaptureCameraLinearBlendRawImage.material.SetFloat("_EdgePow", 1.0f);
+        CaptureCameraLinearBlendRawImage.material.SetFloat("_DispScale", 2.5f);
 
 
         if (frameNum % 2 == 0)
@@ -1043,24 +1110,141 @@ private void OnDrawGizmos()
 
         return Mathf.Lerp(w0, wFast, k);
     }
-static float MixAmplitude(float w, float dEffRad)
-{
-    // A(w,d)=sqrt((1-w)^2+w^2+2w(1-w)cos(d))
-    float c = Mathf.Cos(dEffRad);
-    float A2 = (1f - w) * (1f - w) + w * w + 2f * w * (1f - w) * c;
-    return Mathf.Sqrt(Mathf.Max(0f, A2));
-}
+    static float MixAmplitude(float w, float dEffRad)
+    {
+        // A(w,d)=sqrt((1-w)^2+w^2+2w(1-w)cos(d))
+        float c = Mathf.Cos(dEffRad);
+        float A2 = (1f - w) * (1f - w) + w * w + 2f * w * (1f - w) * c;
+        return Mathf.Sqrt(Mathf.Max(0f, A2));
+    }
 
-static float GainFromAmplitude(float A, float eps = 0.10f, float cap = 2.0f)
-{
-    // gain = min(cap, 1/max(eps, A))
-    float g = 1f / Mathf.Max(eps, A);
-    return Mathf.Min(g, cap);
-}
+    static float GainFromAmplitude(float A, float eps = 0.10f, float cap = 2.0f)
+    {
+        // gain = min(cap, 1/max(eps, A))
+        float g = 1f / Mathf.Max(eps, A);
+        return Mathf.Min(g, cap);
+    }
+
+    // 生成正弦条纹（相位用弧度），保持 Texture2D 为 linear=true 的前提下：
+    // 1) 先按“要显示的灰度”在 sRGB 空间算 g_srgb ∈ [0,1]
+    // 2) 再用 GammaToLinearSpace 转成 g_lin 写入贴图
+    //
+    // 这样能让 Unity(Linear Color Space) 的观感更接近你 Python 生成的 8bit 灰度图/视频。
+    Texture2D MakeSineGratingRad(
+        int w,
+        int h,
+        float cycles,
+        float phaseRad,
+        bool vertical,
+        float amp,
+        bool useSrgbToLinear = true, // ✅ 关键：默认开启 sRGB->Linear
+        bool clamp01 = true          // 默认 clamp 到 [0,1]
+    )
+    {
+        // 注意：最后一个参数 linear=true（你原来就是这样）
+        // linear=true 表示：写入的数据被解释为“线性空间”的颜色值
+        var tex = new Texture2D(w, h, TextureFormat.RGBA32, mipChain: false, linear: true);
+
+        // 防止 cycles/amp 奇怪值
+        cycles = Mathf.Max(0f, cycles);
+        amp = Mathf.Clamp(amp, 0f, 1.5f); // 允许略超 1，但一般 0~1 最安全
+
+        var cols = new Color32[w * h];
+
+        // 逐像素生成
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                float u = (x + 0.5f) / w;
+                float v = (y + 0.5f) / h;
+
+                // vertical=true: 条纹随 x 变化；false: 条纹随 y 变化
+                float t = vertical ? u : v;
+
+                // 正弦角度
+                float ang = 2f * Mathf.PI * cycles * t + phaseRad;
+
+                // 1) 先在“显示域(sRGB)”里算灰度
+                // g_srgb = 0.5 + 0.5 * amp * sin()
+                float g_srgb = 0.5f + 0.5f * (amp * Mathf.Sin(ang));
+
+                if (clamp01) g_srgb = Mathf.Clamp01(g_srgb);
+
+                // 2) 如果 Texture2D 是 linear=true，为了显示正确，需要把“想显示的灰度(sRGB)”
+                // 转成线性再写入。
+                float g_lin = useSrgbToLinear ? Mathf.GammaToLinearSpace(g_srgb) : g_srgb;
+
+                if (clamp01) g_lin = Mathf.Clamp01(g_lin);
+
+                byte b = (byte)Mathf.Clamp(Mathf.RoundToInt(g_lin * 255f), 0, 255);
+                cols[y * w + x] = new Color32(b, b, b, 255);
+            }
+        }
+
+        tex.SetPixels32(cols);
+        tex.Apply(updateMipmaps: false, makeNoLongerReadable: false);
+        return tex;
+    }
 
 
 
 
+    void OnAdvanceSegment()
+    {
+        // 方案1：循环（推荐）
+        int segMax = 100000; // 或者你想要的循环长度
+        seg = (seg + 1) % segMax;
+
+        float phase0 = seg * DStepRad;
+        float phase1 = (seg + 1) * DStepRad;
+
+        // 防止内存泄漏（非常重要）
+        if (gratingA) Destroy(gratingA);
+        if (gratingB) Destroy(gratingB);
+
+        gratingA = MakeSineGratingRad(GratingW, GratingH, Cycles, phase0, VerticalStripes, GratingAmp);
+        gratingB = MakeSineGratingRad(GratingW, GratingH, Cycles, phase1, VerticalStripes, GratingAmp);
+    }
+
+
+    void SaveRenderTextureToPng(RenderTexture rt, string path)
+    {
+        if (rt == null)
+        {
+            Debug.LogError("SaveRenderTextureToPng: RenderTexture is null");
+            return;
+        }
+
+        RenderTexture prev = RenderTexture.active;
+        RenderTexture.active = rt;
+
+        Texture2D tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+        tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+        tex.Apply(false, false);
+
+        RenderTexture.active = prev;
+
+        byte[] png = tex.EncodeToPNG();
+        Destroy(tex);
+
+        Directory.CreateDirectory(Path.GetDirectoryName(path));
+        File.WriteAllBytes(path, png);
+    }
+    void InitGratingOnce()
+    {
+        seg = 0; // 或 -1 然后调用 OnAdvanceSegment 也行
+        float phase0 = 0f;
+        float phase1 = DStepRad;
+
+        gratingA = MakeSineGratingRad(GratingW, GratingH, Cycles, phase0, VerticalStripes, GratingAmp);
+        gratingB = MakeSineGratingRad(GratingW, GratingH, Cycles, phase1, VerticalStripes, GratingAmp);
+
+        gratingA.filterMode = FilterMode.Bilinear;
+        gratingB.filterMode = FilterMode.Bilinear;
+        gratingA.wrapMode = TextureWrapMode.Clamp;
+        gratingB.wrapMode = TextureWrapMode.Clamp;
+    }
 }
 
 

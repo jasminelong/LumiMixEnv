@@ -263,4 +263,33 @@ public partial class MoveCamera : MonoBehaviour
 private bool isInGray = false;
 [SerializeField] private int segmentMs = 25000;   // 25s
 [SerializeField] private int grayMs = 200;        // 200ms
+
+//test grating
+public bool UseGrating = false ;
+public int GratingW = 800;     // 对应 Python W=800
+public int GratingH = 140;     // 对应 Python H=140
+
+public float Cycles = 10f;     // 对应 cycles=10.0
+
+// 关键：用“弧度相位差”，对应 Python 的 d_step（默认 0.9π）
+public float DStepRad = 0.9f * Mathf.PI;
+
+public bool VerticalStripes = true; // Python 是沿 x 变化 => 竖条
+// 对齐 Python ampnorm 的 scale=2.5 => amp=1/2.5=0.4
+public float GratingAmp = 0.4f;
+
+public Texture2D gratingA, gratingB;
+public int NumImages = 11;
+int seg = 0;
+
+
+public bool SaveCam1Png = true;
+public bool SaveCam2Png = false;          // 需要就开
+public int CaptureDurationSeconds = 60;   // 你要 60s
+public string SaveFolderName = "CamCapture60s";
+
+private bool _capturing = false;
+private int _savedCount = 0;
+private float _captureStartTime = 0f;
+private const string Camera1SaveDir = @"D:\vectionProject\public\camear1images";
 }
