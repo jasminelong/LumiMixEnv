@@ -39,6 +39,9 @@ public class MoveCameraEditor : Editor
         prop = serializedObject.FindProperty("Mat_GrayscaleOverBlend");
         EditorGUILayout.PropertyField(prop);
 
+         prop = serializedObject.FindProperty("treeRenderer");
+        EditorGUILayout.PropertyField(prop);
+
         prop = serializedObject.FindProperty("cameraSpeed");
         EditorGUILayout.PropertyField(prop);
 

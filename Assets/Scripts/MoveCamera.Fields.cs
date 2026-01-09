@@ -292,4 +292,6 @@ private bool _capturing = false;
 private int _savedCount = 0;
 private float _captureStartTime = 0f;
 private const string Camera1SaveDir = @"D:\vectionProject\public\camear1images";
+
+[SerializeField] public Renderer[] treeRenderers;   // 拖拽树的 MeshRenderer(s)
 }

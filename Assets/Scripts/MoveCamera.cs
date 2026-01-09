@@ -6,6 +6,8 @@ using System;
 using System.IO;
 using TMPro;
 using UnityEngine.SceneManagement;
+using System.Text;
+
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -271,49 +273,77 @@ public partial class MoveCamera : MonoBehaviour
         {
             frameNum++;
             // ====== 60 秒采集：自动开始 / 自动停止 ======
-            /*          if (!_capturing)
-                     {
-                         _capturing = true;
-                         _savedCount = 0;
-                         _captureStartTime = Time.time;
-                         Debug.Log("[Capture] START 60s");
-                     }
+            if (!_capturing)
+            {
+                _capturing = true;
+                _savedCount = 0;
+                _captureStartTime = Time.time;
+                Debug.Log("[Capture] START 60s");
+            }
 
-                     if (_capturing && _savedCount < CaptureDurationSeconds)
-                     {
-                         // 为了避免保存到“上一帧”，强制渲染一次（推荐）
-                         captureCamera1.Render();
-                         if (SaveCam2Png) captureCamera2.Render();
+            if (_capturing && _savedCount < CaptureDurationSeconds)
+            {
+                // 为了避免保存到“上一帧”，强制渲染一次（推荐）
+                captureCamera1.Render();
+                if (SaveCam2Png) captureCamera2.Render();
 
-                             string dir = Camera1SaveDir;
-                     Directory.CreateDirectory(dir);
-                         int secIndex = _savedCount; // 0..59
 
-                         if (SaveCam1Png)
-                         {
-                             var rt1 = captureCamera1.targetTexture;
-                             string path1 = Path.Combine(dir, $"cam1_{secIndex:000}.png");
-                             SaveRenderTextureToPng(rt1, path1);
-                         }
+                // 在保存PNG前先准备csv路径
+                string dir = Camera1SaveDir;
+                Directory.CreateDirectory(dir);
 
-                         if (SaveCam2Png)
-                         {
-                             var rt2 = captureCamera2.targetTexture;
-                             string path2 = Path.Combine(dir, $"cam2_{secIndex:000}.png");
-                             SaveRenderTextureToPng(rt2, path2);
-                         }
+                // 建议：一个文件存两种目标（tree/house）也行；这里先给 tree 单独一份
+                string csvPathTree = Path.Combine(dir, "cam1_tree_bbox.csv");
+                string header = "secIndex,frameName,rtW,rtH,x_bl,y_bl,w,h,x_tl,y_tl,w_tl,h_tl,valid";
 
-                         _savedCount++;
-                         Debug.Log($"[Capture] saved {_savedCount}/{CaptureDurationSeconds}");
-                     }
+                int secIndex = _savedCount; // 0..59
+                string frameName = $"cam1_{secIndex:000}.png";
+                if (SaveCam1Png)
+                {
+                    var rt1 = captureCamera1.targetTexture;
+                    string path1 = Path.Combine(dir, frameName);
+                    SaveRenderTextureToPng(rt1, path1);
 
-                     if (_capturing && _savedCount >= CaptureDurationSeconds)
-                     {
-                         _capturing = false;
-                         float elapsed = Time.time - _captureStartTime;
-                         Debug.Log($"[Capture] DONE: {CaptureDurationSeconds} frames in {elapsed:F1}s  folder=../{SaveFolderName}");
-                     } 
-          */
+                    // === 关键：保存 bbox 到 CSV ===
+                    if (treeRenderers != null && treeRenderers.Length > 0)
+                    {
+                        Bounds bTree = CombineBounds(treeRenderers);
+                        int rtW = rt1.width;
+                        int rtH = rt1.height;
+
+                        bool ok = ComputeBboxOnRenderTexture(
+                            captureCamera1, rtW, rtH, bTree,
+                            out RectInt bbBL, out RectInt bbTL
+                        );
+
+                        string line = string.Format(
+                            "{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11},{12}",
+                            secIndex, frameName, rtW, rtH,
+                            bbBL.x, bbBL.y, bbBL.width, bbBL.height,
+                            bbTL.x, bbTL.y, bbTL.width, bbTL.height,
+                            ok ? 1 : 0
+                        );
+                        AppendCsvLine(csvPathTree, header, line);
+                    }
+                }
+                if (SaveCam2Png)
+                {
+                    var rt2 = captureCamera2.targetTexture;
+                    string path2 = Path.Combine(dir, $"cam2_{secIndex:000}.png");
+                    SaveRenderTextureToPng(rt2, path2);
+                }
+
+                _savedCount++;
+                Debug.Log($"[Capture] saved {_savedCount}/{CaptureDurationSeconds}");
+            }
+
+            if (_capturing && _savedCount >= CaptureDurationSeconds)
+            {
+                _capturing = false;
+                float elapsed = Time.time - _captureStartTime;
+                Debug.Log($"[Capture] DONE: {CaptureDurationSeconds} frames in {elapsed:F1}s  folder=../{SaveFolderName}");
+            }
+
             if (UseGrating) OnAdvanceSegment();
             // カメラが移動する目標位置を計算 // 计算摄像机沿圆锥轴线移动的目标位置
             targetPosition = direction * cameraSpeed * updateInterval;
@@ -351,7 +381,7 @@ public partial class MoveCamera : MonoBehaviour
 
         CaptureCameraLinearBlendTopRawImage.material.SetColor("_TopColor", new Color(1, 1, 1, nonlinearNextImageRatio)); // 透明度
         CaptureCameraLinearBlendTopRawImage.material.SetColor("_BottomColor", new Color(1, 1, 1, 1.0f));
-        
+
         // ---bottom 反相位补偿准备 ---
         // ② 算出当前这 1s 区间内的时间（秒）
         float tLocalSec = Image1ToNowDeltaTime / 1000f;
@@ -1245,6 +1275,104 @@ private void OnDrawGizmos()
         gratingA.wrapMode = TextureWrapMode.Clamp;
         gratingB.wrapMode = TextureWrapMode.Clamp;
     }
+
+static Bounds CombineBounds(Renderer[] rs)
+    {
+        if (rs == null || rs.Length == 0) return new Bounds(Vector3.zero, Vector3.zero);
+        Bounds b = rs[0].bounds;
+        for (int i = 1; i < rs.Length; i++)
+        {
+            if (rs[i] == null) continue;
+            b.Encapsulate(rs[i].bounds);
+        }
+        return b;
+    }
+    static void BoundsCorners(Bounds b, Vector3[] corners8)
+    {
+        Vector3 min = b.min;
+        Vector3 max = b.max;
+        int idx = 0;
+        for (int xi = 0; xi < 2; xi++)
+            for (int yi = 0; yi < 2; yi++)
+                for (int zi = 0; zi < 2; zi++)
+                {
+                    corners8[idx++] = new Vector3(
+                        xi == 0 ? min.x : max.x,
+                        yi == 0 ? min.y : max.y,
+                        zi == 0 ? min.z : max.z
+                    );
+                }
+    }
+
+    /// <summary>
+    /// 输出两个坐标系的 bbox：
+    /// 1) bottom-left 原点（Unity viewport 乘像素）
+    /// 2) top-left 原点（和 PNG/多数图像处理一致）
+    /// </summary>
+    static bool ComputeBboxOnRenderTexture(
+        Camera cam, int rtW, int rtH, Bounds worldBounds,
+        out RectInt bboxBottomLeft, out RectInt bboxTopLeft)
+    {
+        bboxBottomLeft = new RectInt();
+        bboxTopLeft = new RectInt();
+
+        if (rtW <= 1 || rtH <= 1) return false;
+
+        Vector3[] c = new Vector3[8];
+        BoundsCorners(worldBounds, c);
+
+        float minX = 1e9f, minY = 1e9f;
+        float maxX = -1e9f, maxY = -1e9f;
+        bool anyInFront = false;
+
+        for (int i = 0; i < 8; i++)
+        {
+            Vector3 v = cam.WorldToViewportPoint(c[i]); // x,y:0..1 (理论上), z>0 表示在前方
+            if (v.z > 0) anyInFront = true;
+
+            // 仍然统计（即使部分点在外面），最后再 clamp
+            minX = Mathf.Min(minX, v.x);
+            minY = Mathf.Min(minY, v.y);
+            maxX = Mathf.Max(maxX, v.x);
+            maxY = Mathf.Max(maxY, v.y);
+        }
+
+        if (!anyInFront) return false;
+
+        // clamp 到画面内（0..1）
+        minX = Mathf.Clamp01(minX);
+        minY = Mathf.Clamp01(minY);
+        maxX = Mathf.Clamp01(maxX);
+        maxY = Mathf.Clamp01(maxY);
+
+        int x0 = Mathf.FloorToInt(minX * rtW);
+        int y0 = Mathf.FloorToInt(minY * rtH);
+        int x1 = Mathf.CeilToInt(maxX * rtW);
+        int y1 = Mathf.CeilToInt(maxY * rtH);
+
+        int w = Mathf.Max(1, x1 - x0);
+        int h = Mathf.Max(1, y1 - y0);
+
+        // bottom-left 原点 bbox
+        bboxBottomLeft = new RectInt(x0, y0, w, h);
+
+        // top-left 原点 bbox（图像常用坐标）
+        int yTop = rtH - (y0 + h);
+        bboxTopLeft = new RectInt(x0, yTop, w, h);
+
+        return true;
+    }
+
+    static void AppendCsvLine(string csvPath, string header, string line)
+    {
+        bool needHeader = !File.Exists(csvPath);
+        using (var sw = new StreamWriter(csvPath, append: true, encoding: new UTF8Encoding(false)))
+        {
+            if (needHeader) sw.WriteLine(header);
+            sw.WriteLine(line);
+        }
+    }
+
 }
 
 
