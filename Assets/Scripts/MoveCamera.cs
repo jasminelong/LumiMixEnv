@@ -293,11 +293,11 @@ public partial class MoveCamera : MonoBehaviour
                 Directory.CreateDirectory(dir);
 
                 // 建议：一个文件存两种目标（tree/house）也行；这里先给 tree 单独一份
-                string csvPathTree = Path.Combine(dir, "cam1_tree_bbox.csv");
+                string csvPathTree = Path.Combine(dir, "cam2_tree_bbox.csv");
                 string header = "secIndex,frameName,rtW,rtH,x_bl,y_bl,w,h,x_tl,y_tl,w_tl,h_tl,valid";
 
                 int secIndex = _savedCount; // 0..59
-                string frameName = $"cam1_{secIndex:000}.png";
+                string frameName = $"cam2_{secIndex:000}.png";
                 if (SaveCam1Png)
                 {
                     var rt1 = captureCamera1.targetTexture;
@@ -326,12 +326,7 @@ public partial class MoveCamera : MonoBehaviour
                         AppendCsvLine(csvPathTree, header, line);
                     }
                 }
-                if (SaveCam2Png)
-                {
-                    var rt2 = captureCamera2.targetTexture;
-                    string path2 = Path.Combine(dir, $"cam2_{secIndex:000}.png");
-                    SaveRenderTextureToPng(rt2, path2);
-                }
+
 
                 _savedCount++;
                 Debug.Log($"[Capture] saved {_savedCount}/{CaptureDurationSeconds}");
