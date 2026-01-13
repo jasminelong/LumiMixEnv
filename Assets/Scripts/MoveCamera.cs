@@ -56,7 +56,6 @@ public partial class MoveCamera : MonoBehaviour
         {
             Debug.Log($"[LoadAll] tex[{i}] name={all[i].name}");
         }
-
         frames = all
             .Where(t => t != null && t.name.StartsWith(namePrefix, StringComparison.OrdinalIgnoreCase))
             .OrderBy(t => t.name, StringComparer.OrdinalIgnoreCase)
@@ -227,49 +226,41 @@ public partial class MoveCamera : MonoBehaviour
 
     void LuminanceMixtureFrame()
     {
-        float d12 = Vector3.Distance(captureCamera1.transform.position, captureCamera2.transform.position);
-float d23 = Vector3.Distance(captureCamera2.transform.position, captureCamera3.transform.position);
-Debug.Log($"[DIST] d12={d12:F3} d23={d23:F3} move={cameraSpeed * secondsPerStep:F3}");
+        float frameMs = updateInterval * 1000f;
 
-float tSec = timeMs / 1000f;
-
-    // 用纯时间得到所在区间，避免 while/frameNum 漂移
-    stepIndex = Mathf.FloorToInt(tSec / Mathf.Max(1e-6f, secondsPerStep));
-
-    // 初始化冻结（第一帧就要有三张）
-    if (!freezeReady)
-        InitFreezeTriplet();
-
-    // 进入新的一秒：只做一次滑窗更新
-    if (freezeReady && stepIndex != lastStepIndex)
-    {
-        if (lastStepIndex != int.MinValue) // 第一次不推进，只初始化
-            AdvanceFreezeWindowAndCameras();
-
-        lastStepIndex = stepIndex;
-    }
-        // 区间内局部时间 p：严格 0..1
-        float baseSec = stepIndex * secondsPerStep;
-        float p01 = Mathf.Clamp01((tSec - baseSec) / Mathf.Max(1e-6f, secondsPerStep));
-
-        // // ====== 确保相机 RT 可用 ======
-        RenderTexture rt1 = EnsureRT(captureCamera1);
-        RenderTexture rt2 = EnsureRT(captureCamera2);
-        RenderTexture rt3 = EnsureRT(captureCamera3);
-
-        if (rt1 == null || rt2 == null)
+        while (timeMs >= frameNum * frameMs)
         {
-            Debug.LogError("captureCamera1/2 targetTexture is null. Assign RT or let EnsureRT create it.");
+            frameNum++;
+
+            targetPosition = direction * cameraSpeed * updateInterval;
+            captureCamera1.transform.position += targetPosition;
+            captureCamera2.transform.position += targetPosition;
+
+            // =========================
+            // CaptureCamera1: 每 updateInterval 保存一次（通常 1Hz）
+            // =========================
+            if (SaveCam1IsiPng)
+            {
+                // 60s * 1Hz = 60 张（如果 updateInterval=1）
+                int maxFrames = Mathf.CeilToInt(CaptureSeconds / Mathf.Max(1e-6f, updateInterval));
+                if (_cam1SavedCount < maxFrames)
+                {
+                    string file = $"cam1_{_cam1SavedCount:000}.png";
+                    string path = Path.Combine(Cam1SaveDir, file);
+                    CaptureAndSavePng(captureCamera1, path);
+                    _cam1SavedCount++;
+                }
+            }
+        }
+
+        // frames[] must be loaded (Resources or elsewhere)
+        if (frames == null || frames.Length == 0)
+        {
+            Debug.LogError("frames not loaded. Put images under Assets/Resources/... and load into frames[].");
             return;
         }
 
-        // // 建议：每次在把 RT 喂给 UI 前强制渲染，避免“落后一帧”
-        // // （尤其你在 FixedUpdate 里做这件事）
-        ForceRender(captureCamera1);
-        ForceRender(captureCamera2);
-        ForceRender(captureCamera3);
-
-        // Optional: show only the relevant RawImage
+        // Optional: show only the relevant RawImage (prevents “both draw” confusion)
         if (CaptureCameraLinearBlendRawImage != null)
             CaptureCameraLinearBlendRawImage.gameObject.SetActive(brightnessBlendMode == BrightnessBlendMode.LinearOnly);
 
@@ -279,83 +270,100 @@ float tSec = timeMs / 1000f;
         switch (brightnessBlendMode)
         {
             // =========================================================
-            // 1) TWO-FRAME LINEAR: cam1 + cam2
+            // 1) TWO-FRAME LINEAR (prev/next) — uses _TopTex/_BottomTex
             // =========================================================
             case BrightnessBlendMode.LinearOnly:
                 {
-                    var mat = CaptureCameraLinearBlendRawImage.material;
-                    mat.SetTexture("_BottomTex", rt1); // cam1
-                    mat.SetTexture("_TopTex", rt2);    // cam2
+                    // frameNum is 1-based in your loop; clamp safely
+                    int n = frames.Length;
+                    int prevIdx = Mathf.Clamp(frameNum - 1, 0, n - 1);
+                    int nextIdx = Mathf.Clamp(frameNum, 0, n - 1);
 
+                    Texture botTex = frames[prevIdx];
+                    Texture topTex = frames[nextIdx];
+
+                    var mat = CaptureCameraLinearBlendRawImage.material;
+                    mat.SetTexture("_TopTex", topTex);
+                    mat.SetTexture("_BottomTex", botTex);
+
+                    // Linear alpha by time within current interval
                     float Image1ToNowDeltaTime = timeMs - (frameNum - 1) * updateInterval * 1000f;
                     float p = Mathf.Clamp01(Image1ToNowDeltaTime / (updateInterval * 1000f));
 
+                    // If you want EXACT linear: alpha = p
+                    // If you want to keep your “knob + mapping to [0.1,0.9]”, do it here.
                     float alpha = p;
-                    // 如果你要用旋钮/补偿映射，在这里替换 alpha：
+
+                    // Example: keep your previous behavior (optional)
+                    // knobValue = SerialReader.lastSensorValue;
                     // alpha = BrightnessBlend.GetMixedValue(p, knobValue, BrightnessBlendMode.LinearOnly);
                     // alpha = Mathf.Lerp(0.1f, 0.9f, Mathf.Clamp01(alpha));
 
                     mat.SetColor("_TopColor", new Color(1, 1, 1, alpha));
                     mat.SetColor("_BottomColor", new Color(1, 1, 1, 1.0f));
-
-                    float now = Application.isPlaying ? Time.time : (float)UnityEditor.EditorApplication.timeSinceStartup;
-
-                    string line =
-                        $"LinearOnly," +
-                        $"cam1,{(1f - alpha):F6}," +
-                        $"-1,{0f:F6}," +
-                        $"cam2,{alpha:F6}," +
-                        $"{timeMs:F3},{knobValue:F3},{responsePattern},{(int)stepNumber},{amplitudeToSaveData},{v:F6},{alpha:F6},{cameraSpeed:F3}";
-
-                    RecordWaveAndData(now, alpha, line);
                     break;
                 }
 
             // =========================================================
-            // 2) THREE-FRAME GAUSS: cam1 + cam2 + cam3（实时三相机混合）
+            // 2) THREE-FRAME GAUSSIAN (k-1,k,k+1) — uses _Tex0/1/2 + _W0/1/2
             // =========================================================
             case BrightnessBlendMode.GaussOnly:
                 {
-            if (!freezeReady) return;
+                    // Time (sec)
+                    float tSec = timeMs / 1000f;
 
-            float sigmaIdx = Mathf.Max(1e-4f, sigmaSec / Mathf.Max(1e-6f, secondsPerStep));
+                    float step = secondsPerStep; // e.g. 1.0f for 1Hz
+                    float sigma = sigmaSec;       // e.g. 0.6f
 
-            // 固定三帧 (k-1, k, k+1) 的 3-tap 截断高斯，中心随 p01 连续移动
-            float d0 = (-1f - p01) / sigmaIdx;
-            float d1 = ( 0f - p01) / sigmaIdx;
-            float d2 = ( 1f - p01) / sigmaIdx;
+                    int n = frames.Length;
+                    int k = Mathf.FloorToInt(tSec / step);
 
-            float w0 = Mathf.Exp(-0.5f * d0 * d0);
-            float w1 = Mathf.Exp(-0.5f * d1 * d1);
-            float w2 = Mathf.Exp(-0.5f * d2 * d2);
+                    int i0 = Mathf.Clamp(k - 1, 0, n - 1);
+                    int i1 = Mathf.Clamp(k, 0, n - 1);
+                    int i2 = Mathf.Clamp(k + 1, 0, n - 1);
 
-            float s = w0 + w1 + w2;
-            if (s < 1e-8f) { w0 = 0; w1 = 1; w2 = 0; }
-            else { w0 /= s; w1 /= s; w2 /= s; }
+                    float t0 = (k - 1) * step;
+                    float t1 = (k) * step;
+                    float t2 = (k + 1) * step;
 
-            var mat = CaptureCameraLinearBlendTopRawImage.material;
-            mat.SetTexture("_Tex0", freezePrev); // k-1
-            mat.SetTexture("_Tex1", freezeCur);  // k
-            mat.SetTexture("_Tex2", freezeNext); // k+1
-            mat.SetFloat("_W0", w0);
-            mat.SetFloat("_W1", w1);
-            mat.SetFloat("_W2", w2);
+                    float w0 = Mathf.Exp(-0.5f * Mathf.Pow((tSec - t0) / sigma, 2f));
+                    float w1 = Mathf.Exp(-0.5f * Mathf.Pow((tSec - t1) / sigma, 2f));
+                    float w2 = Mathf.Exp(-0.5f * Mathf.Pow((tSec - t2) / sigma, 2f));
 
-                    Debug.Log($"[Gauss p] stepIndex={stepIndex} p={p01:F3} w0={w0:F3} w1={w1:F3} w2={w2:F3}");
+                    float s = w0 + w1 + w2;
+                    if (s < 1e-8f)
+                    {
+                        w0 = 0f; w1 = 1f; w2 = 0f;
+                    }
+                    else
+                    {
+                        w0 /= s; w1 /= s; w2 /= s;
+                    }
 
-                    float now = Application.isPlaying ? Time.time : (float)UnityEditor.EditorApplication.timeSinceStartup;
-                    RecordWaveAndData(now, w1,
-                        $"GaussOnlyFreezeP,A,{w0:F6},B,{w1:F6},C,{w2:F6},{timeMs:F3},{knobValue:F3},{responsePattern},{(int)stepNumber},{amplitudeToSaveData},{v:F6},{w1:F6},{cameraSpeed:F3}"
-                    );
+                    var mat = CaptureCameraLinearBlendTopRawImage.material;
+                    mat.SetTexture("_Tex0", frames[i0]);
+                    mat.SetTexture("_Tex1", frames[i1]);
+                    mat.SetTexture("_Tex2", frames[i2]);
+                    mat.SetFloat("_W0", w0);
+                    mat.SetFloat("_W1", w1);
+                    mat.SetFloat("_W2", w2);
+
                     break;
                 }
 
-
-
+            // =========================================================
+            // 3) Others: either do nothing or fall back to LinearOnly
+            // =========================================================
             default:
-                break;
+                {
+                    // If you prefer fallback:
+                    // brightnessBlendMode = BrightnessBlendMode.LinearOnly;
+                    // LuminanceMixtureFrame();
+                    break;
+                }
         }
     }
+
 
 
     void InitialSetup()
@@ -1087,148 +1095,7 @@ private void OnDrawGizmos()
         Destroy(tex);
         RenderTexture.active = prev;
     }
-    private RenderTexture EnsureRT(Camera cam, int w = 1920, int h = 540)
-    {
-        if (cam == null) return null;
-        if (cam.targetTexture != null) return cam.targetTexture;
-
-        // Linear 项目里，给 UI 看通常用 sRGB RT 更符合直觉（与你上面灰度一致性问题相关）
-        var rt = new RenderTexture(w, h, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
-        rt.Create();
-        cam.targetTexture = rt;
-        return rt;
-    }
-
-    private void ForceRender(Camera cam)
-    {
-        if (cam == null) return;
-        if (cam.targetTexture == null) return;
-        cam.Render();
-    }
-    // =========================
-    // Freeze buffer for 3 cams (A/B/C snapshots)
-    // =========================
-    RenderTexture freeze0, freeze1, freeze2;   // frozen A/B/C
-
-    // 用于防止同一秒边界重复冻结（FixedUpdate 里 while 可能跑多次）
-    int lastFrozenFrameNum = -1;
-
-    void EnsureFreezeRT(RenderTexture src)
-    {
-        if (src == null) return;
-
-        // 如果不存在或尺寸/格式变化，就重建
-        bool need =
-            freeze0 == null || !freeze0.IsCreated() ||
-            freeze0.width != src.width || freeze0.height != src.height || freeze0.format != src.format;
-
-        if (!need) return;
-
-        ReleaseFreezeRT();
-
-        freeze0 = new RenderTexture(src.width, src.height, 0, src.format);
-        freeze1 = new RenderTexture(src.width, src.height, 0, src.format);
-        freeze2 = new RenderTexture(src.width, src.height, 0, src.format);
-
-        freeze0.wrapMode = TextureWrapMode.Clamp; freeze0.filterMode = FilterMode.Bilinear; freeze0.Create();
-        freeze1.wrapMode = TextureWrapMode.Clamp; freeze1.filterMode = FilterMode.Bilinear; freeze1.Create();
-        freeze2.wrapMode = TextureWrapMode.Clamp; freeze2.filterMode = FilterMode.Bilinear; freeze2.Create();
-
-        freezeReady = true;
-    }
-
-    void ReleaseFreezeRT()
-    {
-        if (freeze0 != null) { freeze0.Release(); Destroy(freeze0); freeze0 = null; }
-        if (freeze1 != null) { freeze1.Release(); Destroy(freeze1); freeze1 = null; }
-        if (freeze2 != null) { freeze2.Release(); Destroy(freeze2); freeze2 = null; }
-        freezeReady = false;
-    }
-
-    void FreezeThreeCamsNow()
-    {
-        var rt1 = captureCamera1.targetTexture;
-        var rt2 = captureCamera2.targetTexture;
-        var rt3 = captureCamera3.targetTexture;
-
-        if (rt1 == null || rt2 == null || rt3 == null)
-        {
-            Debug.LogError("FreezeThreeCamsNow: targetTexture null. Assign RTs.");
-            return;
-        }
-
-        EnsureFreezeRT(rt1);
-
-        // 同一时刻渲染
-        captureCamera1.Render();
-        captureCamera2.Render();
-        captureCamera3.Render();
-
-        // 同一时刻拷贝
-        Graphics.Blit(rt1, freeze0);
-        Graphics.Blit(rt2, freeze1);
-        Graphics.Blit(rt3, freeze2);
-
-        freezeReady = true;
-    }
-
-    RenderTexture AllocLike(RenderTexture src, string name)
-{
-    var rt = new RenderTexture(src.width, src.height, 0, src.format);
-    rt.name = name;
-    rt.wrapMode = TextureWrapMode.Clamp;
-    rt.filterMode = FilterMode.Bilinear;
-    rt.Create();
-    return rt;
-}
-
-void InitFreezeTriplet()
-{
-    var rt1 = captureCamera1.targetTexture;
-    var rt2 = captureCamera2.targetTexture;
-    var rt3 = captureCamera3.targetTexture;
-
-    if (rt1 == null || rt2 == null || rt3 == null)
-    {
-        Debug.LogError("InitFreezeTriplet: targetTexture null. Assign RTs to cam1/2/3.");
-        return;
-    }
-
-    // allocate once
-    if (freezePrev == null) freezePrev = AllocLike(rt1, "FreezePrev");
-    if (freezeCur  == null) freezeCur  = AllocLike(rt1, "FreezeCur");
-    if (freezeNext == null) freezeNext = AllocLike(rt1, "FreezeNext");
-
-    // render same moment, then copy
-    captureCamera1.Render();
-    captureCamera2.Render();
-    captureCamera3.Render();
-
-    Graphics.Blit(rt1, freezePrev);
-    Graphics.Blit(rt2, freezeCur);
-    Graphics.Blit(rt3, freezeNext);
-
-    freezeReady = true;
-}
-void AdvanceFreezeWindowAndCameras()
-{
-    // 1) 先移位：prev<-cur, cur<-next, next<-prev(复用RT对象，避免GC)
-    var tmp = freezePrev;
-    freezePrev = freezeCur;
-    freezeCur = freezeNext;
-    freezeNext = tmp;
-
-    // 2) 再推进相机到下一秒位置（你原来就是这样移动三台相机）
-    Vector3 delta = direction * cameraSpeed * secondsPerStep; // secondsPerStep=1.0 时就是 1 秒步长
-    captureCamera1.transform.position += delta;
-    captureCamera2.transform.position += delta;
-    captureCamera3.transform.position += delta;
-
-    // 3) 只抓新的“未来帧”：用推进后 cam3 的画面填充 freezeNext
-    captureCamera3.Render();
-    Graphics.Blit(captureCamera3.targetTexture, freezeNext);
-}
-
+    
 }
 
 

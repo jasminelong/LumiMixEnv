@@ -306,5 +306,10 @@ bool freezeReady = false;
 int stepIndex = 0;
 int lastStepIndex = int.MinValue;
 
+public string Cam2DiskDir = @"D:\vectionProject\public\camera2images"; // 你要用的文件夹
+public string Cam2Prefix = "cam2_";
+public int Cam2Count = 10; // 000..009
+
+int framesN = 0;
 
 }
