@@ -14,6 +14,7 @@ public class Progress
     public int exp1_trials = 0;
     public int exp2_intro_test = 0;
     public int exp2_trials = 0;
+    public bool exp2_trials_randomized = false;
 }
 
 [System.Serializable]

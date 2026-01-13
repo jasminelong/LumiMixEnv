@@ -27,6 +27,9 @@ public class MoveCameraEditor : Editor
         prop = serializedObject.FindProperty("captureCamera2");
         EditorGUILayout.PropertyField(prop);
 
+        prop = serializedObject.FindProperty("captureCamera3");
+        EditorGUILayout.PropertyField(prop);
+
         prop = serializedObject.FindProperty("canvas");
         EditorGUILayout.PropertyField(prop);
 
@@ -87,8 +90,6 @@ public class MoveCameraEditor : Editor
         // Brightness 曲线（单独方法）
         DrawBrightnessGraph(script);
 
-        // CaptureCamera1 速度图（抽出方法，与 Brightness 一致的尺寸与横轴）
-        // DrawCaptureCamera1ReverseJumpSpeedGraph(script);
 
         //4.5-----
         prop = serializedObject.FindProperty("omega");
@@ -133,45 +134,26 @@ public class MoveCameraEditor : Editor
         const float rowGap = 6f;
         const float bigRowGap = 12f;
 
-        // Which parameter should be "big" on this step, depending on paramOrder
-        int stepIdx = (int)script.stepNumber; // 0-based
-        string focusKey = null;
-
-        // Determine focusKey based on paramOrder
-        switch (script.paramOrder)
-        {
-            case MoveCamera.ParameterOrder.V0_A1_PHI1_A2_PHI2:
-                focusKey = GetFocusKey(stepIdx, new string[] { "A1", "PHI1", "A2", "PHI2" });
-                break;
-
-            case MoveCamera.ParameterOrder.V0_A1_PHI1_A2_PHI2_A1_PHI1_A2_PHI2:
-                focusKey = GetFocusKey(stepIdx, new string[] { "A1", "PHI1", "A2", "PHI2", "A1", "PHI1", "A2", "PHI2" });
-                break;
-
-            case MoveCamera.ParameterOrder.V0_PHI1_A1_PHI2_A2:
-                focusKey = GetFocusKey(stepIdx, new string[] { "PHI1", "A1", "PHI2", "A2" });
-                break;
-
-            case MoveCamera.ParameterOrder.V0_PHI1_A1_PHI1_PHI2_A2_PHI2:
-                focusKey = GetFocusKey(stepIdx, new string[] { "PHI1", "A1", "PHI1", "PHI2", "A2", "PHI2" });
-                break;
-        }
-
         for (int i = 1; i <= 4; i++)   // A1..φ2 一律 1基
         {
             string label = labels[i];
             float value = script.GetAmplitude(i);                 // ← 1基读取
+            bool isBig = ((int)script.stepNumber == i);          // Option1..4 分别聚焦 A1..φ2
 
-            // Map i -> key
-            string keyI = (i == 1) ? "A1" : (i == 2) ? "PHI1" : (i == 3) ? "A2" : "PHI2";
-            bool isBig = (focusKey == keyI);
-
-            float newValue = isBig
-            ? DrawBigSliderWithNumberFloat(label, value, minValues[i], maxValues[i], labelFontSize: 26, valueFontSize: 30, valueColor: Color.red)
-            : EditorGUILayout.Slider(label, value, minValues[i], maxValues[i]);
-
-            newValue = Round3(newValue);
-            GUILayout.Space(isBig ? bigRowGap : rowGap);
+            float newValue;
+            if (isBig)
+            {
+                newValue = DrawBigSliderWithNumberFloat(
+                    label, value, minValues[i], maxValues[i],
+                    labelFontSize: 26, valueFontSize: 30, valueColor: Color.red);
+                GUILayout.Space(bigRowGap);
+            }
+            else
+            {
+                newValue = EditorGUILayout.Slider(label, value, minValues[i], maxValues[i]);
+                newValue = Round3(newValue);
+                GUILayout.Space(rowGap);
+            }
 
             if (!Mathf.Approximately(newValue, value))
             {
@@ -181,13 +163,6 @@ public class MoveCameraEditor : Editor
             }
         }
 
-        // Helper method to get focus key based on step index and keys
-        string GetFocusKey(int stepIdx, string[] keys)
-        {
-            // stepIdx is 0-based, adjust for array access (skip Option0/V0)
-            int arrayIdx = stepIdx - 1;
-            return (arrayIdx >= 0 && arrayIdx < keys.Length) ? keys[arrayIdx] : null;
-        }
 
         GUILayout.Space(10);
 
@@ -445,103 +420,5 @@ public class MoveCameraEditor : Editor
 
 
 
-    void DrawCaptureCamera1ReverseJumpSpeedGraph(MoveCamera script)
-    {
-        GUILayout.Space(10);
-        // EditorGUILayout.LabelField("CaptureCamera1 ReverseJumpSpeed　-v(脈動成分)", EditorStyles.boldLabel);
-        var green = new GUIStyle(EditorStyles.boldLabel);
-        green.normal.textColor = new Color(0.18f, 0.80f, 0.44f); // 近似 #2ECC71
-
-        EditorGUILayout.BeginHorizontal();
-        GUILayout.Label("CaptureCamera1 ReverseJumpSpeed　", EditorStyles.boldLabel);
-        GUILayout.Label("-v(脈動成分)", green);
-        EditorGUILayout.EndHorizontal();
-        GUILayout.Space(10);
-
-        var maxDuration = script.maxDuration;
-        float now = Application.isPlaying ? Time.time : (float)UnityEditor.EditorApplication.timeSinceStartup;
-
-        // 跟 Brightness 一样的绘制区域尺寸
-        Rect rect = GUILayoutUtility.GetRect(300, 150);
-        EditorGUI.DrawRect(rect, new Color(0.1f, 0.1f, 0.1f));
-
-        // 采样（播放时把当前速度推入历史）
-        // 优先用脚本提供的实时计算（确保值确实每帧更新）
-        float currentCamSpeed = script.CameraSpeedCompensation(1);
-        if (Application.isPlaying)
-        {
-            camReverseJumpSpeedHistory.Enqueue(currentCamSpeed);
-            camReverseJumpSpeedTimeHistory.Enqueue(now);
-        }
-        // 丢弃超出时间窗口的样本（与 Brightness 的 maxDuration 对齐）
-        while (camReverseJumpSpeedTimeHistory.Count > 0 && camReverseJumpSpeedTimeHistory.Peek() < now - maxDuration)
-        {
-            camReverseJumpSpeedTimeHistory.Dequeue();
-            if (camReverseJumpSpeedHistory.Count > 0) camReverseJumpSpeedHistory.Dequeue();
-        }
-
-
-        // Y 轴刻度（固定 -1.5 .. 2.0，与 Brightness 风格一致）
-        Handles.color = Color.gray;
-        int yTicks = 5;
-        for (int i = 0; i <= yTicks; i++)
-        {
-            float t = i / (float)yTicks;
-            // 从 top (rect.yMin) 到 bottom (rect.yMax)，保证上方显示较大（正）值，底部显示较小（负）值
-            float y = Mathf.Lerp(rect.yMin, rect.yMax, t);
-            Handles.DrawLine(new Vector3(rect.xMin, y), new Vector3(rect.xMin + 5, y));
-            float yVal = Mathf.Lerp(2.5f, camSpeedyMin, t);
-            GUI.Label(new Rect(rect.xMin + 8, y - 8, 40, 16), yVal.ToString("F2"));
-        }
-
-        // X 轴刻度与时间标签（和 Brightness 共用时间范围）
-        int xTicks = 5;
-        for (int i = 0; i <= xTicks; i++)
-        {
-            float t = i / (float)xTicks;
-            float x = Mathf.Lerp(rect.xMin, rect.xMax, t);
-            Handles.DrawLine(new Vector3(x, rect.yMax), new Vector3(x, rect.yMax - 5));
-            float timeLabel = now - maxDuration + t * maxDuration;
-            GUI.Label(new Rect(x - 20, rect.yMax + 2, 40, 16), timeLabel.ToString("F2") + "s");
-        }
-
-        // 绘制速度曲线：使用时间戳映射到横轴（与 Brightness 对齐）
-        Handles.color = Color.cyan;
-        if (camReverseJumpSpeedHistory.Count > 0 && camReverseJumpSpeedTimeHistory.Count == camReverseJumpSpeedHistory.Count)
-        {
-            float[] samples = camReverseJumpSpeedHistory.ToArray();
-            float[] times = camReverseJumpSpeedTimeHistory.ToArray();
-            int sn = samples.Length;
-            float w = rect.width, h = rect.height;
-
-            // 根据时间计算 x 位置（now-maxDuration 到 now）
-            for (int i = 1; i < sn; i++)
-            {
-                float t0 = times[i - 1], t1 = times[i];
-                float x0 = rect.xMin + Mathf.Clamp01((t0 - (now - maxDuration)) / maxDuration) * w;
-                float x1 = rect.xMin + Mathf.Clamp01((t1 - (now - maxDuration)) / maxDuration) * w;
-                float y0 = rect.yMax - Mathf.InverseLerp(camSpeedyMin, camSpeedyMax, samples[i - 1]) * h;
-                float y1 = rect.yMax - Mathf.InverseLerp(camSpeedyMin, camSpeedyMax, samples[i]) * h;
-                Handles.DrawLine(new Vector3(x0, y0), new Vector3(x1, y1));
-            }
-        }
-        else
-        {
-            // 无样本时画当前值的水平线（在时间轴右端）
-            float yy = rect.yMax - Mathf.InverseLerp(camSpeedyMin, camSpeedyMax, currentCamSpeed) * rect.height;
-            Handles.DrawLine(new Vector3(rect.xMin, yy), new Vector3(rect.xMax, yy));
-        }
-
-        Handles.color = Color.white;
-        GUILayout.Space(6);
-        int count = camReverseJumpSpeedHistory.Count;
-        EditorGUILayout.LabelField($"最新5秒間のサンプル数: {count} ");
-
-        // 在播放时强制刷新 Inspector，以便曲线实时更新
-        if (Application.isPlaying)
-        {
-            Repaint();
-        }
-    }
 
 }

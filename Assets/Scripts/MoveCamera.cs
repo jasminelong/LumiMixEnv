@@ -19,7 +19,6 @@ public partial class MoveCamera : MonoBehaviour
     // 对数刻度
     void Start()
     {
-        UseGrating = false;
         // 垂直同期を無効にする // 关闭垂直同步
         QualitySettings.vSyncCount = 0;
         // 目標フレームレートを60フレーム/秒に設定 // 设置目标帧率为60帧每秒
@@ -33,6 +32,7 @@ public partial class MoveCamera : MonoBehaviour
 
         continuousImageRawImage.enabled = true;
         captureCamera2.transform.position += direction * captureIntervalDistance;
+        captureCamera3.transform.position += direction * captureIntervalDistance * 2f;
         SerialReader = GetComponent<SerialReader>();
 
         TrailSettings();
@@ -78,6 +78,17 @@ public partial class MoveCamera : MonoBehaviour
             .ToArray();
 
         Debug.Log($"Loaded {frames.Length} frames from Resources/{resourcesFolder}");
+
+        savePath = Path.Combine(Application.dataPath, "Scripts/full_trials.json");
+        Debug.Log($"[MoveCamera] trial savePath = {savePath}");
+
+        if (!File.Exists(savePath))
+        {
+            Debug.LogWarning("Trial file not found. Please run: Tools → Generate initial trial file");
+            // 这里不强制退出也行，但最好不要让实验继续
+            isEnd = true;
+            return;
+        }
     }
     void Update()
     {
@@ -96,45 +107,13 @@ public partial class MoveCamera : MonoBehaviour
             switch (currentStep)
             {
                 case 0:
-                    if (experimentPattern == ExperimentPattern.FunctionMix)
-                    {
-                        nextStepButtonTextComponent.text = "Entering the next trial";
-                    }
-                    else
-                    {
-                        nextStepButtonTextComponent.text = "Next Step";
-                    }
-                    break;
                 case 1:
                 case 2:
                 case 3:
                     nextStepButtonTextComponent.text = "Next Step";
                     break;
                 case 4:
-                    if (paramOrder == ParameterOrder.V0_A1_PHI1_A2_PHI2)
-                    {
-                        nextStepButtonTextComponent.text = "Entering the next trial";
-                    }
-                    break;
-                case 5:
-
-                    nextStepButtonTextComponent.text = "Next Step";
-                    break;
-                case 6:
-                    if (paramOrder == ParameterOrder.V0_PHI1_A1_PHI1_PHI2_A2_PHI2)
-                    {
-                        nextStepButtonTextComponent.text = "Entering the next trial";
-                    }
-                    break;
-                case 7:
-                case 8:
-                    nextStepButtonTextComponent.text = "Next Step";
-                    break;
-                case 9:
-                    if (paramOrder == ParameterOrder.V0_A1_PHI1_A2_PHI2_A1_PHI1_A2_PHI2)
-                    {
-                        nextStepButtonTextComponent.text = "Entering the next trial";
-                    }
+                    nextStepButtonTextComponent.text = "Entering the next trial";
                     break;
             }
         }
@@ -145,13 +124,11 @@ public partial class MoveCamera : MonoBehaviour
         // timeMs = (Time.time - startTime) * 1000;
         // 使用固定步长计算 timeMs，确保每次增加为 Time.fixedDeltaTime（约 16.6667ms）
         timeMs = fixedUpdateCounter * Time.fixedDeltaTime * 1000f;
+        float tSec = timeMs / 1000f;
 
+        // 当前处于第几个 1s 区间（从 0 开始）
+        stepIndex = Mathf.FloorToInt(tSec / Mathf.Max(1e-6f, secondsPerStep));
         Continuous();
-
-        if (!isInGray && timeMs >= segmentMs)
-        {
-            StartCoroutine(GrayBreakRoutine());
-        }
 
         // LuminanceMixture();
         LuminanceMixtureFrame();
@@ -174,21 +151,7 @@ public partial class MoveCamera : MonoBehaviour
         switch (currentStep)
         {
             case 1:
-                if (experimentPattern == ExperimentPattern.FunctionMix)
-                {
-                    if (isEnd)
-                    {
-                        QuitGame();
-                    }
-                    else
-                    {
-                        MarkTrialCompletedAndRestart();
-                    }
-                }
-                else
-                {
-                    stepNumber = StepNumber.Option1;
-                }
+                stepNumber = StepNumber.Option1;
                 break;
             case 2:
                 stepNumber = StepNumber.Option2;
@@ -200,41 +163,14 @@ public partial class MoveCamera : MonoBehaviour
                 stepNumber = StepNumber.Option4;
                 break;
             case 5:
-                if (paramOrder == ParameterOrder.V0_A1_PHI1_A2_PHI2)
+                if (isEnd)
                 {
-                    if (isEnd)
-                    {
-                        QuitGame();
-                    }
-                    else
-                    {
-                        MarkTrialCompletedAndRestart();
-                    }
+                    QuitGame();
                 }
-                stepNumber = StepNumber.Option5;
-                break;
-            case 6:
-                stepNumber = StepNumber.Option6;
-                break;
-            case 7:
-                stepNumber = StepNumber.Option7;
-                break;
-            case 8:
-                stepNumber = StepNumber.Option8;
-                break;
-            case 9:
-                if (paramOrder == ParameterOrder.V0_A1_PHI1_A2_PHI2_A1_PHI1_A2_PHI2)
+                else
                 {
-                    if (isEnd)
-                    {
-                        QuitGame();
-                    }
-                    else
-                    {
-                        MarkTrialCompletedAndRestart();
-                    }
+                    MarkTrialCompletedAndRestart();
                 }
-                stepNumber = StepNumber.Option9;
                 break;
         }
         nextStepButton.gameObject.SetActive(false);
@@ -245,74 +181,95 @@ public partial class MoveCamera : MonoBehaviour
         continuousImageRawImage.enabled = true;
         time += Time.fixedDeltaTime;
 
-        if (experimentPattern == ExperimentPattern.FunctionMix)
+        float knobValue = Mathf.Clamp01(SerialReader.lastSensorValue);
+        int step = (int)stepNumber;
+
+        if (responsePattern == ResponsePattern.Velocity)
         {
-            captureCamera0.transform.position += direction * cameraSpeed * Time.deltaTime;
+            // V0 = knobValue * 2f;
+            V0 = knobValue;
+            v = V0;
         }
-        else
+        else if (responsePattern == ResponsePattern.Amplitude)
         {
-            // つまみセンサー値（0〜1）を取得し
-            float knobValue = Mathf.Clamp01(SerialReader.lastSensorValue);
-            int step = (int)stepNumber;
-            V0 = 1.0f;
-            // if (responsePattern == ResponsePattern.Velocity)
-            // {
-            //     // V0 = knobValue * 2f;
-            //     V0 = 1.0f;
-            //     v = V0;
-            // }
-            // else 
-            // if (responsePattern == ResponsePattern.Amplitude)
-            // {
+            if (step == 1 || step == 3) amplitudeToSaveData = Mathf.Lerp(A_min, A_max, knobValue);
+            if (step == 2 || step == 4) amplitudeToSaveData = knobValue * 2f * Mathf.PI;
 
-            //2.v(t)=V0 + A1·sin(ωt + φ1 + Mathf.PI) + A2·sin(2ωt + φ2 + Mathf.PI)
-            // 現在の速度を計算
-            // Define parameter adjustment order
-            // Parameter order is now defined at the top of the file
-            // Change this to switch orders
-
-            if (step == 1 || step == 3)
-            {
-                amplitudeToSaveData = Mathf.Lerp(A_min, A_max, knobValue);
-            }
-            if (step == 2 || step == 4)
-            {
-                amplitudeToSaveData = knobValue * 2f * Mathf.PI;
-            }
             amplitudes[step] = amplitudeToSaveData;
-            if (step >= 1) v = V0 + amplitudes[1] * Mathf.Sin(omega * time);// A1
-            if (step >= 2) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI);// φ1
-            if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time);// A2
-            if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);// φ2 
-                                                                                                                                                                                // }
 
-            captureCamera0.transform.position += direction * v * Time.deltaTime;
+            if (step >= 1) v = V0 + amplitudes[1] * Mathf.Sin(omega * time);
+            if (step >= 2) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI);
+            if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time);
+            if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);
 
+        }
+
+        // 连续相机移动
+        captureCamera0.transform.position += direction * v * Time.deltaTime;
+
+        // =========================
+        // CaptureCamera0: 60fps 保存（每次 FixedUpdate 一张）
+        // =========================
+        if (SaveCam0ContinuousPng)
+        {
+            // 时长限制：60s * 60fps = 3600 张
+            int maxFrames = CaptureSeconds * 60;
+            if (_cam0SavedCount < maxFrames)
+            {
+                // 用 fixedUpdateCounter 做帧号（与 timeMs 对齐）
+                string file = $"cam0_{fixedUpdateCounter:000000}.png";
+                string path = Path.Combine(Cam0SaveDir, file);
+                // CaptureAndSavePng(captureCamera0, path);
+                _cam0SavedCount++;
+            }
         }
     }
 
-
     void LuminanceMixtureFrame()
     {
-        float frameMs = updateInterval * 1000f;
+        float d12 = Vector3.Distance(captureCamera1.transform.position, captureCamera2.transform.position);
+float d23 = Vector3.Distance(captureCamera2.transform.position, captureCamera3.transform.position);
+Debug.Log($"[DIST] d12={d12:F3} d23={d23:F3} move={cameraSpeed * secondsPerStep:F3}");
 
-        while (timeMs >= frameNum * frameMs)
+float tSec = timeMs / 1000f;
+
+    // 用纯时间得到所在区间，避免 while/frameNum 漂移
+    stepIndex = Mathf.FloorToInt(tSec / Mathf.Max(1e-6f, secondsPerStep));
+
+    // 初始化冻结（第一帧就要有三张）
+    if (!freezeReady)
+        InitFreezeTriplet();
+
+    // 进入新的一秒：只做一次滑窗更新
+    if (freezeReady && stepIndex != lastStepIndex)
+    {
+        if (lastStepIndex != int.MinValue) // 第一次不推进，只初始化
+            AdvanceFreezeWindowAndCameras();
+
+        lastStepIndex = stepIndex;
+    }
+        // 区间内局部时间 p：严格 0..1
+        float baseSec = stepIndex * secondsPerStep;
+        float p01 = Mathf.Clamp01((tSec - baseSec) / Mathf.Max(1e-6f, secondsPerStep));
+
+        // // ====== 确保相机 RT 可用 ======
+        RenderTexture rt1 = EnsureRT(captureCamera1);
+        RenderTexture rt2 = EnsureRT(captureCamera2);
+        RenderTexture rt3 = EnsureRT(captureCamera3);
+
+        if (rt1 == null || rt2 == null)
         {
-            frameNum++;
-
-            targetPosition = direction * cameraSpeed * updateInterval;
-            captureCamera1.transform.position += targetPosition;
-            captureCamera2.transform.position += targetPosition;
-        }
-
-        // frames[] must be loaded (Resources or elsewhere)
-        if (frames == null || frames.Length == 0)
-        {
-            Debug.LogError("frames not loaded. Put images under Assets/Resources/... and load into frames[].");
+            Debug.LogError("captureCamera1/2 targetTexture is null. Assign RT or let EnsureRT create it.");
             return;
         }
 
-        // Optional: show only the relevant RawImage (prevents “both draw” confusion)
+        // // 建议：每次在把 RT 喂给 UI 前强制渲染，避免“落后一帧”
+        // // （尤其你在 FixedUpdate 里做这件事）
+        ForceRender(captureCamera1);
+        ForceRender(captureCamera2);
+        ForceRender(captureCamera3);
+
+        // Optional: show only the relevant RawImage
         if (CaptureCameraLinearBlendRawImage != null)
             CaptureCameraLinearBlendRawImage.gameObject.SetActive(brightnessBlendMode == BrightnessBlendMode.LinearOnly);
 
@@ -322,124 +279,81 @@ public partial class MoveCamera : MonoBehaviour
         switch (brightnessBlendMode)
         {
             // =========================================================
-            // 1) TWO-FRAME LINEAR (prev/next) — uses _TopTex/_BottomTex
+            // 1) TWO-FRAME LINEAR: cam1 + cam2
             // =========================================================
             case BrightnessBlendMode.LinearOnly:
                 {
-                    // frameNum is 1-based in your loop; clamp safely
-                    int n = frames.Length;
-                    int prevIdx = Mathf.Clamp(frameNum - 1, 0, n - 1);
-                    int nextIdx = Mathf.Clamp(frameNum, 0, n - 1);
-
-                    Texture botTex = frames[prevIdx];
-                    Texture topTex = frames[nextIdx];
-
                     var mat = CaptureCameraLinearBlendRawImage.material;
-                    mat.SetTexture("_TopTex", topTex);
-                    mat.SetTexture("_BottomTex", botTex);
+                    mat.SetTexture("_BottomTex", rt1); // cam1
+                    mat.SetTexture("_TopTex", rt2);    // cam2
 
-                    // Linear alpha by time within current interval
                     float Image1ToNowDeltaTime = timeMs - (frameNum - 1) * updateInterval * 1000f;
                     float p = Mathf.Clamp01(Image1ToNowDeltaTime / (updateInterval * 1000f));
 
-                    // If you want EXACT linear: alpha = p
-                    // If you want to keep your “knob + mapping to [0.1,0.9]”, do it here.
                     float alpha = p;
-
-                    // Example: keep your previous behavior (optional)
-                    // knobValue = SerialReader.lastSensorValue;
+                    // 如果你要用旋钮/补偿映射，在这里替换 alpha：
                     // alpha = BrightnessBlend.GetMixedValue(p, knobValue, BrightnessBlendMode.LinearOnly);
                     // alpha = Mathf.Lerp(0.1f, 0.9f, Mathf.Clamp01(alpha));
 
                     mat.SetColor("_TopColor", new Color(1, 1, 1, alpha));
                     mat.SetColor("_BottomColor", new Color(1, 1, 1, 1.0f));
 
-
                     float now = Application.isPlaying ? Time.time : (float)UnityEditor.EditorApplication.timeSinceStartup;
 
-                    // 你原来的 data.Add 那行照用
                     string line =
-  $"LinearOnly," +
-  $"{prevIdx},{(1f - alpha):F6}," +
-  $"-1,{0f:F6}," +
-  $"{nextIdx},{alpha:F6}," +
-  $"{timeMs:F3},{knobValue:F3},{responsePattern},{(int)stepNumber},{amplitudeToSaveData},{v:F6},{alpha:F6},{cameraSpeed:F3}";
+                        $"LinearOnly," +
+                        $"cam1,{(1f - alpha):F6}," +
+                        $"-1,{0f:F6}," +
+                        $"cam2,{alpha:F6}," +
+                        $"{timeMs:F3},{knobValue:F3},{responsePattern},{(int)stepNumber},{amplitudeToSaveData},{v:F6},{alpha:F6},{cameraSpeed:F3}";
 
                     RecordWaveAndData(now, alpha, line);
                     break;
                 }
 
             // =========================================================
-            // 2) THREE-FRAME GAUSSIAN (k-1,k,k+1) — uses _Tex0/1/2 + _W0/1/2
+            // 2) THREE-FRAME GAUSS: cam1 + cam2 + cam3（实时三相机混合）
             // =========================================================
             case BrightnessBlendMode.GaussOnly:
                 {
-                    // Time (sec)
-                    float tSec = timeMs / 1000f;
+            if (!freezeReady) return;
 
-                    float step = secondsPerStep; // e.g. 1.0f for 1Hz
-                    float sigma = sigmaSec;       // e.g. 0.6f
+            float sigmaIdx = Mathf.Max(1e-4f, sigmaSec / Mathf.Max(1e-6f, secondsPerStep));
 
-                    int n = frames.Length;
-                    int k = Mathf.FloorToInt(tSec / step);
+            // 固定三帧 (k-1, k, k+1) 的 3-tap 截断高斯，中心随 p01 连续移动
+            float d0 = (-1f - p01) / sigmaIdx;
+            float d1 = ( 0f - p01) / sigmaIdx;
+            float d2 = ( 1f - p01) / sigmaIdx;
 
-                    int i0 = Mathf.Clamp(k - 1, 0, n - 1);
-                    int i1 = Mathf.Clamp(k, 0, n - 1);
-                    int i2 = Mathf.Clamp(k + 1, 0, n - 1);
+            float w0 = Mathf.Exp(-0.5f * d0 * d0);
+            float w1 = Mathf.Exp(-0.5f * d1 * d1);
+            float w2 = Mathf.Exp(-0.5f * d2 * d2);
 
-                    float t0 = (k - 1) * step;
-                    float t1 = (k) * step;
-                    float t2 = (k + 1) * step;
+            float s = w0 + w1 + w2;
+            if (s < 1e-8f) { w0 = 0; w1 = 1; w2 = 0; }
+            else { w0 /= s; w1 /= s; w2 /= s; }
 
-                    float w0 = Mathf.Exp(-0.5f * Mathf.Pow((tSec - t0) / sigma, 2f));
-                    float w1 = Mathf.Exp(-0.5f * Mathf.Pow((tSec - t1) / sigma, 2f));
-                    float w2 = Mathf.Exp(-0.5f * Mathf.Pow((tSec - t2) / sigma, 2f));
+            var mat = CaptureCameraLinearBlendTopRawImage.material;
+            mat.SetTexture("_Tex0", freezePrev); // k-1
+            mat.SetTexture("_Tex1", freezeCur);  // k
+            mat.SetTexture("_Tex2", freezeNext); // k+1
+            mat.SetFloat("_W0", w0);
+            mat.SetFloat("_W1", w1);
+            mat.SetFloat("_W2", w2);
 
-                    float s = w0 + w1 + w2;
-                    if (s < 1e-8f)
-                    {
-                        w0 = 0f; w1 = 1f; w2 = 0f;
-                    }
-                    else
-                    {
-                        w0 /= s; w1 /= s; w2 /= s;
-                    }
-
-                    var mat = CaptureCameraLinearBlendTopRawImage.material;
-                    mat.SetTexture("_Tex0", frames[i0]);
-                    mat.SetTexture("_Tex1", frames[i1]);
-                    mat.SetTexture("_Tex2", frames[i2]);
-                    mat.SetFloat("_W0", w0);
-                    mat.SetFloat("_W1", w1);
-                    mat.SetFloat("_W2", w2);
+                    Debug.Log($"[Gauss p] stepIndex={stepIndex} p={p01:F3} w0={w0:F3} w1={w1:F3} w2={w2:F3}");
 
                     float now = Application.isPlaying ? Time.time : (float)UnityEditor.EditorApplication.timeSinceStartup;
-
-                    // 波形画中心权重
-                    float alphaToPlot = w1;
-
-                    // 记录更完整：把三权重+索引都写进去
-                    string line =
-                                $"GaussOnly," +
-                                $"{i0},{w0:F6}," +
-                                $"{i1},{w1:F6}," +
-                                $"{i2},{w2:F6}," +
-                                $"{timeMs:F3},{knobValue:F3},{responsePattern},{(int)stepNumber},{amplitudeToSaveData},{v:F6},{w1:F6},{cameraSpeed:F3}";
-
-                    RecordWaveAndData(now, alphaToPlot, line);
+                    RecordWaveAndData(now, w1,
+                        $"GaussOnlyFreezeP,A,{w0:F6},B,{w1:F6},C,{w2:F6},{timeMs:F3},{knobValue:F3},{responsePattern},{(int)stepNumber},{amplitudeToSaveData},{v:F6},{w1:F6},{cameraSpeed:F3}"
+                    );
                     break;
                 }
 
-            // =========================================================
-            // 3) Others: either do nothing or fall back to LinearOnly
-            // =========================================================
+
+
             default:
-                {
-                    // If you prefer fallback:
-                    // brightnessBlendMode = BrightnessBlendMode.LinearOnly;
-                    // LuminanceMixtureFrame();
-                    break;
-                }
+                break;
         }
     }
 
@@ -465,9 +379,11 @@ public partial class MoveCamera : MonoBehaviour
             case DirectionPattern.right:
                 direction = worldRightDirection;
                 captureCamera2.transform.rotation = Quaternion.Euler(0, 48.5f, 0);
+                captureCamera3.transform.rotation = Quaternion.Euler(0, 48.5f, 0);
                 captureCamera1.transform.rotation = Quaternion.Euler(0, 48.5f, 0);
                 captureCamera0.transform.rotation = Quaternion.Euler(0, 48.5f, 0);
                 captureCamera2.transform.position = new Vector3(39f, 28f, 90f);
+                captureCamera3.transform.position = new Vector3(39f, 28f, 90f);
                 captureCamera1.transform.position = new Vector3(39f, 28f, 90f);
                 captureCamera0.transform.position = new Vector3(39f, 28f, 90f);
                 break;
@@ -478,9 +394,11 @@ public partial class MoveCamera : MonoBehaviour
             initPos0 = captureCamera0.transform.position;
             initPos1 = captureCamera1.transform.position;
             initPos2 = captureCamera2.transform.position;
+            initPos3 = captureCamera3.transform.position;
             initRot0 = captureCamera0.transform.rotation;
             initRot1 = captureCamera1.transform.rotation;
             initRot2 = captureCamera2.transform.rotation;
+            initRot3 = captureCamera3.transform.rotation;
             initPoseSaved = true;
         }
     }
@@ -495,7 +413,10 @@ public partial class MoveCamera : MonoBehaviour
         captureCamera1.transform.rotation = initRot1;
         captureCamera2.transform.position = initPos2;
         captureCamera2.transform.rotation = initRot2;
+        captureCamera3.transform.position = initPos3;
+        captureCamera3.transform.rotation = initRot3;
         captureCamera2.transform.position += direction * captureIntervalDistance;
+        captureCamera3.transform.position += direction * captureIntervalDistance * 2f;
         // 重置帧/时间/历史，使混合从干净状态开始（避免残留上一组的 alpha/帧计数）
         frameNum = 1;
 
@@ -526,7 +447,6 @@ public partial class MoveCamera : MonoBehaviour
         // Canvas内で指定された名前の子オブジェクトを検索 // 在 Canvas 中查找指定名称的子对象
         canvas = GameObject.Find("Canvas");
         continuousImageTransform = canvas.transform.Find("CaptureCamera0");
-        continuousImageTransform.gameObject.SetActive(false);
         Image1Transform = canvas.transform.Find("CaptureCamera1");
         Image2Transform = canvas.transform.Find("CaptureCamera2");
         CaptureCameraLinearBlendTransform = canvas.transform.Find("CaptureCameraLinearBlend");
@@ -567,8 +487,7 @@ public partial class MoveCamera : MonoBehaviour
 
         // ファイル名を構築 // 构建文件名
         experimentalCondition =
-                              "ExperimentPattern_" + experimentPattern.ToString() + "_"
-                             + "ParticipantName_" + participantName.ToString() + "_"
+                             "ParticipantName_" + participantName.ToString() + "_"
                              + "Subject_Name_" + subject.ToString() + "_"
                              + compensationClassification.ToString() + "_"
                              + "TrialNumber_" + trialNumber.ToString();
@@ -768,34 +687,6 @@ private void OnDrawGizmos()
 }
 #endif
 
-    private IEnumerator GrayBreakRoutine()
-    {
-        isInGray = true;
-
-        ResetCamerasAndBlendState();
-
-        // OFF: 隐藏两个显示对象（Transform -> gameObject）
-        // if (continuousImageTransform != null)
-        //     continuousImageTransform.gameObject.SetActive(false);
-
-        if (CaptureCameraLinearBlendTransform != null)
-            CaptureCameraLinearBlendTransform.gameObject.SetActive(false);
-
-        yield return new WaitForSecondsRealtime(0.2f);
-
-        // ON
-        // if (continuousImageTransform != null)
-        //     continuousImageTransform.gameObject.SetActive(true);
-
-        if (CaptureCameraLinearBlendTransform != null)
-            CaptureCameraLinearBlendTransform.gameObject.SetActive(true);
-
-        // 如果你要开始下一段 25s，记得重置计时
-        fixedUpdateCounter = 0;  // 或者 timeMs=0，取决于你怎么计时
-        timeMs = 0;
-
-        isInGray = false;
-    }
     static float SmoothStep01(float t)
     {
         t = Mathf.Clamp01(t);
@@ -864,12 +755,6 @@ private void OnDrawGizmos()
         tex.Apply(updateMipmaps: false, makeNoLongerReadable: false);
         return tex;
     }
-
-
-
-
-
-
 
     void SaveRenderTextureToPng(RenderTexture rt, string path)
     {
@@ -1180,7 +1065,169 @@ private void OnDrawGizmos()
         if (!string.IsNullOrEmpty(dataLine))
             data.Add(dataLine);
     }
+    private void CaptureAndSavePng(Camera cam, string outPath)
+    {
+        if (cam == null || cam.targetTexture == null) return;
 
+        // 确保拿到的是当前帧
+        cam.Render();
+
+        var rt = cam.targetTexture;
+
+        RenderTexture prev = RenderTexture.active;
+        RenderTexture.active = rt;
+
+        Texture2D tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+        tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+        tex.Apply(false, false);
+
+        byte[] png = tex.EncodeToPNG();
+        File.WriteAllBytes(outPath, png);
+
+        Destroy(tex);
+        RenderTexture.active = prev;
+    }
+    private RenderTexture EnsureRT(Camera cam, int w = 1920, int h = 540)
+    {
+        if (cam == null) return null;
+        if (cam.targetTexture != null) return cam.targetTexture;
+
+        // Linear 项目里，给 UI 看通常用 sRGB RT 更符合直觉（与你上面灰度一致性问题相关）
+        var rt = new RenderTexture(w, h, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
+        rt.Create();
+        cam.targetTexture = rt;
+        return rt;
+    }
+
+    private void ForceRender(Camera cam)
+    {
+        if (cam == null) return;
+        if (cam.targetTexture == null) return;
+        cam.Render();
+    }
+    // =========================
+    // Freeze buffer for 3 cams (A/B/C snapshots)
+    // =========================
+    RenderTexture freeze0, freeze1, freeze2;   // frozen A/B/C
+
+    // 用于防止同一秒边界重复冻结（FixedUpdate 里 while 可能跑多次）
+    int lastFrozenFrameNum = -1;
+
+    void EnsureFreezeRT(RenderTexture src)
+    {
+        if (src == null) return;
+
+        // 如果不存在或尺寸/格式变化，就重建
+        bool need =
+            freeze0 == null || !freeze0.IsCreated() ||
+            freeze0.width != src.width || freeze0.height != src.height || freeze0.format != src.format;
+
+        if (!need) return;
+
+        ReleaseFreezeRT();
+
+        freeze0 = new RenderTexture(src.width, src.height, 0, src.format);
+        freeze1 = new RenderTexture(src.width, src.height, 0, src.format);
+        freeze2 = new RenderTexture(src.width, src.height, 0, src.format);
+
+        freeze0.wrapMode = TextureWrapMode.Clamp; freeze0.filterMode = FilterMode.Bilinear; freeze0.Create();
+        freeze1.wrapMode = TextureWrapMode.Clamp; freeze1.filterMode = FilterMode.Bilinear; freeze1.Create();
+        freeze2.wrapMode = TextureWrapMode.Clamp; freeze2.filterMode = FilterMode.Bilinear; freeze2.Create();
+
+        freezeReady = true;
+    }
+
+    void ReleaseFreezeRT()
+    {
+        if (freeze0 != null) { freeze0.Release(); Destroy(freeze0); freeze0 = null; }
+        if (freeze1 != null) { freeze1.Release(); Destroy(freeze1); freeze1 = null; }
+        if (freeze2 != null) { freeze2.Release(); Destroy(freeze2); freeze2 = null; }
+        freezeReady = false;
+    }
+
+    void FreezeThreeCamsNow()
+    {
+        var rt1 = captureCamera1.targetTexture;
+        var rt2 = captureCamera2.targetTexture;
+        var rt3 = captureCamera3.targetTexture;
+
+        if (rt1 == null || rt2 == null || rt3 == null)
+        {
+            Debug.LogError("FreezeThreeCamsNow: targetTexture null. Assign RTs.");
+            return;
+        }
+
+        EnsureFreezeRT(rt1);
+
+        // 同一时刻渲染
+        captureCamera1.Render();
+        captureCamera2.Render();
+        captureCamera3.Render();
+
+        // 同一时刻拷贝
+        Graphics.Blit(rt1, freeze0);
+        Graphics.Blit(rt2, freeze1);
+        Graphics.Blit(rt3, freeze2);
+
+        freezeReady = true;
+    }
+
+    RenderTexture AllocLike(RenderTexture src, string name)
+{
+    var rt = new RenderTexture(src.width, src.height, 0, src.format);
+    rt.name = name;
+    rt.wrapMode = TextureWrapMode.Clamp;
+    rt.filterMode = FilterMode.Bilinear;
+    rt.Create();
+    return rt;
+}
+
+void InitFreezeTriplet()
+{
+    var rt1 = captureCamera1.targetTexture;
+    var rt2 = captureCamera2.targetTexture;
+    var rt3 = captureCamera3.targetTexture;
+
+    if (rt1 == null || rt2 == null || rt3 == null)
+    {
+        Debug.LogError("InitFreezeTriplet: targetTexture null. Assign RTs to cam1/2/3.");
+        return;
+    }
+
+    // allocate once
+    if (freezePrev == null) freezePrev = AllocLike(rt1, "FreezePrev");
+    if (freezeCur  == null) freezeCur  = AllocLike(rt1, "FreezeCur");
+    if (freezeNext == null) freezeNext = AllocLike(rt1, "FreezeNext");
+
+    // render same moment, then copy
+    captureCamera1.Render();
+    captureCamera2.Render();
+    captureCamera3.Render();
+
+    Graphics.Blit(rt1, freezePrev);
+    Graphics.Blit(rt2, freezeCur);
+    Graphics.Blit(rt3, freezeNext);
+
+    freezeReady = true;
+}
+void AdvanceFreezeWindowAndCameras()
+{
+    // 1) 先移位：prev<-cur, cur<-next, next<-prev(复用RT对象，避免GC)
+    var tmp = freezePrev;
+    freezePrev = freezeCur;
+    freezeCur = freezeNext;
+    freezeNext = tmp;
+
+    // 2) 再推进相机到下一秒位置（你原来就是这样移动三台相机）
+    Vector3 delta = direction * cameraSpeed * secondsPerStep; // secondsPerStep=1.0 时就是 1 秒步长
+    captureCamera1.transform.position += delta;
+    captureCamera2.transform.position += delta;
+    captureCamera3.transform.position += delta;
+
+    // 3) 只抓新的“未来帧”：用推进后 cam3 的画面填充 freezeNext
+    captureCamera3.Render();
+    Graphics.Blit(captureCamera3.targetTexture, freezeNext);
+}
 
 }
 

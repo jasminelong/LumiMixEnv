@@ -1,4 +1,4 @@
-Shader "UI/GrayscaleGaussianBlend3Tex"
+Shader "UI/GrayscaleGaussianBlend3Tex_UI"
 {
     Properties
     {
@@ -10,22 +10,20 @@ Shader "UI/GrayscaleGaussianBlend3Tex"
         _W1 ("W1", Float) = 1
         _W2 ("W2", Float) = 0
 
-        // 可选：想保留你旧的 color 乘法也行
         _C0 ("C0", Color) = (1,1,1,1)
         _C1 ("C1", Color) = (1,1,1,1)
         _C2 ("C2", Color) = (1,1,1,1)
+
+        _Color ("Tint", Color) = (1,1,1,1)
     }
 
     SubShader
     {
-        Tags { "Queue"="Transparent" "RenderType"="Transparent" }
-
+        Tags { "Queue"="Transparent" "IgnoreProjector"="True" "RenderType"="Transparent" "PreviewType"="Plane" "CanUseSpriteAtlas"="True" }
         Cull Off
-        ZWrite Off
         Lighting Off
-
-        // 如果你要让 RawImage 的 alpha 真正参与 UI 混合，取消下面这行注释
-        // Blend SrcAlpha OneMinusSrcAlpha
+        ZWrite Off
+        Blend SrcAlpha OneMinusSrcAlpha
 
         Pass
         {
@@ -40,24 +38,28 @@ Shader "UI/GrayscaleGaussianBlend3Tex"
 
             float _W0, _W1, _W2;
             fixed4 _C0, _C1, _C2;
+            fixed4 _Color;
 
-            struct appdata
+            struct appdata_t
             {
                 float4 vertex : POSITION;
                 float2 uv : TEXCOORD0;
+                fixed4 color : COLOR;
             };
 
             struct v2f
             {
-                float4 vertex : SV_POSITION;
+                float4 pos : SV_POSITION;
                 float2 uv : TEXCOORD0;
+                fixed4 color : COLOR;
             };
 
-            v2f vert (appdata v)
+            v2f vert (appdata_t v)
             {
                 v2f o;
-                o.vertex = UnityObjectToClipPos(v.vertex);
+                o.pos = UnityObjectToClipPos(v.vertex);
                 o.uv = v.uv;
+                o.color = v.color * _Color;
                 return o;
             }
 
@@ -67,18 +69,17 @@ Shader "UI/GrayscaleGaussianBlend3Tex"
                 fixed4 c1 = tex2D(_Tex1, i.uv) * _C1;
                 fixed4 c2 = tex2D(_Tex2, i.uv) * _C2;
 
-                // 灰度（和你原来一样）
                 float g0 = dot(c0.rgb, float3(0.2126, 0.7152, 0.0722));
                 float g1 = dot(c1.rgb, float3(0.2126, 0.7152, 0.0722));
                 float g2 = dot(c2.rgb, float3(0.2126, 0.7152, 0.0722));
 
-                // 用外部传入的 Gaussian 权重混合（权重最好在 C# 已经归一化）
                 float outGray = g0 * _W0 + g1 * _W1 + g2 * _W2;
 
-                // alpha：如果你只是全屏显示，直接 1 就最稳，不会出现“透明导致变暗/叠加怪”
-                float outA = 1.0;
+                // 这里用 UI tint 的 alpha（否则 Mask/Canvas 叠加会怪）
+                float outA = i.color.a;
 
-                return fixed4(outGray, outGray, outGray, outA);
+                fixed4 outCol = fixed4(outGray, outGray, outGray, outA);
+                return outCol * i.color;
             }
             ENDCG
         }

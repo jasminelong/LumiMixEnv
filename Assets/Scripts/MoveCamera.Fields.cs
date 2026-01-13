@@ -22,11 +22,6 @@ public partial class MoveCamera : MonoBehaviour
     {
         LuminanceLinearMix,
         FunctionMix,
-        NoLuminanceBlendSingleCameraMove,
-        CameraJumpMoveMinusCompensate,
-        CameraJumpMovePlusCompensate,
-        LuminanceMinusCompensate,
-        LuminancePlusCompensate,
     }
     public enum StepNumber
     {
@@ -63,6 +58,7 @@ public partial class MoveCamera : MonoBehaviour
     public Camera captureCamera0; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
     public Camera captureCamera1; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
     public Camera captureCamera2; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
+    public Camera captureCamera3; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
     public GameObject canvas;
     public Texture captureImageTexture1; // 撮影した画像を表示するためのUIコンポーネント // 用于显示拍摄图像的UI组件
     public Texture captureImageTexture2; // 撮影した画像を表示するためのUIコンポーネント // 用于显示拍摄图像的UI组件
@@ -118,7 +114,6 @@ public partial class MoveCamera : MonoBehaviour
     [Header("🔧記録するデータ")]
     public StepNumber stepNumber = StepNumber.Option1; // 現在のステップ番号   // 当前步骤编号
 
-    public ExperimentPattern experimentPattern = ExperimentPattern.NoLuminanceBlendSingleCameraMove;
     public int trialNumber = 1;
 
     //记录Image1RawImage的透明度使用的相关变量
@@ -238,22 +233,13 @@ public partial class MoveCamera : MonoBehaviour
     }
 
     public CompensationClassification compensationClassification = CompensationClassification.A1A2;
-    public enum ParameterOrder
-    {
-        V0_A1_PHI1_A2_PHI2, // Original order
-        V0_A1_PHI1_A1_A2_PHI2_A2,
-        V0_A1_PHI1_A2_PHI2_A1_PHI1_A2_PHI2,
-        V0_PHI1_A1_PHI2_A2,
-        V0_PHI1_A1_PHI1_PHI2_A2_PHI2,
-    }
-    public ParameterOrder paramOrder = ParameterOrder.V0_A1_PHI1_A2_PHI2; // Change this to switch orders
 
     private const int N = 1000;
     private float[] timeMap = new float[N];
     private bool mapReady = false;
 
-    private Vector3 initPos0, initPos1, initPos2;
-    private Quaternion initRot0, initRot1, initRot2;
+    private Vector3 initPos0, initPos1, initPos2, initPos3;
+    private Quaternion initRot0, initRot1, initRot2, initRot3;
     private bool initPoseSaved = false;
     // 新增：标记刚刚重置时间
     private int fixedUpdateCounter = 0;
@@ -266,7 +252,7 @@ private bool isInGray = false;
 [SerializeField] private int grayMs = 200;        // 200ms
 
 //test grating
-public bool UseGrating = false ;
+
 public int GratingW = 800;     // 对应 Python W=800
 public int GratingH = 140;     // 对应 Python H=140
 
@@ -303,5 +289,22 @@ public string resourcesFolder = "CamFrames";
 public string namePrefix = "cam2_";
 
 private Texture2D[] frames;
+
+
+    [Header("Capture Settings")]
+    public bool SaveCam0ContinuousPng = true;   // CaptureCamera0: 60fps
+    public bool SaveCam1IsiPng        = true;   // CaptureCamera1: 1Hz (or updateInterval)
+    public int  CaptureSeconds        = 15;     // 保存时长上限（可改）
+    public string Cam0SaveDir = @"D:\vectionProject\public\A-continuous-images";
+    public string Cam1SaveDir = @"D:\vectionProject\public\A-isi-images";
+
+    private int _cam0SavedCount = 0;
+    private int _cam1SavedCount = 0;
+RenderTexture freezePrev, freezeCur, freezeNext;
+bool freezeReady = false;
+
+int stepIndex = 0;
+int lastStepIndex = int.MinValue;
+
 
 }
