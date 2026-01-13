@@ -39,7 +39,11 @@ public class MoveCameraEditor : Editor
         prop = serializedObject.FindProperty("Mat_GrayscaleOverBlend");
         EditorGUILayout.PropertyField(prop);
 
-         prop = serializedObject.FindProperty("treeRenderers");
+        prop = serializedObject.FindProperty("GaussBlendMat");
+        EditorGUILayout.PropertyField(prop);
+
+
+        prop = serializedObject.FindProperty("treeRenderers");
         EditorGUILayout.PropertyField(prop);
 
         prop = serializedObject.FindProperty("cameraSpeed");
@@ -109,7 +113,7 @@ public class MoveCameraEditor : Editor
         // }
         // else
         // {
-            EditorGUILayout.Slider(propV0, -2f, 2f);
+        EditorGUILayout.Slider(propV0, -2f, 2f);
         // }
         serializedObject.ApplyModifiedProperties();
 

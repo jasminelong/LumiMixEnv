@@ -47,8 +47,8 @@ public partial class MoveCamera : MonoBehaviour
         CosineOnly,
         AcosOnly,
         LinearOnly,
+        GaussOnly,
         PhaseLinearized, // 相位线性化,
-        InverseMapLUT
     }
     public enum DevMode
     {
@@ -180,6 +180,7 @@ public partial class MoveCamera : MonoBehaviour
     Material _mat;
     private Material matInstance;
     public Material Mat_GrayscaleOverBlend;
+    public Material GaussBlendMat;
     private Texture2D blackTexture;
     private Texture2D whiteTexture;
     private int trailsCount = 0; // 试次总数
@@ -294,4 +295,13 @@ private float _captureStartTime = 0f;
 private const string Camera1SaveDir = @"D:\vectionProject\public\camera2images";
 
 [SerializeField] public Renderer[] treeRenderers;   // 拖拽树的 MeshRenderer(s)
+
+public float secondsPerStep = 1.0f;   // 1Hz keyframe
+public float sigmaSec = 0.6f;         // sigma0p6 => 0.6s
+
+public string resourcesFolder = "CamFrames";
+public string namePrefix = "cam2_";
+
+private Texture2D[] frames;
+
 }
