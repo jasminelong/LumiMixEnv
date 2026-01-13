@@ -49,19 +49,10 @@ public partial class MoveCamera : MonoBehaviour
         );
 
         // 加载 Resources 里的所有帧纹理
-        var all = Resources.LoadAll<Texture2D>(resourcesFolder);
-        Debug.Log($"[LoadAll] folder='{resourcesFolder}' count={all.Length}");
-
-        for (int i = 0; i < all.Length; i++)
-        {
-            Debug.Log($"[LoadAll] tex[{i}] name={all[i].name}");
-        }
-        frames = all
-            .Where(t => t != null && t.name.StartsWith(namePrefix, StringComparison.OrdinalIgnoreCase))
-            .OrderBy(t => t.name, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-
-        Debug.Log($"[Filter] prefix='{namePrefix}' frames={frames.Length}");
+        resourcesFolder = "CamFrames";
+        namePrefix = "cam1_";
+        Debug.Log($"[ForceConfig] folder='{resourcesFolder}' prefix='{namePrefix}'");
+        EnsureFramesLoaded();
 
     }
     void Awake()
@@ -69,14 +60,6 @@ public partial class MoveCamera : MonoBehaviour
         // 强制运行时初始为 Option1（避免被旧序列化值影响）
         if ((int)stepNumber < 1) stepNumber = StepNumber.Option1;
         Debug.Log($"[MoveCamera] stepNumber = {(int)stepNumber} ({stepNumber}) in Awake");
-
-        var all = Resources.LoadAll<Texture2D>(resourcesFolder);
-        frames = all
-            .Where(t => t != null && t.name.StartsWith(namePrefix, StringComparison.OrdinalIgnoreCase))
-            .OrderBy(t => t.name, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-
-        Debug.Log($"Loaded {frames.Length} frames from Resources/{resourcesFolder}");
 
         savePath = Path.Combine(Application.dataPath, "Scripts/full_trials.json");
         Debug.Log($"[MoveCamera] trial savePath = {savePath}");
@@ -247,7 +230,7 @@ public partial class MoveCamera : MonoBehaviour
                 {
                     string file = $"cam1_{_cam1SavedCount:000}.png";
                     string path = Path.Combine(Cam1SaveDir, file);
-                    CaptureAndSavePng(captureCamera1, path);
+                    // CaptureAndSavePng(captureCamera1, path);
                     _cam1SavedCount++;
                 }
             }
@@ -309,44 +292,48 @@ public partial class MoveCamera : MonoBehaviour
             // =========================================================
             case BrightnessBlendMode.GaussOnly:
                 {
-                    // Time (sec)
+                    if (frames == null || frames.Length == 0) break;
+
+                    float step = secondsPerStep;   // 1.0
+                    float sigmaStep = sigmaSec;    // 0.6（注意：这里当作“step单位”，和Python一致）
+
+                    // 关键：对齐 Python 的 half-frame offset（如果你是 60fps）
+                    // 如果你不是固定60fps，就把 0.5f/60f 改成 0.5f * Time.deltaTime
                     float tSec = timeMs / 1000f;
+                    float u = (tSec + 0.5f / 60f) / step;   // Python: (f+0.5)*DT / step
 
-                    float step = secondsPerStep; // e.g. 1.0f for 1Hz
-                    float sigma = sigmaSec;       // e.g. 0.6f
-
+                    int c = Mathf.RoundToInt(u);            // Python: round(u)
                     int n = frames.Length;
-                    int k = Mathf.FloorToInt(tSec / step);
 
-                    int i0 = Mathf.Clamp(k - 1, 0, n - 1);
-                    int i1 = Mathf.Clamp(k, 0, n - 1);
-                    int i2 = Mathf.Clamp(k + 1, 0, n - 1);
+                    int i0 = Mathf.Clamp(c - 1, 0, n - 1);
+                    int i1 = Mathf.Clamp(c, 0, n - 1);
+                    int i2 = Mathf.Clamp(c + 1, 0, n - 1);
 
-                    float t0 = (k - 1) * step;
-                    float t1 = (k) * step;
-                    float t2 = (k + 1) * step;
+                    // Python: exp(-0.5*((idx-u)/sigma)^2)
+                    float d0 = (i0 - u) / sigmaStep;
+                    float d1 = (i1 - u) / sigmaStep;
+                    float d2 = (i2 - u) / sigmaStep;
 
-                    float w0 = Mathf.Exp(-0.5f * Mathf.Pow((tSec - t0) / sigma, 2f));
-                    float w1 = Mathf.Exp(-0.5f * Mathf.Pow((tSec - t1) / sigma, 2f));
-                    float w2 = Mathf.Exp(-0.5f * Mathf.Pow((tSec - t2) / sigma, 2f));
+                    float w0 = Mathf.Exp(-0.5f * d0 * d0);
+                    float w1 = Mathf.Exp(-0.5f * d1 * d1);
+                    float w2 = Mathf.Exp(-0.5f * d2 * d2);
 
                     float s = w0 + w1 + w2;
-                    if (s < 1e-8f)
+                    if (s > 1e-12f) { w0 /= s; w1 /= s; w2 /= s; }
+                    else { w0 = 0; w1 = 1; w2 = 0; }
+
+                    // 只在索引变化时更新纹理，减少抖动/开销
+                    if (i0 != _last0 || i1 != _last1 || i2 != _last2)
                     {
-                        w0 = 0f; w1 = 1f; w2 = 0f;
-                    }
-                    else
-                    {
-                        w0 /= s; w1 /= s; w2 /= s;
+                        _Gaussmat.SetTexture("_Tex0", frames[i0]);
+                        _Gaussmat.SetTexture("_Tex1", frames[i1]);
+                        _Gaussmat.SetTexture("_Tex2", frames[i2]);
+                        _last0 = i0; _last1 = i1; _last2 = i2;
                     }
 
-                    var mat = CaptureCameraLinearBlendTopRawImage.material;
-                    mat.SetTexture("_Tex0", frames[i0]);
-                    mat.SetTexture("_Tex1", frames[i1]);
-                    mat.SetTexture("_Tex2", frames[i2]);
-                    mat.SetFloat("_W0", w0);
-                    mat.SetFloat("_W1", w1);
-                    mat.SetFloat("_W2", w2);
+                    _Gaussmat.SetFloat("_W0", w0);
+                    _Gaussmat.SetFloat("_W1", w1);
+                    _Gaussmat.SetFloat("_W2", w2);
 
                     break;
                 }
@@ -471,10 +458,9 @@ public partial class MoveCamera : MonoBehaviour
         CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture1);       // 上层图
         CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture2);    // 下层图  
 
-        CaptureCameraLinearBlendTopRawImage.material = new Material(GaussBlendMat);
+        _Gaussmat = new Material(GaussBlendMat);
+        CaptureCameraLinearBlendTopRawImage.material = _Gaussmat;
 
-        // CaptureCameraLinearBlendTopRawImage.material.SetTexture("_TopTex", captureImageTexture1);       // 上层图
-        // CaptureCameraLinearBlendTopRawImage.material.SetTexture("_BottomTex", captureImageTexture2);
         // RawImageコンポーネントを無効にする // 禁用 RawImage 组件
         continuousImageRawImage.enabled = false;
     }
@@ -1077,25 +1063,80 @@ private void OnDrawGizmos()
     {
         if (cam == null || cam.targetTexture == null) return;
 
-        // 确保拿到的是当前帧
         cam.Render();
 
         var rt = cam.targetTexture;
-
-        RenderTexture prev = RenderTexture.active;
+        var prev = RenderTexture.active;
         RenderTexture.active = rt;
 
-        Texture2D tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+        // 关键1：linear=true（最后一个参数），表示这张Texture2D内容按“线性”处理
+        Texture2D tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false, true);
         tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
         tex.Apply(false, false);
 
-        byte[] png = tex.EncodeToPNG();
-        File.WriteAllBytes(outPath, png);
-
-        Destroy(tex);
         RenderTexture.active = prev;
+
+        // 关键2：把线性值编码成sRGB再写PNG
+        var px = tex.GetPixels();
+        for (int i = 0; i < px.Length; i++)
+        {
+            px[i].r = Mathf.LinearToGammaSpace(px[i].r);
+            px[i].g = Mathf.LinearToGammaSpace(px[i].g);
+            px[i].b = Mathf.LinearToGammaSpace(px[i].b);
+            px[i].a = 1f;
+        }
+        tex.SetPixels(px);
+        tex.Apply(false, false);
+
+        File.WriteAllBytes(outPath, tex.EncodeToPNG());
+        Destroy(tex);
     }
-    
+
+    /// <summary>
+    /// Load frames from Assets/Resources/{resourcesFolder}/ with namePrefix.
+    /// Returns loaded frames array (may be empty).
+    /// </summary>
+    private Texture2D[] LoadFramesFromResources(string resourcesFolder, string namePrefix, bool verbose)
+    {
+        string folder = (resourcesFolder ?? "").Trim();
+        string prefix = (namePrefix ?? "").Trim();
+
+        var allTex = Resources.LoadAll<Texture2D>(folder);
+        Debug.Log($"[LoadAll<Texture2D>] folder='{folder}' count={allTex.Length}");
+
+        if (allTex.Length > 0)
+            Debug.Log($"[LoadAll<Texture2D>] first='{allTex[0].name}' last='{allTex[allTex.Length - 1].name}'");
+
+        if (verbose)
+        {
+            int show = Mathf.Min(10, allTex.Length);
+            for (int i = 0; i < show; i++)
+                Debug.Log($"[AllTex] {i} name='{allTex[i].name}'");
+        }
+
+        var filtered = allTex
+            .Where(t => t != null && t.name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(t => t.name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        Debug.Log($"[Filter<Texture2D>] prefix='{prefix}' frames={filtered.Length}");
+
+        return filtered;
+    }
+
+
+    // 你原来加载 frames 的地方改成调用这个
+    private void EnsureFramesLoaded()
+    {
+        if (frames != null && frames.Length > 0) return;
+        frames = LoadFramesFromResources(resourcesFolder, namePrefix, verboseLoadLog);
+    }
+    private void ResetGaussWarmup()
+{
+    _gaussWarmupDone = false;
+    _gaussWarmupCount = 0;
+    _last0 = _last1 = _last2 = -1; // 如果你有缓存索引
+}
 }
 
 

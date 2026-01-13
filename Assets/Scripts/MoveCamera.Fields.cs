@@ -286,7 +286,7 @@ public float secondsPerStep = 1.0f;   // 1Hz keyframe
 public float sigmaSec = 0.6f;         // sigma0p6 => 0.6s
 
 public string resourcesFolder = "CamFrames";
-public string namePrefix = "cam2_";
+public string namePrefix = "cam1_";
 
 private Texture2D[] frames;
 
@@ -307,9 +307,14 @@ int stepIndex = 0;
 int lastStepIndex = int.MinValue;
 
 public string Cam2DiskDir = @"D:\vectionProject\public\camera2images"; // 你要用的文件夹
-public string Cam2Prefix = "cam2_";
+public string Cam2Prefix = "cam1_";
 public int Cam2Count = 10; // 000..009
 
 int framesN = 0;
-
+    public bool verboseLoadLog = false;
+    private Material _Gaussmat;
+    private int _last0 = -1, _last1 = -1, _last2 = -1;
+    private bool _gaussWarmupDone = false;
+private int _gaussWarmupFrames = 2;   // 1 或 2 都行
+private int _gaussWarmupCount = 0;
 }
