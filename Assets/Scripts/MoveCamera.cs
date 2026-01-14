@@ -45,7 +45,7 @@ public partial class MoveCamera : MonoBehaviour
           "BackFrameNum,BackWeight," +
           "MidFrameNum,MidWeight," +
           "FrontFrameNum,FrontWeight," +
-          "TimeMs,Knob,ResponsePattern,StepNumber,Amplitude,Velocity,FunctionRatio,CameraSpeed"
+          "TimeMs,Knob,ResponsePattern,StepNumber,Amplitude,Velocity,CameraSpeed"
         );
 
         // 加载 Resources 里的所有帧纹理
@@ -53,12 +53,12 @@ public partial class MoveCamera : MonoBehaviour
         namePrefix = "cam1_";
         Debug.Log($"[ForceConfig] folder='{resourcesFolder}' prefix='{namePrefix}'");
         EnsureFramesLoaded();
-
+        // nextStepButton.gameObject.SetActive(false);
     }
     void Awake()
     {
-        // 强制运行时初始为 Option1（避免被旧序列化值影响）
-        if ((int)stepNumber < 1) stepNumber = StepNumber.Option1;
+        // 强制运行时初始为 Option0（避免被旧序列化值影响）
+        if ((int)stepNumber < 1) stepNumber = StepNumber.Option0;
         Debug.Log($"[MoveCamera] stepNumber = {(int)stepNumber} ({stepNumber}) in Awake");
 
         savePath = Path.Combine(Application.dataPath, "Scripts/full_trials.json");
@@ -107,7 +107,10 @@ public partial class MoveCamera : MonoBehaviour
         // 使用固定步长计算 timeMs，确保每次增加为 Time.fixedDeltaTime（约 16.6667ms）
         timeMs = fixedUpdateCounter * Time.fixedDeltaTime * 1000f;
         float tSec = timeMs / 1000f;
-
+        if (tSec > CaptureSeconds)
+        {
+            ResetCamerasAndBlendState();
+        }
         // 当前处于第几个 1s 区间（从 0 开始）
         stepIndex = Mathf.FloorToInt(tSec / Mathf.Max(1e-6f, secondsPerStep));
         Continuous();
@@ -163,13 +166,13 @@ public partial class MoveCamera : MonoBehaviour
         continuousImageRawImage.enabled = true;
         time += Time.fixedDeltaTime;
 
-        float knobValue = Mathf.Clamp01(SerialReader.lastSensorValue);
+        knobValue = Mathf.Clamp01(SerialReader.lastSensorValue);
         int step = (int)stepNumber;
 
         if (responsePattern == ResponsePattern.Velocity)
         {
-            // V0 = knobValue * 2f;
-            V0 = knobValue;
+            V0 = knobValue * 2f;
+            // V0 = knobValue;
             v = V0;
         }
         else if (responsePattern == ResponsePattern.Amplitude)
@@ -225,11 +228,16 @@ public partial class MoveCamera : MonoBehaviour
             if (SaveCam1IsiPng)
             {
                 // 60s * 1Hz = 60 张（如果 updateInterval=1）
+                CaptureSeconds = 60; // 可改
                 int maxFrames = Mathf.CeilToInt(CaptureSeconds / Mathf.Max(1e-6f, updateInterval));
                 if (_cam1SavedCount < maxFrames)
                 {
+
+                    string dir = Path.Combine(Application.dataPath, "Resources", resourcesFolder);
+                    Directory.CreateDirectory(dir);
                     string file = $"cam1_{_cam1SavedCount:000}.png";
-                    string path = Path.Combine(Cam1SaveDir, file);
+
+                    string path = Path.Combine(dir, file);
                     // CaptureAndSavePng(captureCamera1, path);
                     _cam1SavedCount++;
                 }
@@ -284,6 +292,17 @@ public partial class MoveCamera : MonoBehaviour
 
                     mat.SetColor("_TopColor", new Color(1, 1, 1, alpha));
                     mat.SetColor("_BottomColor", new Color(1, 1, 1, 1.0f));
+
+                    float now = Application.isPlaying ? Time.time : (float)UnityEditor.EditorApplication.timeSinceStartup;
+
+                    string line =
+                        $"LinearOnly," +
+                        $"cam1,{(1f - alpha):F6}," +
+                        $"-1,{0f:F6}," +
+                        $"cam2,{alpha:F6}," +
+                        $"{timeMs:F3},{knobValue:F3},{responsePattern},{(int)stepNumber},{amplitudeToSaveData},{v:F6},{cameraSpeed:F3}";
+
+                    RecordWaveAndData(now, alpha, line);
                     break;
                 }
 
@@ -292,24 +311,57 @@ public partial class MoveCamera : MonoBehaviour
             // =========================================================
             case BrightnessBlendMode.GaussOnly:
                 {
-                    if (frames == null || frames.Length == 0) break;
+                    if (frames == null || frames.Length == 0 || _Gaussmat == null) break;
 
-                    float step = secondsPerStep;   // 1.0
-                    float sigmaStep = sigmaSec;    // 0.6（注意：这里当作“step单位”，和Python一致）
+                    float step = Mathf.Max(1e-6f, secondsPerStep);  // STEP_SEC
+                    float sigmaStep = Mathf.Max(1e-4f, sigmaSec);   // SIGMA（按step单位）
 
-                    // 关键：对齐 Python 的 half-frame offset（如果你是 60fps）
-                    // 如果你不是固定60fps，就把 0.5f/60f 改成 0.5f * Time.deltaTime
+                    // --- time -> u (match Python: u = (t + 0.5*DT)/STEP_SEC ) ---
                     float tSec = timeMs / 1000f;
-                    float u = (tSec + 0.5f / 60f) / step;   // Python: (f+0.5)*DT / step
 
-                    int c = Mathf.RoundToInt(u);            // Python: round(u)
+                    // 若你不是固定60fps，把这行改成：float halfFrame = 0.5f * Time.deltaTime;
+                    float halfFrame = 0.5f / 60f;
+
+                    float u = (tSec + halfFrame) / step;
+
+                    // Python: c = round(u)
+                    int c = Mathf.RoundToInt(u);
                     int n = frames.Length;
 
                     int i0 = Mathf.Clamp(c - 1, 0, n - 1);
                     int i1 = Mathf.Clamp(c, 0, n - 1);
                     int i2 = Mathf.Clamp(c + 1, 0, n - 1);
 
-                    // Python: exp(-0.5*((idx-u)/sigma)^2)
+                    // =========================
+                    // Warm-up: prevent first-frame jerk
+                    // =========================
+                    if (!_gaussWarmupDone)
+                    {
+                        // 首帧/前几帧先强制显示中心帧，避免“未初始化参数 -> 高斯混合”突变
+                        if (i1 != _last1)
+                        {
+                            _Gaussmat.SetTexture("_Tex0", frames[i1]);
+                            _Gaussmat.SetTexture("_Tex1", frames[i1]);
+                            _Gaussmat.SetTexture("_Tex2", frames[i1]);
+                            _last0 = _last1 = _last2 = i1;
+                        }
+
+                        _Gaussmat.SetFloat("_W0", 0f);
+                        _Gaussmat.SetFloat("_W1", 1f);
+                        _Gaussmat.SetFloat("_W2", 0f);
+
+                        _gaussWarmupCount++;
+                        if (_gaussWarmupCount >= Mathf.Max(1, _gaussWarmupFrames))
+                        {
+                            _gaussWarmupDone = true;
+                        }
+
+                        break;
+                    }
+
+                    // =========================
+                    // Weights: exp(-0.5*((idx-u)/sigma)^2)  (match Python)
+                    // =========================
                     float d0 = (i0 - u) / sigmaStep;
                     float d1 = (i1 - u) / sigmaStep;
                     float d2 = (i2 - u) / sigmaStep;
@@ -319,10 +371,16 @@ public partial class MoveCamera : MonoBehaviour
                     float w2 = Mathf.Exp(-0.5f * d2 * d2);
 
                     float s = w0 + w1 + w2;
-                    if (s > 1e-12f) { w0 /= s; w1 /= s; w2 /= s; }
-                    else { w0 = 0; w1 = 1; w2 = 0; }
+                    if (s > 1e-12f)
+                    {
+                        w0 /= s; w1 /= s; w2 /= s;
+                    }
+                    else
+                    {
+                        w0 = 0f; w1 = 1f; w2 = 0f;
+                    }
 
-                    // 只在索引变化时更新纹理，减少抖动/开销
+                    // 只在索引变化时更新纹理（减少卡顿/尖峰）
                     if (i0 != _last0 || i1 != _last1 || i2 != _last2)
                     {
                         _Gaussmat.SetTexture("_Tex0", frames[i0]);
@@ -335,8 +393,20 @@ public partial class MoveCamera : MonoBehaviour
                     _Gaussmat.SetFloat("_W1", w1);
                     _Gaussmat.SetFloat("_W2", w2);
 
+                    float now = Application.isPlaying ? Time.time : (float)UnityEditor.EditorApplication.timeSinceStartup;
+                    float alphaToPlot = w1;
+
+                    string line =
+                        $"GaussOnly," +
+                        $"cam1,{w0:F6}," +
+                        $"cam2,{w1:F6}," +
+                        $"cam3,{w2:F6}," +
+                        $"{timeMs:F3},{knobValue:F3},{responsePattern},{(int)stepNumber},{amplitudeToSaveData},{v:F6},{cameraSpeed:F3}";
+
+                    RecordWaveAndData(now, alphaToPlot, line);
                     break;
                 }
+
 
             // =========================================================
             // 3) Others: either do nothing or fall back to LinearOnly
@@ -481,9 +551,8 @@ public partial class MoveCamera : MonoBehaviour
 
         // ファイル名を構築 // 构建文件名
         experimentalCondition =
+                            brightnessBlendMode.ToString() + "_" +
                              "ParticipantName_" + participantName.ToString() + "_"
-                             + "Subject_Name_" + subject.ToString() + "_"
-                             + compensationClassification.ToString() + "_"
                              + "TrialNumber_" + trialNumber.ToString();
         if (devMode == DevMode.Test)
         {
@@ -879,72 +948,6 @@ private void OnDrawGizmos()
         while (timeMs >= frameNum * frameMs)
         {
             frameNum++;
-            // // ====== 60 秒采集：自动开始 / 自动停止 ======
-            // if (!_capturing)
-            // {
-            //     _capturing = true;
-            //     _savedCount = 0;
-            //     _captureStartTime = Time.time;
-            //     Debug.Log("[Capture] START 60s");
-            // }
-
-            // if (_capturing && _savedCount < CaptureDurationSeconds)
-            // {
-            //     // 为了避免保存到“上一帧”，强制渲染一次（推荐）
-            //     captureCamera1.Render();
-            //     if (SaveCam2Png) captureCamera2.Render();
-
-
-            //     // 在保存PNG前先准备csv路径
-            //     string dir = Camera1SaveDir;
-            //     Directory.CreateDirectory(dir);
-
-            //     // 建议：一个文件存两种目标（tree/house）也行；这里先给 tree 单独一份
-            //     string csvPathTree = Path.Combine(dir, "cam2_tree_bbox.csv");
-            //     string header = "secIndex,frameName,rtW,rtH,x_bl,y_bl,w,h,x_tl,y_tl,w_tl,h_tl,valid";
-
-            //     int secIndex = _savedCount; // 0..59
-            //     string frameName = $"cam2_{secIndex:000}.png";
-            //     if (SaveCam1Png)
-            //     {
-            //         var rt1 = captureCamera1.targetTexture;
-            //         string path1 = Path.Combine(dir, frameName);
-            //         SaveRenderTextureToPng(rt1, path1);
-
-            //         // === 关键：保存 bbox 到 CSV ===
-            //         if (treeRenderers != null && treeRenderers.Length > 0)
-            //         {
-            //             Bounds bTree = CombineBounds(treeRenderers);
-            //             int rtW = rt1.width;
-            //             int rtH = rt1.height;
-
-            //             bool ok = ComputeBboxOnRenderTexture(
-            //                 captureCamera1, rtW, rtH, bTree,
-            //                 out RectInt bbBL, out RectInt bbTL
-            //             );
-
-            //             string line = string.Format(
-            //                 "{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11},{12}",
-            //                 secIndex, frameName, rtW, rtH,
-            //                 bbBL.x, bbBL.y, bbBL.width, bbBL.height,
-            //                 bbTL.x, bbTL.y, bbTL.width, bbTL.height,
-            //                 ok ? 1 : 0
-            //             );
-            //             AppendCsvLine(csvPathTree, header, line);
-            //         }
-            //     }
-
-
-            //     _savedCount++;
-            //     Debug.Log($"[Capture] saved {_savedCount}/{CaptureDurationSeconds}");
-            // }
-
-            // if (_capturing && _savedCount >= CaptureDurationSeconds)
-            // {
-            //     _capturing = false;
-            //     float elapsed = Time.time - _captureStartTime;
-            //     Debug.Log($"[Capture] DONE: {CaptureDurationSeconds} frames in {elapsed:F1}s  folder=../{SaveFolderName}");
-            // }
 
             // カメラが移動する目標位置を計算 // 计算摄像机沿圆锥轴线移动的目标位置
             targetPosition = direction * cameraSpeed * updateInterval;
@@ -1132,11 +1135,11 @@ private void OnDrawGizmos()
         frames = LoadFramesFromResources(resourcesFolder, namePrefix, verboseLoadLog);
     }
     private void ResetGaussWarmup()
-{
-    _gaussWarmupDone = false;
-    _gaussWarmupCount = 0;
-    _last0 = _last1 = _last2 = -1; // 如果你有缓存索引
-}
+    {
+        _gaussWarmupDone = false;
+        _gaussWarmupCount = 0;
+        _last0 = _last1 = _last2 = -1; // 如果你有缓存索引
+    }
 }
 
 

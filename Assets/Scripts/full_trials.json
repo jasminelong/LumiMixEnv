@@ -3,6 +3,10 @@
     "exp1_trials": [],
     "exp2_intro_test": [
         {
+            "condition": 2,
+            "repetition": 1
+        },
+        {
             "condition": 1,
             "repetition": 1
         }
@@ -37,7 +41,7 @@
         "exp1_intro_test": 0,
         "exp1_trials": 0,
         "exp2_intro_test": 1,
-        "exp2_trials": 2,
+        "exp2_trials": 0,
         "exp2_trials_randomized": true
     }
 }

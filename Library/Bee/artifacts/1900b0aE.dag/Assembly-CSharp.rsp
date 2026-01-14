@@ -369,7 +369,6 @@
 "Assets/Scripts/MoveCamera.Fields.cs"
 "Assets/Scripts/MoveCamera.Trial.cs"
 "Assets/Scripts/SerialReader.cs"
-"Assets/Scripts/TrialState.cs"
 "Assets/Scripts/TrialTypes.cs"
 "Assets/TextMesh Pro/Examples & Extras/Scripts/Benchmark01.cs"
 "Assets/TextMesh Pro/Examples & Extras/Scripts/Benchmark01_UGUI.cs"

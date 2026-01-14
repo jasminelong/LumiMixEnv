@@ -49,25 +49,22 @@ public class MoveCameraEditor : Editor
         prop = serializedObject.FindProperty("treeRenderers");
         EditorGUILayout.PropertyField(prop);
 
-        prop = serializedObject.FindProperty("cameraSpeed");
-        EditorGUILayout.PropertyField(prop);
+        // prop = serializedObject.FindProperty("cameraSpeed");
+        // EditorGUILayout.PropertyField(prop);
 
-        prop = serializedObject.FindProperty("fps");
-        EditorGUILayout.PropertyField(prop);
+        // prop = serializedObject.FindProperty("fps");
+        // EditorGUILayout.PropertyField(prop);
 
         prop = serializedObject.FindProperty("participantName");
         EditorGUILayout.PropertyField(prop);
 
-        prop = serializedObject.FindProperty("subject");
-        EditorGUILayout.PropertyField(prop);
+        // prop = serializedObject.FindProperty("subject");
+        // EditorGUILayout.PropertyField(prop);
 
         prop = serializedObject.FindProperty("devMode");
         EditorGUILayout.PropertyField(prop);
 
         prop = serializedObject.FindProperty("brightnessBlendMode");
-        EditorGUILayout.PropertyField(prop);
-
-        prop = serializedObject.FindProperty("dEffRad");
         EditorGUILayout.PropertyField(prop);
 
         // prop = serializedObject.FindProperty("paramOrder");
@@ -105,17 +102,17 @@ public class MoveCameraEditor : Editor
         var current = script.stepNumber; // MoveCamera.StepNumber
         // 1) V0
         var propV0 = serializedObject.FindProperty("V0");
-        // bool v0IsBig = (current == MoveCamera.StepNumber.Option0);
-        // if (v0IsBig)
-        // {
-        //     DrawBigSliderWithNumber(propV0, "V0", -2f, 2f,
-        //                             labelFontSize: 26, valueFontSize: 30,
-        //                             valueColor: Color.red);
-        // }
-        // else
-        // {
+        bool v0IsBig = (current == MoveCamera.StepNumber.Option0);
+        if (v0IsBig)
+        {
+            DrawBigSliderWithNumber(propV0, "V0", -2f, 2f,
+                                    labelFontSize: 26, valueFontSize: 30,
+                                    valueColor: Color.red);
+        }
+        else
+        {
         EditorGUILayout.Slider(propV0, -2f, 2f);
-        // }
+        }
         serializedObject.ApplyModifiedProperties();
 
         GUILayout.Space(10);

@@ -7,16 +7,7 @@ using UnityEngine;
 
 public partial class MoveCamera : MonoBehaviour
 {
-    // ====== Randomization ======
-    [Header("Randomization")]
-    public int subjectSeed = 12345;
-
-    // ====== Mixing mode (NO ExperimentPattern) ======
-    public enum MixMode { Linear = 1, Gauss = 2 }
-
-    [Header("Mix Parameters")]
-    public MixMode mixMode = MixMode.Linear;
-
+      public int subjectSeed = 0;
     public void TrailSettings()
     {
         if (!File.Exists(savePath))
@@ -87,25 +78,28 @@ public partial class MoveCamera : MonoBehaviour
 
     private void ApplyTrialCondition(Trial t)
     {
-        // 1=linear, 2=gauss
-        if (t.condition == 1)
+        // condition: 1=LinearOnly, 2=GaussOnly
+        switch (t.condition)
         {
-            mixMode = MixMode.Linear;
-            // sigmaSec 可以保持不变也可以无视
-        }
-        else if (t.condition == 2)
-        {
-            mixMode = MixMode.Gauss;
-            // sigmaSec = 0.6f;  // 若你想强制固定，可在这里写死
-        }
-        else
-        {
-            Debug.LogWarning($"Unknown condition={t.condition}, fallback to Linear.");
-            mixMode = MixMode.Linear;
+            case 1:
+                brightnessBlendMode = BrightnessBlendMode.LinearOnly;
+                break;
+
+            case 2:
+                brightnessBlendMode = BrightnessBlendMode.GaussOnly;
+                // 如果你希望 GaussOnly 时强制 sigma 固定，可以在这里写死：
+                // sigmaSec = 0.6f;
+                break;
+
+            default:
+                Debug.LogWarning($"Unknown condition={t.condition}, fallback to LinearOnly.");
+                brightnessBlendMode = BrightnessBlendMode.LinearOnly;
+                break;
         }
 
-        Debug.Log($"[Trial] condition={t.condition} => mixMode={mixMode} (sigmaSec={sigmaSec}, step={secondsPerStep})");
+        Debug.Log($"[Trial] condition={t.condition} => brightnessBlendMode={brightnessBlendMode} (sigmaSec={sigmaSec}, step={secondsPerStep})");
     }
+
 
     // =========================
     // Randomize exp2_trials once and persist
@@ -183,9 +177,9 @@ public partial class MoveCamera : MonoBehaviour
         switch (currentProgress)
         {
             case "exp2_intro_test": data.progress.exp2_intro_test++; break;
-            case "exp2_trials":     data.progress.exp2_trials++;     break;
+            case "exp2_trials": data.progress.exp2_trials++; break;
             case "exp1_intro_test": data.progress.exp1_intro_test++; break;
-            case "exp1_trials":     data.progress.exp1_trials++;     break;
+            case "exp1_trials": data.progress.exp1_trials++; break;
             default: Debug.LogWarning($"Unknown progress key: {currentProgress}"); break;
         }
 

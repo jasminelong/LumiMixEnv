@@ -25,16 +25,11 @@ public partial class MoveCamera : MonoBehaviour
     }
     public enum StepNumber
     {
-        None = 0,
+        Option0 = 0,
         Option1 = 1,
         Option2 = 2,
         Option3 = 3,
         Option4 = 4,
-        Option5 = 5,
-        Option6 = 6,
-        Option7 = 7,
-        Option8 = 8,
-        Option9 = 9,
     }
     public enum BrightnessBlendMode
     {
@@ -53,7 +48,7 @@ public partial class MoveCamera : MonoBehaviour
     }
 
     [SerializeField] DevMode devMode = DevMode.Test;
-    [SerializeField] BrightnessBlendMode brightnessBlendMode = BrightnessBlendMode.PhaseLinearized;
+    [SerializeField] BrightnessBlendMode brightnessBlendMode = BrightnessBlendMode.LinearOnly;
 
     public Camera captureCamera0; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
     public Camera captureCamera1; // 一定の距離ごとに写真を撮るためのカメラ // 用于间隔一定距离拍照的摄像机
@@ -91,14 +86,14 @@ public partial class MoveCamera : MonoBehaviour
 
     private List<string> data = new List<string>();
     private float startTime;
-    private string folderName = "ExperimentData55"; // サブフォルダ名 // 子文件夹名称
+    private string folderName = "AAAGaussData"; // サブフォルダ名 // 子文件夹名称
     private float timeMs; // 現在までの経過時間 // 运行到现在的时间
     private Vector3 direction;
 
     private Vector3 targetPosition;      // FixedUpdate 的目标位置
     private Quaternion rightMoveRotation = Quaternion.Euler(0, 48.5f, 0);
     private Quaternion forwardMoveRotation = Quaternion.Euler(0, 146.8f, 0);
-    private int currentStep = 1;
+    private int currentStep = 0;
     public float v;
     public float[] amplitudes = new float[10];
     public SerialReader SerialReader;
@@ -112,7 +107,7 @@ public partial class MoveCamera : MonoBehaviour
     public ResponsePattern responsePattern = ResponsePattern.Amplitude;
 
     [Header("🔧記録するデータ")]
-    public StepNumber stepNumber = StepNumber.Option1; // 現在のステップ番号   // 当前步骤编号
+    public StepNumber stepNumber = StepNumber.Option0; // 現在のステップ番号   // 当前步骤编号
 
     public int trialNumber = 1;
 
@@ -218,22 +213,6 @@ public partial class MoveCamera : MonoBehaviour
     float _zCorrPrev = 0f;   // 上一帧的补偿z（用于平滑）
     float _tPrev = -1f;
 
-    public enum CompensationClassification
-    {
-        V0_A1,
-        A1A2,
-        A2,
-
-        A1,
-        V0_A1A2,
-        V0_A2,
-
-        V0,
-
-    }
-
-    public CompensationClassification compensationClassification = CompensationClassification.A1A2;
-
     private const int N = 1000;
     private float[] timeMap = new float[N];
     private bool mapReady = false;
@@ -244,77 +223,62 @@ public partial class MoveCamera : MonoBehaviour
     // 新增：标记刚刚重置时间
     private int fixedUpdateCounter = 0;
 
+    //test grating
 
-    public float dEffRad = 0.60f * Mathf.PI;
+    public int GratingW = 800;     // 对应 Python W=800
+    public int GratingH = 140;     // 对应 Python H=140
 
-private bool isInGray = false;
-[SerializeField] private int segmentMs = 25000;   // 25s
-[SerializeField] private int grayMs = 200;        // 200ms
+    public float Cycles = 10f;     // 对应 cycles=10.0
 
-//test grating
+    // 关键：用“弧度相位差”，对应 Python 的 d_step（默认 0.9π）
+    public float DStepRad = 0.9f * Mathf.PI;
 
-public int GratingW = 800;     // 对应 Python W=800
-public int GratingH = 140;     // 对应 Python H=140
+    public bool VerticalStripes = true; // Python 是沿 x 变化 => 竖条
+                                        // 对齐 Python ampnorm 的 scale=2.5 => amp=1/2.5=0.4
+    public float GratingAmp = 0.4f;
 
-public float Cycles = 10f;     // 对应 cycles=10.0
-
-// 关键：用“弧度相位差”，对应 Python 的 d_step（默认 0.9π）
-public float DStepRad = 0.9f * Mathf.PI;
-
-public bool VerticalStripes = true; // Python 是沿 x 变化 => 竖条
-// 对齐 Python ampnorm 的 scale=2.5 => amp=1/2.5=0.4
-public float GratingAmp = 0.4f;
-
-public Texture2D gratingA, gratingB;
-public int NumImages = 11;
-int seg = 0;
+    public Texture2D gratingA, gratingB;
+    int seg = 0;
 
 
-public bool SaveCam1Png = true;
-public bool SaveCam2Png = false;          // 需要就开
-public int CaptureDurationSeconds = 60;   // 你要 60s
-public string SaveFolderName = "CamCapture60s";
+    public bool SaveCam1Png = true;
+    public bool SaveCam2Png = false;          // 需要就开
+    public string SaveFolderName = "CamCapture60s";
 
-private bool _capturing = false;
-private int _savedCount = 0;
-private float _captureStartTime = 0f;
-private const string Camera1SaveDir = @"D:\vectionProject\public\camera2images";
+    private bool _capturing = false;
+    private int _savedCount = 0;
+    private float _captureStartTime = 0f;
 
-[SerializeField] public Renderer[] treeRenderers;   // 拖拽树的 MeshRenderer(s)
+    [SerializeField] public Renderer[] treeRenderers;   // 拖拽树的 MeshRenderer(s)
 
-public float secondsPerStep = 1.0f;   // 1Hz keyframe
-public float sigmaSec = 0.6f;         // sigma0p6 => 0.6s
+    public float secondsPerStep = 1.0f;   // 1Hz keyframe
+    public float sigmaSec = 0.6f;         // sigma0p6 => 0.6s
 
-public string resourcesFolder = "CamFrames";
-public string namePrefix = "cam1_";
+    public string resourcesFolder = "CamFrames";
+    public string namePrefix = "cam1_";
 
-private Texture2D[] frames;
-
+    private Texture2D[] frames;
 
     [Header("Capture Settings")]
-    public bool SaveCam0ContinuousPng = true;   // CaptureCamera0: 60fps
-    public bool SaveCam1IsiPng        = true;   // CaptureCamera1: 1Hz (or updateInterval)
-    public int  CaptureSeconds        = 15;     // 保存时长上限（可改）
+    public bool SaveCam0ContinuousPng = false;   // CaptureCamera0: 60fps
+    public bool SaveCam1IsiPng = false;   // CaptureCamera1: 1Hz (or updateInterval)
+    public int CaptureSeconds = 60;     // 保存时长上限（可改）
     public string Cam0SaveDir = @"D:\vectionProject\public\A-continuous-images";
     public string Cam1SaveDir = @"D:\vectionProject\public\A-isi-images";
 
     private int _cam0SavedCount = 0;
     private int _cam1SavedCount = 0;
-RenderTexture freezePrev, freezeCur, freezeNext;
-bool freezeReady = false;
+    RenderTexture freezePrev, freezeCur, freezeNext;
+    bool freezeReady = false;
 
-int stepIndex = 0;
-int lastStepIndex = int.MinValue;
+    int stepIndex = 0;
+    int lastStepIndex = int.MinValue;
 
-public string Cam2DiskDir = @"D:\vectionProject\public\camera2images"; // 你要用的文件夹
-public string Cam2Prefix = "cam1_";
-public int Cam2Count = 10; // 000..009
-
-int framesN = 0;
+    int framesN = 0;
     public bool verboseLoadLog = false;
     private Material _Gaussmat;
     private int _last0 = -1, _last1 = -1, _last2 = -1;
     private bool _gaussWarmupDone = false;
-private int _gaussWarmupFrames = 2;   // 1 或 2 都行
-private int _gaussWarmupCount = 0;
+    private int _gaussWarmupFrames = 2;   // 1 或 2 都行
+    private int _gaussWarmupCount = 0;
 }
