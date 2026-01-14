@@ -8,6 +8,7 @@ using TMPro;
 using UnityEngine.SceneManagement;
 using System.Text;
 using System.Linq;
+using System.Reflection; // ensure at top of file if not already
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -74,6 +75,9 @@ public partial class MoveCamera : MonoBehaviour
     }
     void Update()
     {
+        // 在 2AFC 模式下不要响应这个全局点击（否则会中断 2AFC 的点击/按钮逻辑）
+        if (in2AfcMode) return;
+
         /// マウス入力は1フレームのみ検出されるため、Update() で処理する必要があります。
         // マウスの左ボタンが押されたときの処理 // 处理鼠标左键按下时的操作
 
@@ -150,7 +154,9 @@ public partial class MoveCamera : MonoBehaviour
             case 5:
                 if (isEnd)
                 {
-                    QuitGame();
+                    // QuitGame();
+                    Debug.Log("Experiment finished.");
+                    Start2AfcTrials();
                 }
                 else
                 {
@@ -198,7 +204,7 @@ public partial class MoveCamera : MonoBehaviour
         if (SaveCam0ContinuousPng)
         {
             // 时长限制：60s * 60fps = 3600 张
-            int maxFrames = CaptureSeconds * 60;
+            int maxFrames = CaptureSeconds * 40;
             if (_cam0SavedCount < maxFrames)
             {
                 // 用 fixedUpdateCounter 做帧号（与 timeMs 对齐）
@@ -212,8 +218,14 @@ public partial class MoveCamera : MonoBehaviour
 
     void LuminanceMixtureFrame()
     {
-        float frameMs = updateInterval * 1000f;
+        // 如果正在进行 2AFC 的“等待响应”阶段，暂停帧更新/播放（防止视频继续变化）
+        if (in2AfcMode && _2afcWaitingForResponse)
+        {
+            return;
+        }
 
+        float frameMs = updateInterval * 1000f;
+        // if (Mathf.Abs(timeMs - frameNum * updateInterval * 1000) < 0.2f)
         while (timeMs >= frameNum * frameMs)
         {
             frameNum++;
@@ -252,11 +264,15 @@ public partial class MoveCamera : MonoBehaviour
         }
 
         // Optional: show only the relevant RawImage (prevents “both draw” confusion)
-        if (CaptureCameraLinearBlendRawImage != null)
-            CaptureCameraLinearBlendRawImage.gameObject.SetActive(brightnessBlendMode == BrightnessBlendMode.LinearOnly);
+        // 在 2AFC 模式下不要自动根据 brightnessBlendMode 切换 active —— 会覆盖 Set2AfcLayout 的设置
+        if (!in2AfcMode)
+        {
+            if (CaptureCameraLinearBlendRawImage != null)
+                CaptureCameraLinearBlendRawImage.gameObject.SetActive(brightnessBlendMode == BrightnessBlendMode.LinearOnly);
 
-        if (CaptureCameraLinearBlendTopRawImage != null)
-            CaptureCameraLinearBlendTopRawImage.gameObject.SetActive(brightnessBlendMode == BrightnessBlendMode.GaussOnly);
+            if (CaptureCameraLinearBlendTopRawImage != null)
+                CaptureCameraLinearBlendTopRawImage.gameObject.SetActive(brightnessBlendMode == BrightnessBlendMode.GaussOnly);
+        }
 
         switch (brightnessBlendMode)
         {
@@ -930,13 +946,26 @@ private void OnDrawGizmos()
         return true;
     }
 
-    static void AppendCsvLine(string csvPath, string header, string line)
+    // Helper: append a CSV line, create folder and header when needed
+    private void AppendCsvLine(string filePath, string header, string line)
     {
-        bool needHeader = !File.Exists(csvPath);
-        using (var sw = new StreamWriter(csvPath, append: true, encoding: new UTF8Encoding(false)))
+        try
         {
-            if (needHeader) sw.WriteLine(header);
-            sw.WriteLine(line);
+            var dir = Path.GetDirectoryName(filePath);
+            if (!Directory.Exists(dir))
+                Directory.CreateDirectory(dir);
+
+            bool writeHeader = !File.Exists(filePath);
+            using (var sw = new StreamWriter(filePath, true, Encoding.UTF8))
+            {
+                if (writeHeader && !string.IsNullOrEmpty(header))
+                    sw.WriteLine(header);
+                sw.WriteLine(line);
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"AppendCsvLine failed: {ex.Message}");
         }
     }
     void LuminanceMixture()
@@ -1139,6 +1168,504 @@ private void OnDrawGizmos()
         _gaussWarmupDone = false;
         _gaussWarmupCount = 0;
         _last0 = _last1 = _last2 = -1; // 如果你有缓存索引
+    }
+
+    // ------ 2AFC fields ------
+    private bool in2AfcMode = false;
+    private GameObject _2afcPanel;
+    private Button _2afcUpperButton;
+    private Button _2afcLowerButton;
+    private int _2afcTrialIndex = 0;
+    private List<bool> _2afcOrder = new List<bool>(); // true => top shows Linear, bottom Gauss; false => reversed
+    // 当正在等待被试在 2AFC 界面做出响应时为 true —— 用于暂停帧播放/更新
+    private bool _2afcWaitingForResponse = false;
+    public float twoAfcDurationSec = 20f; // 显示时长
+    // ------------------------
+
+    // 在调参结束时调用：开始两组 2AFC（顺序随机/或固定）
+    public void Start2AfcTrials()
+    {
+        if (frames == null || frames.Length == 0) { Debug.LogError("Cannot start 2AFC: frames not loaded."); return; }
+
+        Set2AfcLayout(true); // 切换到上下显示布局
+
+        // 生成两次试次顺序（可以换为随机）
+        _2afcOrder.Clear();
+        _2afcOrder.Add(true);  // top Linear / bottom Gauss
+        _2afcOrder.Add(false); // top Gauss / bottom Linear
+
+        // 可选地随机化顺序，但保证可复现（用 subjectSeed）
+        var rnd = new System.Random(subjectSeed == 0 ? DateTime.Now.GetHashCode() : subjectSeed);
+        _2afcOrder = _2afcOrder.OrderBy(x => rnd.Next()).ToList();
+
+        _2afcTrialIndex = 0;
+        StartCoroutine(Run2AfcSequence());
+    }
+
+
+    // 布局工具：切换为上下各半屏（用于 2AFC）
+    void ArrangeUIFor2Afc()
+    {
+        // 调参画面隐藏
+        if (continuousImageRawImage != null) continuousImageRawImage.enabled = false;
+
+        if (CaptureCameraLinearBlendRawImage != null)
+        {
+            var rt = CaptureCameraLinearBlendRawImage.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0f, 0f);
+            rt.anchorMax = new Vector2(1f, 0.5f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+            CaptureCameraLinearBlendRawImage.gameObject.SetActive(true);
+        }
+
+        if (CaptureCameraLinearBlendTopRawImage != null)
+        {
+            var rt = CaptureCameraLinearBlendTopRawImage.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0f, 0.5f);
+            rt.anchorMax = new Vector2(1f, 1f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+            CaptureCameraLinearBlendTopRawImage.gameObject.SetActive(true);
+        }
+    }
+
+    // Helper: put the two RawImages at the top/bottom positions without changing their materials.
+    void PositionForTopIsLinear(bool topIsLinear)
+    {
+        if (CaptureCameraLinearBlendTopRawImage == null || CaptureCameraLinearBlendRawImage == null) return;
+
+        RectTransform rtLinear = CaptureCameraLinearBlendRawImage.GetComponent<RectTransform>();
+        RectTransform rtGauss = CaptureCameraLinearBlendTopRawImage.GetComponent<RectTransform>();
+
+        // screen Y values you provided
+        float topY = 353f;
+        float botY = -356f;
+
+        if (topIsLinear)
+        {
+            rtLinear.anchoredPosition = new Vector2(rtLinear.anchoredPosition.x, topY);
+            rtGauss.anchoredPosition  = new Vector2(rtGauss.anchoredPosition.x, botY);
+
+            // draw order: put the top one last so it renders above if overlapping
+            CaptureCameraLinearBlendRawImage.transform.SetAsLastSibling();
+            CaptureCameraLinearBlendTopRawImage.transform.SetSiblingIndex(0);
+        }
+        else
+        {
+            rtGauss.anchoredPosition  = new Vector2(rtGauss.anchoredPosition.x, topY);
+            rtLinear.anchoredPosition = new Vector2(rtLinear.anchoredPosition.x, botY);
+
+            CaptureCameraLinearBlendTopRawImage.transform.SetAsLastSibling();
+            CaptureCameraLinearBlendRawImage.transform.SetSiblingIndex(0);
+        }
+    }
+
+    private IEnumerator Run2AfcSequence()
+    {
+        // Prevent normal luminance loop from changing materials
+        in2AfcMode = true;
+
+        // Create material instances for the whole 2AFC session (reuse to avoid GC)
+        Material matLinearInstance = new Material(Mat_GrayscaleOverBlend);
+        Material matGaussInstance  = new Material(GaussBlendMat);
+
+        // Ensure both UI raw images are active for two-viewport display
+        if (CaptureCameraLinearBlendRawImage != null) CaptureCameraLinearBlendRawImage.gameObject.SetActive(true);
+        if (CaptureCameraLinearBlendTopRawImage != null) CaptureCameraLinearBlendTopRawImage.gameObject.SetActive(true);
+
+        while (_2afcTrialIndex < _2afcOrder.Count)
+        {
+            bool topIsLinear = _2afcOrder[_2afcTrialIndex];
+            Debug.Log($"2AFC trial {_2afcTrialIndex + 1}/{_2afcOrder.Count} topIsLinear={topIsLinear}");
+
+            // layout & position
+            Set2AfcLayout(true);
+            PositionForTopIsLinear(topIsLinear);
+
+            // ------- Fix: keep material instances tied to their RawImage (linear->CaptureCameraLinearBlendRawImage,
+            // gauss->CaptureCameraLinearBlendTopRawImage) and only swap positions / sibling order.
+            // Previously code swapped the materials between the two RawImages which can lead to the second
+            // trial not showing the expected swap. Assign once per trial to be safe.
+            if (matLinearInstance != null && CaptureCameraLinearBlendRawImage != null)
+            {
+                CaptureCameraLinearBlendRawImage.material = matLinearInstance;
+            }
+            if (matGaussInstance != null && CaptureCameraLinearBlendTopRawImage != null)
+            {
+                CaptureCameraLinearBlendTopRawImage.material = matGaussInstance;
+            }
+
+            // Ensure the visual stacking matches topIsLinear:
+            // if topIsLinear -> make the linear RawImage sit at top; otherwise make gauss RawImage on top.
+            if (topIsLinear)
+            {
+                CaptureCameraLinearBlendRawImage.transform.SetAsLastSibling();        // linear on top
+                CaptureCameraLinearBlendTopRawImage.transform.SetSiblingIndex(0);     // gauss below
+            }
+            else
+            {
+                CaptureCameraLinearBlendTopRawImage.transform.SetAsLastSibling();     // gauss on top
+                CaptureCameraLinearBlendRawImage.transform.SetSiblingIndex(0);        // linear below
+            }
+
+            // Play the 20s sequence
+            float elapsed = 0f;
+            int localFrameNum = 1;
+            float frameMs = updateInterval * 1000f;
+
+            // reset any warmup to avoid spikes
+            ResetGaussWarmup();
+
+            while (elapsed < twoAfcDurationSec)
+            {
+                // advance simulated time
+                elapsed += Time.deltaTime;
+                float tGlobalMs = elapsed * 1000f;
+                while (tGlobalMs >= localFrameNum * frameMs) localFrameNum++;
+
+                // linear indexes/alpha
+                int n = frames.Length;
+                int prevIdx = Mathf.Clamp(localFrameNum - 1, 0, n - 1);
+                int nextIdx = Mathf.Clamp(localFrameNum, 0, n - 1);
+                Texture linearBotTex = frames[prevIdx];
+                Texture linearTopTex = frames[nextIdx];
+                float Image1ToNowDeltaTime = tGlobalMs - (localFrameNum - 1) * updateInterval * 1000f;
+                float linearAlpha = Mathf.Clamp01(Image1ToNowDeltaTime / (updateInterval * 1000f));
+
+                // gauss indexes/weights
+                float step = Mathf.Max(1e-6f, secondsPerStep);
+                float sigmaStep = Mathf.Max(1e-4f, sigmaSec);
+                float halfFrame = 0.5f / 60f;
+                float u = ((tGlobalMs / 1000f) + halfFrame) / step;
+                int c = Mathf.RoundToInt(u);
+                int i0 = Mathf.Clamp(c - 1, 0, n - 1);
+                int i1 = Mathf.Clamp(c, 0, n - 1);
+                int i2 = Mathf.Clamp(c + 1, 0, n - 1);
+                float d0 = (i0 - u) / sigmaStep;
+                float d1 = (i1 - u) / sigmaStep;
+                float d2 = (i2 - u) / sigmaStep;
+                float w0 = Mathf.Exp(-0.5f * d0 * d0);
+                float w1 = Mathf.Exp(-0.5f * d1 * d1);
+                float w2 = Mathf.Exp(-0.5f * d2 * d2);
+                float s = w0 + w1 + w2;
+                if (s > 1e-12f) { w0 /= s; w1 /= s; w2 /= s; }
+                else { w0 = 0f; w1 = 1f; w2 = 0f; }
+
+                // --- update linear material instance (always write here) ---
+                if (matLinearInstance != null)
+                {
+                    matLinearInstance.SetTexture("_TopTex", linearTopTex);
+                    matLinearInstance.SetTexture("_BottomTex", linearBotTex);
+                    matLinearInstance.SetColor("_TopColor", new Color(1f, 1f, 1f, linearAlpha));
+                    matLinearInstance.SetColor("_BottomColor", new Color(1f, 1f, 1f, 1f));
+                }
+
+                // --- update gauss material instance (always write here) ---
+                if (matGaussInstance != null)
+                {
+                    // warmup handling as in你的GaussOnly分支: update textures when indices change helps avoid spikes
+                    // Here we simply set per-frame; optimization: only set textures when i0/i1/i2 change.
+                    matGaussInstance.SetTexture("_Tex0", frames[i0]);
+                    matGaussInstance.SetTexture("_Tex1", frames[i1]);
+                    matGaussInstance.SetTexture("_Tex2", frames[i2]);
+                    matGaussInstance.SetFloat("_W0", w0);
+                    matGaussInstance.SetFloat("_W1", w1);
+                    matGaussInstance.SetFloat("_W2", w2);
+                }
+
+                yield return null;
+            } // end playing duration
+
+            // 显示选择按钮并等待响应
+            bool _waitingFor2AfcResponse = true;
+
+            // 注意：不能在有 catch 的 try 块里使用 yield（会编译错误 CS1626）。
+            // 这里使用 try...finally 保证无论如何都能 Cleanup（且允许 yield）。
+            bool uiShown = false;
+            try
+            {
+                // 告知其他更新逻辑暂停帧播放
+                _2afcWaitingForResponse = true;
+
+                Show2AfcButtons();
+                uiShown = true;
+
+                void LocalHandler(bool upperSelected)
+                {
+                    string setting = topIsLinear ? "TopLinear_BottomGauss" : "TopGauss_BottomLinear";
+                    string choice = upperSelected ? "Upper" : "Lower";
+                    data.Add($"2AFC,Trial{_2afcTrialIndex+1},{setting},Choice,{choice},duration,{twoAfcDurationSec:F1}");
+
+                    // save immediately to CSV in D:\vectionProject\public\<folderName>\2AFC_results.csv
+                    string csvDir = Path.Combine(@"D:\vectionProject\public", folderName);
+                    string csvPath = Path.Combine(csvDir, "2AFC_results.csv");
+                    string header = "Trial,Setting,Choice,Duration,Timestamp";
+                    string line = $"{_2afcTrialIndex + 1},{setting},{choice},{twoAfcDurationSec:F1},{DateTime.Now:O}";
+                    AppendCsvLine(csvPath, header, line);
+
+                    _waitingFor2AfcResponse = false;
+                }
+
+                if (_2afcUpperButton != null) _2afcUpperButton.onClick.AddListener(() => LocalHandler(true));
+                if (_2afcLowerButton != null) _2afcLowerButton.onClick.AddListener(() => LocalHandler(false));
+
+                while (_waitingFor2AfcResponse)
+                    yield return null;
+            }
+            finally
+            {
+                // 退出等待状态（确保不会一直暂停）
+                _2afcWaitingForResponse = false;
+
+                // 始终移除监听并清理 UI（即使 Show2AfcButtons 抛异常也会执行）
+                if (uiShown)
+                {
+                    if (_2afcUpperButton != null) _2afcUpperButton.onClick.RemoveAllListeners();
+                    if (_2afcLowerButton != null) _2afcLowerButton.onClick.RemoveAllListeners();
+                }
+                Cleanup2AfcUI();
+            }
+
+            _2afcTrialIndex++;
+        }
+
+        // sequence done
+        in2AfcMode = false;
+
+        Set2AfcLayout(false); // 恢复调参布局
+
+        // restore original materials (optional)
+        CaptureCameraLinearBlendRawImage.material = new Material(Mat_GrayscaleOverBlend);
+        CaptureCameraLinearBlendRawImage.material.SetTexture("_TopTex", captureImageTexture1);
+        CaptureCameraLinearBlendRawImage.material.SetTexture("_BottomTex", captureImageTexture2);
+        _Gaussmat = new Material(GaussBlendMat);
+        CaptureCameraLinearBlendTopRawImage.material = _Gaussmat;
+
+        Debug.Log("2AFC sequence finished.");
+                // 两次 2AFC 选择完成后结束程序（在编辑器下停止 Play Mode）
+        QuitGame();
+    }
+
+    private Font GetSafeUiFont()
+    {
+        // Try to create a dynamic font from OS first (more robust on modern Unity)
+        try
+        {
+            var f = Font.CreateDynamicFontFromOSFont("Arial", 14);
+            if (f != null) return f;
+        }
+        catch { }
+
+        // Fallback: try builtin resource but guard exception
+        try
+        {
+            return Resources.GetBuiltinResource<Font>("Arial.ttf");
+        }
+        catch
+        {
+            Debug.LogWarning("GetSafeUiFont: could not load Arial.ttf; UI text may be plain or invisible.");
+            return null;
+        }
+    }
+
+    private void Show2AfcButtons()
+    {
+        // create panel if needed
+        if (_2afcPanel == null)
+        {
+            _2afcPanel = new GameObject("2AFC_Panel");
+            var rt = _2afcPanel.AddComponent<RectTransform>();
+            _2afcPanel.transform.SetParent(canvas.transform, false);
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+            // make sure panel is on top
+            _2afcPanel.transform.SetAsLastSibling();
+        }
+
+        Font uiFont = GetSafeUiFont();
+
+        // Full-screen gray background (covers video)
+        var bgGO = new GameObject("2AFC_Background");
+        bgGO.transform.SetParent(_2afcPanel.transform, false);
+        var bgRT = bgGO.AddComponent<RectTransform>();
+        bgRT.anchorMin = Vector2.zero;
+        bgRT.anchorMax = Vector2.one;
+        bgRT.offsetMin = Vector2.zero;
+        bgRT.offsetMax = Vector2.zero;
+        var bgImg = bgGO.AddComponent<Image>();
+        bgImg.color = new Color(0.5f, 0.5f, 0.5f, 1f); // solid mid-gray
+        // put background as first child so everything else draws above it
+        bgGO.transform.SetSiblingIndex(0);
+
+        // Question label (placed above upper button)
+        if (uiFont != null)
+        {
+            var qGO = new GameObject("2AFC_Question");
+            qGO.transform.SetParent(_2afcPanel.transform, false);
+            var qRT = qGO.AddComponent<RectTransform>();
+            qRT.anchorMin = new Vector2(0.1f, 0.92f);
+            qRT.anchorMax = new Vector2(0.9f, 0.99f);
+            qRT.offsetMin = Vector2.zero;
+            qRT.offsetMax = Vector2.zero;
+            var qText = qGO.AddComponent<Text>();
+            qText.alignment = TextAnchor.MiddleCenter;
+            qText.font = uiFont;
+            qText.text = "哪个更接近匀速？";
+            qText.fontSize = 48;
+            qText.color = Color.white;
+            qGO.transform.SetAsLastSibling();
+        }
+
+        // Upper button
+        var upperGO = new GameObject("2AFC_UpperButton");
+        upperGO.transform.SetParent(_2afcPanel.transform, false);
+        var upperRT = upperGO.AddComponent<RectTransform>();
+        upperRT.anchorMin = new Vector2(0.25f, 0.55f);
+        upperRT.anchorMax = new Vector2(0.75f, 0.9f);
+        upperRT.offsetMin = Vector2.zero;
+        upperRT.offsetMax = Vector2.zero;
+        var upperImg = upperGO.AddComponent<Image>();
+        // subtle translucent background so text is legible over gray
+        upperImg.color = new Color(0f, 0f, 0f, 0.15f);
+        _2afcUpperButton = upperGO.AddComponent<Button>();
+
+        if (uiFont != null)
+        {
+            var upperTextGO = new GameObject("Text");
+            upperTextGO.transform.SetParent(upperGO.transform, false);
+            var upperText = upperTextGO.AddComponent<Text>();
+            upperText.alignment = TextAnchor.MiddleCenter;
+            upperText.font = uiFont;
+            upperText.text = "上";
+            upperText.fontSize = 64;
+            upperText.color = Color.white;
+            var upperTextRT = upperTextGO.GetComponent<RectTransform>();
+            upperTextRT.anchorMin = Vector2.zero;
+            upperTextRT.anchorMax = Vector2.one;
+            upperTextRT.offsetMin = Vector2.zero;
+            upperTextRT.offsetMax = Vector2.zero;
+        }
+
+        // Lower button
+        var lowerGO = new GameObject("2AFC_LowerButton");
+        lowerGO.transform.SetParent(_2afcPanel.transform, false);
+        var lowerRT = lowerGO.AddComponent<RectTransform>();
+        lowerRT.anchorMin = new Vector2(0.25f, 0.1f);
+        lowerRT.anchorMax = new Vector2(0.75f, 0.45f);
+        lowerRT.offsetMin = Vector2.zero;
+        lowerRT.offsetMax = Vector2.zero;
+        var lowerImg = lowerGO.AddComponent<Image>();
+        lowerImg.color = new Color(0f, 0f, 0f, 0.15f);
+        _2afcLowerButton = lowerGO.AddComponent<Button>();
+
+        if (uiFont != null)
+        {
+            var lowerTextGO = new GameObject("Text");
+            lowerTextGO.transform.SetParent(lowerGO.transform, false);
+            var lowerText = lowerTextGO.AddComponent<Text>();
+            lowerText.alignment = TextAnchor.MiddleCenter;
+            lowerText.font = uiFont;
+            lowerText.text = "下";
+            lowerText.fontSize = 64;
+            lowerText.color = Color.white;
+            var lowerTextRT = lowerTextGO.GetComponent<RectTransform>();
+            lowerTextRT.anchorMin = Vector2.zero;
+            lowerTextRT.anchorMax = Vector2.one;
+            lowerTextRT.offsetMin = Vector2.zero;
+            lowerTextRT.offsetMax = Vector2.zero;
+        }
+    }
+
+    private void Cleanup2AfcUI()
+    {
+        if (_2afcPanel != null)
+        {
+            Destroy(_2afcPanel);
+            _2afcPanel = null;
+            _2afcUpperButton = null;
+            _2afcLowerButton = null;
+        }
+    }
+
+    /// <summary>
+    /// 切换 2AFC 布局：true -> 隐藏 continuous，TopRawImage 放到 y=353，BotRawImage 放到 y=-356
+    /// false -> 恢复调参布局（continuous 显示，两个 RawImage 都放到 y=-356）
+    /// </summary>
+    void Set2AfcLayout(bool enable2Afc)
+    {
+        // hide/show continuous image
+        if (continuousImageRawImage != null)
+            continuousImageRawImage.gameObject.SetActive(!enable2Afc);
+
+        RectTransform rtTop = CaptureCameraLinearBlendTopRawImage != null
+            ? CaptureCameraLinearBlendTopRawImage.GetComponent<RectTransform>()
+            : null;
+        RectTransform rtBot = CaptureCameraLinearBlendRawImage != null
+            ? CaptureCameraLinearBlendRawImage.GetComponent<RectTransform>()
+            : null;
+
+        if (enable2Afc)
+        {
+            if (rtTop != null) rtTop.anchoredPosition = new Vector2(rtTop.anchoredPosition.x, 353f);
+            if (rtBot != null) rtBot.anchoredPosition = new Vector2(rtBot.anchoredPosition.x, -356f);
+
+            if (CaptureCameraLinearBlendRawImage != null)
+            {
+                CaptureCameraLinearBlendRawImage.gameObject.SetActive(true);
+                CaptureCameraLinearBlendRawImage.enabled = true;
+                var c = CaptureCameraLinearBlendRawImage.color; c.a = 1f; CaptureCameraLinearBlendRawImage.color = c;
+                // 把底层放在父物体中靠下，保证 top 在上面
+                CaptureCameraLinearBlendRawImage.transform.SetSiblingIndex(0);
+            }
+
+            if (CaptureCameraLinearBlendTopRawImage != null)
+            {
+                CaptureCameraLinearBlendTopRawImage.gameObject.SetActive(true);
+                CaptureCameraLinearBlendTopRawImage.enabled = true;
+                var c2 = CaptureCameraLinearBlendTopRawImage.color; c2.a = 1f; CaptureCameraLinearBlendTopRawImage.color = c2;
+                // 把 top 放到最上层
+                CaptureCameraLinearBlendTopRawImage.transform.SetAsLastSibling();
+            }
+        }
+        else
+        {
+            // 调参时两个 blend 都放在下面，continuous 显示在上（y=353）
+            if (rtTop != null) rtTop.anchoredPosition = new Vector2(rtTop.anchoredPosition.x, -356f);
+            if (rtBot != null) rtBot.anchoredPosition = new Vector2(rtBot.anchoredPosition.x, -356f);
+
+            if (CaptureCameraLinearBlendRawImage != null)
+            {
+                CaptureCameraLinearBlendRawImage.gameObject.SetActive(true);
+                CaptureCameraLinearBlendRawImage.enabled = true;
+                var c = CaptureCameraLinearBlendRawImage.color; c.a = 1f; CaptureCameraLinearBlendRawImage.color = c;
+                CaptureCameraLinearBlendRawImage.transform.SetAsLastSibling(); // 放到上层以便在下面被 continuous 遮挡时可见调试
+            }
+
+            if (CaptureCameraLinearBlendTopRawImage != null)
+            {
+                CaptureCameraLinearBlendTopRawImage.gameObject.SetActive(true);
+                CaptureCameraLinearBlendTopRawImage.enabled = true;
+                var c2 = CaptureCameraLinearBlendTopRawImage.color; c2.a = 1f; CaptureCameraLinearBlendTopRawImage.color = c2;
+                CaptureCameraLinearBlendTopRawImage.transform.SetSiblingIndex(0);
+            }
+
+            if (continuousImageRawImage != null)
+            {
+                var crt = continuousImageRawImage.GetComponent<RectTransform>();
+                if ( crt != null) crt.anchoredPosition = new Vector2(crt.anchoredPosition.x, 353f);
+                continuousImageRawImage.gameObject.SetActive(true);
+                continuousImageRawImage.enabled = true;
+                continuousImageRawImage.transform.SetAsLastSibling(); // continuous 放最上（调参时）
+            }
+        }
+
+        // Debug 帮助：在控制台打印状态（可临时打开）
+        Debug.Log($"Set2AfcLayout({enable2Afc}) topActive={CaptureCameraLinearBlendTopRawImage?.gameObject.activeSelf} topEnabled={CaptureCameraLinearBlendTopRawImage?.enabled} botActive={CaptureCameraLinearBlendRawImage?.gameObject.activeSelf} botEnabled={CaptureCameraLinearBlendRawImage?.enabled} continuousActive={continuousImageRawImage?.gameObject.activeSelf}");
     }
 }
 

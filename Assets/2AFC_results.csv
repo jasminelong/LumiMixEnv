@@ -1,0 +1,6 @@
+Trial,Setting,Choice,Duration,Timestamp
+1,TopLinear_BottomGauss,Lower,20.0,2026-01-14T16:37:45.3259961+09:00
+1,TopLinear_BottomGauss,Upper,20.0,2026-01-14T16:55:41.4301289+09:00
+2,TopGauss_BottomLinear,Upper,20.0,2026-01-14T16:56:04.0166409+09:00
+1,TopLinear_BottomGauss,Lower,20.0,2026-01-14T17:01:41.8598518+09:00
+2,TopGauss_BottomLinear,Upper,20.0,2026-01-14T17:02:03.2738551+09:00
