@@ -23,6 +23,7 @@ public static class TrialDataGenerator
 
             // practice：linear 1 次 + gauss 1 次（可按需删减）
             exp2_intro_test = new List<Trial> {
+                new Trial { condition = 2, repetition = 1 },
                 new Trial { condition = 1, repetition = 1 }
             },
 
