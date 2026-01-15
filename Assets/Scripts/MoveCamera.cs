@@ -1399,9 +1399,13 @@ private void OnDrawGizmos()
                     string choice = upperSelected ? "Upper" : "Lower";
                     data.Add($"2AFC,Trial{_2afcTrialIndex+1},{setting},Choice,{choice},duration,{twoAfcDurationSec:F1}");
 
-                    // save immediately to CSV in D:\vectionProject\public\<folderName>\2AFC_results.csv
+                    // save immediately to CSV in D:\vectionProject\public\<folderName>\ParticipantName_<name>_2AFC_results.csv
                     string csvDir = Path.Combine(@"D:\vectionProject\public", folderName);
-                    string csvPath = Path.Combine(csvDir, "2AFC_results.csv");
+                    string safeParticipant = string.IsNullOrEmpty(participantName)
+                        ? "Unknown"
+                        : new string(participantName.Where(ch => !Path.GetInvalidFileNameChars().Contains(ch)).ToArray());
+                    string fileName = $"ParticipantName_{safeParticipant}_2AFC_results.csv";
+                    string csvPath = Path.Combine(csvDir, fileName);
                     string header = "Trial,Setting,Choice,Duration,Timestamp";
                     string line = $"{_2afcTrialIndex + 1},{setting},{choice},{twoAfcDurationSec:F1},{DateTime.Now:O}";
                     AppendCsvLine(csvPath, header, line);
