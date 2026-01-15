@@ -251,6 +251,9 @@ public partial class MoveCamera : MonoBehaviour
 
                     string path = Path.Combine(dir, file);
                     // CaptureAndSavePng(captureCamera1, path);
+                    // 已保存 PNG 之后，生成 ROI csv
+                    string roiCsvAll = Path.Combine(dir, "rois.csv");
+                    SaveRoiMetadataForFrame(treeRenderers, captureCamera1, _cam1SavedCount, file, roiCsvAll);
                     _cam1SavedCount++;
                 }
             }
@@ -1671,6 +1674,78 @@ private void OnDrawGizmos()
         // Debug 帮助：在控制台打印状态（可临时打开）
         Debug.Log($"Set2AfcLayout({enable2Afc}) topActive={CaptureCameraLinearBlendTopRawImage?.gameObject.activeSelf} topEnabled={CaptureCameraLinearBlendTopRawImage?.enabled} botActive={CaptureCameraLinearBlendRawImage?.gameObject.activeSelf} botEnabled={CaptureCameraLinearBlendRawImage?.enabled} continuousActive={continuousImageRawImage?.gameObject.activeSelf}");
     }
+
+    /// <summary>
+    /// 计算多个 Renderer 的联合 Bounds
+    /// </summary>
+    private bool TryGetCombinedBounds(Renderer[] renderers, out Bounds combined)
+    {
+        combined = new Bounds();
+        if (renderers == null || renderers.Length == 0) return false;
+        bool inited = false;
+        foreach (var r in renderers)
+        {
+            if (r == null) continue;
+            if (!inited) { combined = r.bounds; inited = true; }
+            else combined.Encapsulate(r.bounds);
+        }
+        return inited;
+    }
+    
+    /// <summary>
+    /// 计算给定 Bounds 在 RenderTexture 上的包围盒（以左下角为原点的坐标系）
+    /// </summary>
+    private void SaveRoiMetadataForFrame(Renderer[] renderers, Camera cam, int secIndex, string frameName, string csvPath)
+    {
+        try
+        {
+            int rtW = (cam != null && cam.targetTexture != null) ? cam.targetTexture.width : Screen.width;
+            int rtH = (cam != null && cam.targetTexture != null) ? cam.targetTexture.height : Screen.height;
+
+            bool valid = false;
+            RectInt bboxBL = new RectInt(0, 0, 0, 0);
+            RectInt bboxTL = new RectInt(0, 0, 0, 0);
+
+            if (renderers != null && renderers.Length > 0 && cam != null)
+            {
+                Bounds b;
+                if (TryGetCombinedBounds(renderers, out b))
+                {
+                    valid = ComputeBboxOnRenderTexture(cam, rtW, rtH, b, out bboxBL, out bboxTL);
+                }
+            }
+
+            // ensure directory exists
+            var dir = Path.GetDirectoryName(csvPath);
+            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+
+            bool writeHeader = !File.Exists(csvPath);
+            using (var sw = new StreamWriter(csvPath, true, Encoding.UTF8))
+            {
+                if (writeHeader)
+                {
+                    sw.WriteLine("secIndex,frameName,rtW,rtH,x_bl,y_bl,w,h,x_tl,y_tl,w_tl,h_tl,valid");
+                }
+
+                string line = string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                    "{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11},{12}",
+                    secIndex,
+                    frameName,
+                    rtW,
+                    rtH,
+                    bboxBL.x, bboxBL.y, bboxBL.width, bboxBL.height,
+                    bboxTL.x, bboxTL.y, bboxTL.width, bboxTL.height,
+                    valid ? 1 : 0
+                );
+                sw.WriteLine(line);
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"SaveRoiMetadataForFrame failed: {ex}");
+        }
+    }
+
 }
 
 

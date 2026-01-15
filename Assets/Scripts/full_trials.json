@@ -13,19 +13,15 @@
     ],
     "exp2_trials": [
         {
-            "condition": 1,
-            "repetition": 2
-        },
-        {
             "condition": 2,
             "repetition": 3
         },
         {
-            "condition": 1,
+            "condition": 2,
             "repetition": 1
         },
         {
-            "condition": 2,
+            "condition": 1,
             "repetition": 1
         },
         {
@@ -35,13 +31,17 @@
         {
             "condition": 1,
             "repetition": 3
+        },
+        {
+            "condition": 1,
+            "repetition": 2
         }
     ],
     "progress": {
         "exp1_intro_test": 0,
         "exp1_trials": 0,
-        "exp2_intro_test": 2,
-        "exp2_trials": 5,
+        "exp2_intro_test": 0,
+        "exp2_trials": 0,
         "exp2_trials_randomized": true
     }
 }
