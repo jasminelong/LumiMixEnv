@@ -59,7 +59,7 @@ public partial class MoveCamera : MonoBehaviour
     void Awake()
     {
         // 强制运行时初始为 Option0（避免被旧序列化值影响）
-        if ((int)stepNumber < 1) stepNumber = StepNumber.Option0;
+        if ((int)stepNumber < 1) stepNumber = StepNumber.Option1;
         Debug.Log($"[MoveCamera] stepNumber = {(int)stepNumber} ({stepNumber}) in Awake");
 
         savePath = Path.Combine(Application.dataPath, "Scripts/full_trials.json");
@@ -174,26 +174,26 @@ public partial class MoveCamera : MonoBehaviour
 
         knobValue = Mathf.Clamp01(SerialReader.lastSensorValue);
         int step = (int)stepNumber;
+        V0 = 1.0f;
+        // if (responsePattern == ResponsePattern.Velocity)
+        // {
+        //     V0 = knobValue * 2f;
+        //     // V0 = knobValue;
+        //     v = V0;
+        // }
+        // else if (responsePattern == ResponsePattern.Amplitude)
+        // {
+        if (step == 1 || step == 3) amplitudeToSaveData = Mathf.Lerp(A_min, A_max, knobValue);
+        if (step == 2 || step == 4) amplitudeToSaveData = knobValue * 2f * Mathf.PI;
 
-        if (responsePattern == ResponsePattern.Velocity)
-        {
-            V0 = knobValue * 2f;
-            // V0 = knobValue;
-            v = V0;
-        }
-        else if (responsePattern == ResponsePattern.Amplitude)
-        {
-            if (step == 1 || step == 3) amplitudeToSaveData = Mathf.Lerp(A_min, A_max, knobValue);
-            if (step == 2 || step == 4) amplitudeToSaveData = knobValue * 2f * Mathf.PI;
+        amplitudes[step] = amplitudeToSaveData;
 
-            amplitudes[step] = amplitudeToSaveData;
+        if (step >= 1) v = V0 + amplitudes[1] * Mathf.Sin(omega * time);
+        if (step >= 2) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI);
+        if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time);
+        if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);
 
-            if (step >= 1) v = V0 + amplitudes[1] * Mathf.Sin(omega * time);
-            if (step >= 2) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI);
-            if (step >= 3) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time);
-            if (step >= 4) v = V0 + amplitudes[1] * Mathf.Sin(omega * time + amplitudes[2] + Mathf.PI) + amplitudes[3] * Mathf.Sin(2 * omega * time + amplitudes[4] + Mathf.PI);
-
-        }
+        // }
 
         // 连续相机移动
         captureCamera0.transform.position += direction * v * Time.deltaTime;
@@ -1247,7 +1247,7 @@ private void OnDrawGizmos()
         if (topIsLinear)
         {
             rtLinear.anchoredPosition = new Vector2(rtLinear.anchoredPosition.x, topY);
-            rtGauss.anchoredPosition  = new Vector2(rtGauss.anchoredPosition.x, botY);
+            rtGauss.anchoredPosition = new Vector2(rtGauss.anchoredPosition.x, botY);
 
             // draw order: put the top one last so it renders above if overlapping
             CaptureCameraLinearBlendRawImage.transform.SetAsLastSibling();
@@ -1255,7 +1255,7 @@ private void OnDrawGizmos()
         }
         else
         {
-            rtGauss.anchoredPosition  = new Vector2(rtGauss.anchoredPosition.x, topY);
+            rtGauss.anchoredPosition = new Vector2(rtGauss.anchoredPosition.x, topY);
             rtLinear.anchoredPosition = new Vector2(rtLinear.anchoredPosition.x, botY);
 
             CaptureCameraLinearBlendTopRawImage.transform.SetAsLastSibling();
@@ -1270,7 +1270,7 @@ private void OnDrawGizmos()
 
         // Create material instances for the whole 2AFC session (reuse to avoid GC)
         Material matLinearInstance = new Material(Mat_GrayscaleOverBlend);
-        Material matGaussInstance  = new Material(GaussBlendMat);
+        Material matGaussInstance = new Material(GaussBlendMat);
 
         // Ensure both UI raw images are active for two-viewport display
         if (CaptureCameraLinearBlendRawImage != null) CaptureCameraLinearBlendRawImage.gameObject.SetActive(true);
@@ -1397,7 +1397,7 @@ private void OnDrawGizmos()
                 {
                     string setting = topIsLinear ? "TopLinear_BottomGauss" : "TopGauss_BottomLinear";
                     string choice = upperSelected ? "Upper" : "Lower";
-                    data.Add($"2AFC,Trial{_2afcTrialIndex+1},{setting},Choice,{choice},duration,{twoAfcDurationSec:F1}");
+                    data.Add($"2AFC,Trial{_2afcTrialIndex + 1},{setting},Choice,{choice},duration,{twoAfcDurationSec:F1}");
 
                     // save immediately to CSV in D:\vectionProject\public\<folderName>\ParticipantName_<name>_2AFC_results.csv
                     string csvDir = Path.Combine(@"D:\vectionProject\public", folderName);
@@ -1449,7 +1449,7 @@ private void OnDrawGizmos()
         CaptureCameraLinearBlendTopRawImage.material = _Gaussmat;
 
         Debug.Log("2AFC sequence finished.");
-                // 两次 2AFC 选择完成后结束程序（在编辑器下停止 Play Mode）
+        // 两次 2AFC 选择完成后结束程序（在编辑器下停止 Play Mode）
         QuitGame();
     }
 
@@ -1519,7 +1519,7 @@ private void OnDrawGizmos()
             var qText = qGO.AddComponent<Text>();
             qText.alignment = TextAnchor.MiddleCenter;
             qText.font = uiFont;
-            qText.text = "哪个更接近匀速？";
+            qText.text = "どちらが一定速度に近いでしょうか?";
             qText.fontSize = 48;
             qText.color = Color.white;
             qGO.transform.SetAsLastSibling();
@@ -1661,7 +1661,7 @@ private void OnDrawGizmos()
             if (continuousImageRawImage != null)
             {
                 var crt = continuousImageRawImage.GetComponent<RectTransform>();
-                if ( crt != null) crt.anchoredPosition = new Vector2(crt.anchoredPosition.x, 353f);
+                if (crt != null) crt.anchoredPosition = new Vector2(crt.anchoredPosition.x, 353f);
                 continuousImageRawImage.gameObject.SetActive(true);
                 continuousImageRawImage.enabled = true;
                 continuousImageRawImage.transform.SetAsLastSibling(); // continuous 放最上（调参时）

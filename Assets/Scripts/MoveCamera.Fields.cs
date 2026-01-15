@@ -25,7 +25,7 @@ public partial class MoveCamera : MonoBehaviour
     }
     public enum StepNumber
     {
-        Option0 = 0,
+          None = 0, 
         Option1 = 1,
         Option2 = 2,
         Option3 = 3,
@@ -93,7 +93,7 @@ public partial class MoveCamera : MonoBehaviour
     private Vector3 targetPosition;      // FixedUpdate 的目标位置
     private Quaternion rightMoveRotation = Quaternion.Euler(0, 48.5f, 0);
     private Quaternion forwardMoveRotation = Quaternion.Euler(0, 146.8f, 0);
-    private int currentStep = 0;
+    private int currentStep = 1;
     public float v;
     public float[] amplitudes = new float[10];
     public SerialReader SerialReader;
@@ -107,7 +107,7 @@ public partial class MoveCamera : MonoBehaviour
     public ResponsePattern responsePattern = ResponsePattern.Amplitude;
 
     [Header("🔧記録するデータ")]
-    public StepNumber stepNumber = StepNumber.Option0; // 現在のステップ番号   // 当前步骤编号
+    public StepNumber stepNumber = StepNumber.Option1; // 現在のステップ番号   // 当前步骤编号
 
     public int trialNumber = 1;
 
