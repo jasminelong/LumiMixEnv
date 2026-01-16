@@ -1182,7 +1182,7 @@ private void OnDrawGizmos()
     private List<bool> _2afcOrder = new List<bool>(); // true => top shows Linear, bottom Gauss; false => reversed
     // 当正在等待被试在 2AFC 界面做出响应时为 true —— 用于暂停帧播放/更新
     private bool _2afcWaitingForResponse = false;
-    public float twoAfcDurationSec = 20f; // 显示时长
+    public float twoAfcDurationSec = 15f; // 显示时长
     // ------------------------
 
     // 在调参结束时调用：开始两组 2AFC（顺序随机/或固定）
@@ -1192,12 +1192,14 @@ private void OnDrawGizmos()
 
         Set2AfcLayout(true); // 切换到上下显示布局
 
-        // 生成两次试次顺序（可以换为随机）
+        // 生成 N 次试次（这里 N=20），一半为 top Linear，一半为 top Gauss，然后随机化顺序
+        const int trials = 20;
         _2afcOrder.Clear();
-        _2afcOrder.Add(true);  // top Linear / bottom Gauss
-        _2afcOrder.Add(false); // top Gauss / bottom Linear
+        int half = trials / 2;
+        for (int i = 0; i < half; i++) _2afcOrder.Add(true);   // top Linear
+        for (int i = 0; i < trials - half; i++) _2afcOrder.Add(false); // top Gauss
 
-        // 可选地随机化顺序，但保证可复现（用 subjectSeed）
+        // 随机化顺序（可用 subjectSeed 固定化）
         var rnd = new System.Random(subjectSeed == 0 ? DateTime.Now.GetHashCode() : subjectSeed);
         _2afcOrder = _2afcOrder.OrderBy(x => rnd.Next()).ToList();
 
@@ -1691,7 +1693,7 @@ private void OnDrawGizmos()
         }
         return inited;
     }
-    
+
     /// <summary>
     /// 计算给定 Bounds 在 RenderTexture 上的包围盒（以左下角为原点的坐标系）
     /// </summary>
