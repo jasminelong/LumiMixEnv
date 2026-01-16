@@ -54,8 +54,16 @@ public partial class MoveCamera : MonoBehaviour
         namePrefix = "cam1_";
         Debug.Log($"[ForceConfig] folder='{resourcesFolder}' prefix='{namePrefix}'");
         EnsureFramesLoaded();
-        // nextStepButton.gameObject.SetActive(false);
+
     }
+
+    private IEnumerator Show2AfcIntroNextFrame()
+    {
+        yield return null; // 等一帧，确保 Canvas 已初始化
+        Debug.Log($"Show2AfcIntroNextFrame: only2AfcMode={only2AfcMode}");
+        Show2AfcIntroPanel();
+    }
+
     void Awake()
     {
         // 强制运行时初始为 Option0（避免被旧序列化值影响）
@@ -72,6 +80,15 @@ public partial class MoveCamera : MonoBehaviour
             isEnd = true;
             return;
         }
+        // 如果只做 2AFC（only2AfcMode），直接把流程状态置为“已到结束 step”，
+        // 这样不会进入调参的正常流程（OnNextStep 会在 case 5 显示过渡面板）
+        if (only2AfcMode)
+        {
+            Debug.Log("Awake: only2AfcMode enabled -> forcing currentStep=5 and isEnd=true to skip calibration.");
+            currentStep = 5;
+            isEnd = true;
+        }
+        twoAfcDurationSec = 10f;
     }
     void Update()
     {
@@ -155,8 +172,9 @@ public partial class MoveCamera : MonoBehaviour
                 if (isEnd)
                 {
                     // QuitGame();
-                    Debug.Log("Experiment finished.");
-                    Start2AfcTrials();
+                    // 显示 2AFC 过渡说明面板，等待被试点击“开始”再真正进入 Start2AfcTrials
+                    Debug.Log("Experiment finished. Showing 2AFC intro panel.");
+                    Show2AfcIntroPanel();
                 }
                 else
                 {
@@ -583,6 +601,30 @@ public partial class MoveCamera : MonoBehaviour
         string filePath = Path.Combine("D:/vectionProject/public", folderName, fileName);
         File.WriteAllLines(filePath, data);
 
+    }
+    private void SaveCurrentDataToCsv()
+    {
+        try
+        {
+            string date = System.DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            // 保持与 OnDestroy 一致的文件名格式
+            string expCond = brightnessBlendMode.ToString() + "_" +
+                              "ParticipantName_" + participantName.ToString() + "_" +
+                              "TrialNumber_" + trialNumber.ToString();
+            if (devMode == DevMode.Test) expCond += "_" + "Test";
+            string fileName = $"{date}_{expCond}.csv";
+            string filePath = Path.Combine(@"D:\vectionProject\public", folderName, fileName);
+
+            var dir = Path.GetDirectoryName(filePath);
+            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+
+            File.WriteAllLines(filePath, data, Encoding.UTF8);
+            Debug.Log($"Saved current adjustment data before 2AFC: {filePath}");
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"SaveCurrentDataToCsv failed: {ex.Message}");
+        }
     }
     public void MarkTrialCompletedAndRestart()
     {
@@ -1182,18 +1224,34 @@ private void OnDrawGizmos()
     private List<bool> _2afcOrder = new List<bool>(); // true => top shows Linear, bottom Gauss; false => reversed
     // 当正在等待被试在 2AFC 界面做出响应时为 true —— 用于暂停帧播放/更新
     private bool _2afcWaitingForResponse = false;
-    public float twoAfcDurationSec = 15f; // 显示时长
+    public float twoAfcDurationSec = 10f; // 显示时长
+    // 2AFC 过渡说明面板
+    private GameObject _2afcIntroPanel;
+    private Button _2afcIntroStartButton;
+    // 如果为 true 则跳过调参阶段，直接进入 2AFC 过渡说明（供已完成调参的被试重复只做 2AFC）
+    public bool only2AfcMode = false;
+    // 2AFC 总试次数（可在 Inspector 调整，默认 20）
+    public int twoAfcTrials = 20;
     // ------------------------
 
     // 在调参结束时调用：开始两组 2AFC（顺序随机/或固定）
     public void Start2AfcTrials()
     {
+        // 恢复 timeScale，防止前面某处将时间暂停导致 2AFC 不更新
+        Time.timeScale = 1f;
+        // 防止遗留的调参按钮显示或被误触发
+        if (nextStepButton != null) nextStepButton.gameObject.SetActive(false);
+        // 确保 Update 不会因为上一帧的输入重新激活调参 UI
+        mouseClicked = true;
+
+        // 如果不是 only2AfcMode，则保存当前调参数据；若只做 2AFC（重复被试），跳过保存
+        if (!only2AfcMode) SaveCurrentDataToCsv();
         if (frames == null || frames.Length == 0) { Debug.LogError("Cannot start 2AFC: frames not loaded."); return; }
 
         Set2AfcLayout(true); // 切换到上下显示布局
 
-        // 生成 N 次试次（这里 N=20），一半为 top Linear，一半为 top Gauss，然后随机化顺序
-        const int trials = 20;
+        // 生成 N 次试次（使用可配置字段 twoAfcTrials，默认 20）
+        int trials = Mathf.Max(1, twoAfcTrials);
         _2afcOrder.Clear();
         int half = trials / 2;
         for (int i = 0; i < half; i++) _2afcOrder.Add(true);   // top Linear
@@ -1316,22 +1374,24 @@ private void OnDrawGizmos()
                 CaptureCameraLinearBlendRawImage.transform.SetSiblingIndex(0);        // linear below
             }
 
-            // Play the 20s sequence
+            // Play the sequence
             float elapsed = 0f;
             int localFrameNum = 1;
             float frameMs = updateInterval * 1000f;
 
+            Debug.Log($"Run2AfcSequence: twoAfcDurationSec={twoAfcDurationSec} Time.timeScale={Time.timeScale}");
+
             // reset any warmup to avoid spikes
             ResetGaussWarmup();
 
+            // 使用 unscaled 时间以防 timeScale 被改动（UI 暂停等）
             while (elapsed < twoAfcDurationSec)
             {
-                // advance simulated time
-                elapsed += Time.deltaTime;
+                elapsed += Time.unscaledDeltaTime;
                 float tGlobalMs = elapsed * 1000f;
                 while (tGlobalMs >= localFrameNum * frameMs) localFrameNum++;
 
-                // linear indexes/alpha
+                // 更新 linear / gauss 材质与权重（保持原有逻辑）
                 int n = frames.Length;
                 int prevIdx = Mathf.Clamp(localFrameNum - 1, 0, n - 1);
                 int nextIdx = Mathf.Clamp(localFrameNum, 0, n - 1);
@@ -1340,7 +1400,7 @@ private void OnDrawGizmos()
                 float Image1ToNowDeltaTime = tGlobalMs - (localFrameNum - 1) * updateInterval * 1000f;
                 float linearAlpha = Mathf.Clamp01(Image1ToNowDeltaTime / (updateInterval * 1000f));
 
-                // gauss indexes/weights
+                // gauss 计算（保持原样）
                 float step = Mathf.Max(1e-6f, secondsPerStep);
                 float sigmaStep = Mathf.Max(1e-4f, sigmaSec);
                 float halfFrame = 0.5f / 60f;
@@ -1359,7 +1419,6 @@ private void OnDrawGizmos()
                 if (s > 1e-12f) { w0 /= s; w1 /= s; w2 /= s; }
                 else { w0 = 0f; w1 = 1f; w2 = 0f; }
 
-                // --- update linear material instance (always write here) ---
                 if (matLinearInstance != null)
                 {
                     matLinearInstance.SetTexture("_TopTex", linearTopTex);
@@ -1367,12 +1426,8 @@ private void OnDrawGizmos()
                     matLinearInstance.SetColor("_TopColor", new Color(1f, 1f, 1f, linearAlpha));
                     matLinearInstance.SetColor("_BottomColor", new Color(1f, 1f, 1f, 1f));
                 }
-
-                // --- update gauss material instance (always write here) ---
                 if (matGaussInstance != null)
                 {
-                    // warmup handling as in你的GaussOnly分支: update textures when indices change helps avoid spikes
-                    // Here we simply set per-frame; optimization: only set textures when i0/i1/i2 change.
                     matGaussInstance.SetTexture("_Tex0", frames[i0]);
                     matGaussInstance.SetTexture("_Tex1", frames[i1]);
                     matGaussInstance.SetTexture("_Tex2", frames[i2]);
@@ -1403,7 +1458,6 @@ private void OnDrawGizmos()
                     string setting = topIsLinear ? "TopLinear_BottomGauss" : "TopGauss_BottomLinear";
                     string choice = upperSelected ? "Upper" : "Lower";
                     data.Add($"2AFC,Trial{_2afcTrialIndex + 1},{setting},Choice,{choice},duration,{twoAfcDurationSec:F1}");
-
                     // save immediately to CSV in D:\vectionProject\public\<folderName>\ParticipantName_<name>_2AFC_results.csv
                     string csvDir = Path.Combine(@"D:\vectionProject\public", folderName);
                     string safeParticipant = string.IsNullOrEmpty(participantName)
@@ -1524,7 +1578,7 @@ private void OnDrawGizmos()
             var qText = qGO.AddComponent<Text>();
             qText.alignment = TextAnchor.MiddleCenter;
             qText.font = uiFont;
-            qText.text = "どちらが一定速度に近いでしょうか?";
+            qText.text = "どちらが等速に近いでしょうか?";
             qText.fontSize = 48;
             qText.color = Color.white;
             qGO.transform.SetAsLastSibling();
@@ -1585,7 +1639,7 @@ private void OnDrawGizmos()
             var lowerTextRT = lowerTextGO.GetComponent<RectTransform>();
             lowerTextRT.anchorMin = Vector2.zero;
             lowerTextRT.anchorMax = Vector2.one;
-            lowerTextRT.offsetMin = Vector2.zero;
+                       lowerTextRT.offsetMin = Vector2.zero;
             lowerTextRT.offsetMax = Vector2.zero;
         }
     }
@@ -1600,6 +1654,8 @@ private void OnDrawGizmos()
             _2afcLowerButton = null;
         }
     }
+
+
 
     /// <summary>
     /// 切换 2AFC 布局：true -> 隐藏 continuous，TopRawImage 放到 y=353，BotRawImage 放到 y=-356
@@ -1747,7 +1803,90 @@ private void OnDrawGizmos()
             Debug.LogWarning($"SaveRoiMetadataForFrame failed: {ex}");
         }
     }
+    // ...existing code...
+    private void Show2AfcIntroPanel()
+    {
+        if (_2afcIntroPanel != null) return;
+        if (canvas == null) canvas = GameObject.Find("Canvas");
+        if (canvas == null) { Debug.LogWarning("Show2AfcIntroPanel: Canvas not found."); return; }
 
+        _2afcIntroPanel = new GameObject("2AFC_IntroPanel");
+        var rt = _2afcIntroPanel.AddComponent<RectTransform>();
+        _2afcIntroPanel.transform.SetParent(canvas.transform, false);
+        rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+        rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
+
+        var bg = _2afcIntroPanel.AddComponent<Image>();
+        bg.color = new Color(0.2f, 0.2f, 0.2f, 1f); // 深灰背景，覆盖画面
+        _2afcIntroPanel.transform.SetAsLastSibling();
+
+        Font uiFont = GetSafeUiFont();
+
+        // 说明文字
+        var textGO = new GameObject("2AFC_IntroText");
+        textGO.transform.SetParent(_2afcIntroPanel.transform, false);
+        var textRT = textGO.AddComponent<RectTransform>();
+        textRT.anchorMin = new Vector2(0.1f, 0.55f);
+        textRT.anchorMax = new Vector2(0.9f, 0.85f);
+        textRT.offsetMin = Vector2.zero; textRT.offsetMax = Vector2.zero;
+        var txt = textGO.AddComponent<Text>();
+        txt.alignment = TextAnchor.MiddleCenter;
+        txt.font = uiFont;
+        txt.text = "これから2AFC課題を行います。\n\n各試行では2つの刺激映像が上下提示されますので、\n\nどちらがより等速に見えるかを判断してください。\n\n準備ができましたら、下の「start」ボタンを押してください。";
+        txt.fontSize = 50;
+        txt.color = Color.white;
+
+        // 开始按钮
+        var btnGO = new GameObject("2AFC_StartButton");
+        btnGO.transform.SetParent(_2afcIntroPanel.transform, false);
+        var btnRT = btnGO.AddComponent<RectTransform>();
+        btnRT.anchorMin = new Vector2(0.35f, 0.2f);
+        btnRT.anchorMax = new Vector2(0.65f, 0.32f);
+        btnRT.offsetMin = Vector2.zero; btnRT.offsetMax = Vector2.zero;
+        var img = btnGO.AddComponent<Image>();
+        img.color = new Color(0.1f, 0.6f, 0.9f, 1f);
+        _2afcIntroStartButton = btnGO.AddComponent<Button>();
+
+        if (uiFont != null)
+        {
+            var btTextGO = new GameObject("Text");
+            btTextGO.transform.SetParent(btnGO.transform, false);
+            var btText = btTextGO.AddComponent<Text>();
+            btText.font = uiFont;
+            btText.text = "start";
+            btText.alignment = TextAnchor.MiddleCenter;
+            btText.fontSize = 50;
+            btText.color = Color.white;
+            var btRT = btTextGO.GetComponent<RectTransform>();
+            btRT.anchorMin = Vector2.zero; btRT.anchorMax = Vector2.one;
+            btRT.offsetMin = Vector2.zero; btRT.offsetMax = Vector2.zero;
+        }
+
+        _2afcIntroStartButton.onClick.AddListener(() =>
+        {
+            // 防止同一帧的鼠标点击被 Update() 误判为调参点击
+            mouseClicked = true;
+            if (nextStepButton != null) nextStepButton.gameObject.SetActive(false);
+
+            // 恢复游戏时间（如果之前被暂停）
+            Time.timeScale = 1f;
+
+            Cleanup2AfcIntroPanel();
+            // 启动 2AFC 序列
+            Start2AfcTrials();
+        });
+    }
+
+    private void Cleanup2AfcIntroPanel()
+    {
+        if (_2afcIntroStartButton != null) _2afcIntroStartButton.onClick.RemoveAllListeners();
+        if (_2afcIntroPanel != null)
+        {
+            Destroy(_2afcIntroPanel);
+            _2afcIntroPanel = null;
+            _2afcIntroStartButton = null;
+        }
+    }
 }
 
 

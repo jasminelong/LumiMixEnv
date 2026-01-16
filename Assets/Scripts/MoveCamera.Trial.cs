@@ -7,7 +7,7 @@ using UnityEngine;
 
 public partial class MoveCamera : MonoBehaviour
 {
-      public int subjectSeed = 0;
+    public int subjectSeed = 0;
     public void TrailSettings()
     {
         if (!File.Exists(savePath))

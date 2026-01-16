@@ -49,6 +49,9 @@ public class MoveCameraEditor : Editor
         prop = serializedObject.FindProperty("treeRenderers");
         EditorGUILayout.PropertyField(prop);
 
+        prop = serializedObject.FindProperty("twoAfcTrials");
+        EditorGUILayout.PropertyField(prop);
+
         // prop = serializedObject.FindProperty("cameraSpeed");
         // EditorGUILayout.PropertyField(prop);
 
