@@ -261,7 +261,7 @@ public partial class MoveCamera : MonoBehaviour
 
     [Header("Capture Settings")]
     public bool SaveCam0ContinuousPng = false;   // CaptureCamera0: 60fps
-    public bool SaveCam1IsiPng = true;   // CaptureCamera1: 1Hz (or updateInterval)
+    public bool SaveCam1IsiPng = false;   // CaptureCamera1: 1Hz (or updateInterval)
     public int CaptureSeconds = 40;     // 保存时长上限（可改）
     public string Cam0SaveDir = @"D:\vectionProject\public\A-continuous-images";
     public string Cam1SaveDir = @"D:\vectionProject\public\A-isi-images";
