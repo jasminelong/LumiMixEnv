@@ -219,18 +219,35 @@ public partial class MoveCamera : MonoBehaviour
         // =========================
         // CaptureCamera0: 60fps 保存（每次 FixedUpdate 一张）
         // =========================
+
         if (SaveCam0ContinuousPng)
         {
-            // 时长限制：60s * 60fps = 3600 张
-            int maxFrames = CaptureSeconds * 40;
-            if (_cam0SavedCount < maxFrames)
+            const float SAVE_START_SEC = 14f;
+            const float SAVE_END_SEC = 22f;
+            // time 是用 fixedDeltaTime 累加的“逻辑时间”
+            if (time >= SAVE_START_SEC && time <= SAVE_END_SEC)
             {
-                // 用 fixedUpdateCounter 做帧号（与 timeMs 对齐）
-                string file = $"cam0_{fixedUpdateCounter:000000}.png";
-                string path = Path.Combine(Cam0SaveDir, file);
-                // CaptureAndSavePng(captureCamera0, path);
-                _cam0SavedCount++;
+                // 建议用 FixedUpdate 的 fixedDeltaTime 来估算帧数上限
+                int maxFrames = Mathf.CeilToInt((SAVE_END_SEC - SAVE_START_SEC) / Time.fixedDeltaTime);
+
+                if (_cam0SavedCount < maxFrames)
+                {
+                    string file = $"cam0_{fixedUpdateCounter:000000}.png";
+                    string path = Path.Combine(Cam0SaveDir, file);
+                    // CaptureAndSavePng(captureCamera0, path);
+                    _cam0SavedCount++;
+                }
             }
+            // // 时长限制：60s * 60fps = 3600 张
+            // int maxFrames = CaptureSeconds * 40;
+            // if (_cam0SavedCount < maxFrames)
+            // {
+            //     // 用 fixedUpdateCounter 做帧号（与 timeMs 对齐）
+            //     string file = $"cam0_{fixedUpdateCounter:000000}.png";
+            //     string path = Path.Combine(Cam0SaveDir, file);
+            //     CaptureAndSavePng(captureCamera0, path);
+            //     _cam0SavedCount++;
+            // }
         }
     }
 
@@ -1164,7 +1181,7 @@ private void OnDrawGizmos()
         }
         tex.SetPixels(px);
         tex.Apply(false, false);
-
+        Debug.Log($"Saving PNG to: {outPath}");
         File.WriteAllBytes(outPath, tex.EncodeToPNG());
         Destroy(tex);
     }
@@ -1639,7 +1656,7 @@ private void OnDrawGizmos()
             var lowerTextRT = lowerTextGO.GetComponent<RectTransform>();
             lowerTextRT.anchorMin = Vector2.zero;
             lowerTextRT.anchorMax = Vector2.one;
-                       lowerTextRT.offsetMin = Vector2.zero;
+            lowerTextRT.offsetMin = Vector2.zero;
             lowerTextRT.offsetMax = Vector2.zero;
         }
     }
