@@ -7,7 +7,17 @@ using UnityEngine;
 
 public partial class MoveCamera : MonoBehaviour
 {
+    // CN: 随机种子，用于试次顺序随机化（可在 Inspector 设置）
+    // EN: Random seed used for trial-order randomization (configurable in Inspector)
+    // JP: 試行順序のランダム化に使うシード（Inspectorで設定可能）
     public int subjectSeed = 0;
+
+    /// <summary>
+    /// TrailSettings
+    /// CN: 读取试次配置文件，根据 progress 选择当前试次（practice 或 正式），并应用试次条件到实验参数。
+    /// EN: Read trial configuration, pick current trial based on progress (practice or main), and apply trial condition to parameters.
+    /// JP: 試行設定ファイルを読み込み、進捗に基づいて現在の試行（練習または本試行）を選び、試行条件を適用する。
+    /// </summary>
     public void TrailSettings()
     {
         if (!File.Exists(savePath))
@@ -24,7 +34,7 @@ public partial class MoveCamera : MonoBehaviour
             return;
         }
 
-        // ✅ 只随机一次，并保存顺序
+        // 只随机一次，并保存顺序
         EnsureExp2TrialsRandomizedOnce(data);
 
         Trial currentTrial = null;
@@ -76,6 +86,12 @@ public partial class MoveCamera : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// ApplyTrialCondition
+    /// CN: 根据 Trial.condition 设置 brightnessBlendMode（1 => LinearOnly, 2 => GaussOnly），并打印当前设置。
+    /// EN: Set brightnessBlendMode according to Trial.condition (1 => LinearOnly, 2 => GaussOnly) and log the applied setting.
+    /// JP: Trial.condition に基づいて brightnessBlendMode を設定（1 => LinearOnly, 2 => GaussOnly）し、設定をログ出力する。
+    /// </summary>
     private void ApplyTrialCondition(Trial t)
     {
         // condition: 1=LinearOnly, 2=GaussOnly
@@ -104,6 +120,13 @@ public partial class MoveCamera : MonoBehaviour
     // =========================
     // Randomize exp2_trials once and persist
     // =========================
+
+    /// <summary>
+    /// EnsureExp2TrialsRandomizedOnce
+    /// CN: 如果 exp2_trials 尚未被随机化（progress 标志为 false），则基于 subjectSeed 打乱顺序并写回文件，避免每次运行再洗牌。
+    /// EN: If exp2_trials haven't been randomized yet (progress flag false), shuffle them using subjectSeed and write back to file to avoid reshuffling at runtime.
+    /// JP: exp2_trials がまだランダム化されていない場合（progress フラグが false）、subjectSeed を使ってシャッフルしファイルへ書き戻すことで実行時の再シャッフルを防ぐ。
+    /// </summary>
     private void EnsureExp2TrialsRandomizedOnce(ExperimentData data)
     {
         if (data.exp2_trials == null || data.exp2_trials.Count == 0) return;
@@ -120,6 +143,12 @@ public partial class MoveCamera : MonoBehaviour
         Debug.Log("[Randomize] Order: " + string.Join(",", data.exp2_trials.Select(x => x.condition)));
     }
 
+    /// <summary>
+    /// ShuffleAvoidTriple
+    /// CN: 在列表上执行 Fisher-Yates 洗牌，尝试避免出现连续 3 次相同 condition（最多尝试 maxTry 次），并返回最终顺序。
+    /// EN: Perform Fisher-Yates shuffle on the list, attempting to avoid any run of three identical conditions (retry up to maxTry times), and return the final order.
+    /// JP: リストに対して Fisher-Yates シャッフルを行い、同一条件が3回連続する並びを避けるよう最大 maxTry 回まで再試行して最終順序を返す。
+    /// </summary>
     private List<Trial> ShuffleAvoidTriple(List<Trial> src, int seed, int maxTry = 200)
     {
         var rng = new System.Random(seed);
@@ -159,6 +188,13 @@ public partial class MoveCamera : MonoBehaviour
     // =========================
     // Progress update
     // =========================
+
+    /// <summary>
+    /// UpdateProgress
+    /// CN: 根据 currentProgress 更新保存文件中的 progress 计数并写回（用于记录已完成的试次）。
+    /// EN: Increment the appropriate progress counter in the saved trial file according to currentProgress and write it back (used to record completed trials).
+    /// JP: currentProgress に応じて保存ファイル内の進捗カウンタを増やして書き戻す（完了した試行の記録用）。
+    /// </summary>
     public void UpdateProgress()
     {
         if (!File.Exists(savePath))

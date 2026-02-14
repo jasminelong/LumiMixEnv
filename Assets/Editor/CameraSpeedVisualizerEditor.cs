@@ -2,9 +2,19 @@
 using UnityEditor;
 using System.Collections.Generic;
 
+/// <summary>
+/// CameraSpeedVisualizerEditor / MoveCamera inspector helper
+/// CN: 自定义 Inspector，用于在编辑器中显示 MoveCamera 的参数与实时波形（亮度/速度）。
+/// EN: Custom inspector to display MoveCamera parameters and realtime graphs (brightness / velocity) in the Editor.
+/// JP: MoveCamera 用のカスタムインスペクタ。エディタ上でパラメータとリアルタイムグラフ（輝度/速度）を表示。
+/// </summary>
 [CustomEditor(typeof(MoveCamera))]
 public class MoveCameraEditor : Editor
 {
+    // 绘图尺寸与缓存
+    // CN: Inspector 内绘制波形用的纹理与队列缓存
+    // EN: Texture and queues used to draw graphs in the inspector
+    // JP: インスペクタでグラフを描画するためのテクスチャとキュー
     private int graphWidth = 500;
     private int graphHeight = 200;
     private Texture2D graphTexture;
@@ -12,6 +22,13 @@ public class MoveCameraEditor : Editor
     private Queue<float> camReverseJumpSpeedTimeHistory = new Queue<float>();
     private Queue<float> camReverseJumpSpeedHistory = new Queue<float>();
     private float camSpeedyMin = -1.5f, camSpeedyMax = 2.5f;
+
+    /// <summary>
+    /// OnInspectorGUI
+    /// CN: 自定义 Inspector 主入口：显示序列化字段、滑条、并调用绘图函数。
+    /// EN: Main Inspector entry: show serialized fields, sliders and call graph drawing helpers.
+    /// JP: カスタムインスペクタの主入口。シリアライズされたフィールドやスライダを表示し、グラフ描画関数を呼ぶ。
+    /// </summary>
     public override void OnInspectorGUI()
     {
         MoveCamera script = (MoveCamera)target;
@@ -87,7 +104,7 @@ public class MoveCameraEditor : Editor
 
         serializedObject.ApplyModifiedProperties();
 
-        // Brightness 曲线（单独方法）
+        // 绘制 Brightness 曲线
         DrawBrightnessGraph(script);
 
 
@@ -168,10 +185,14 @@ public class MoveCameraEditor : Editor
 
         GUILayout.Space(18);
         DrawVelocityGraph(script);   // ← 在这里显示速度波形
-
     }
 
-    // 把 Brightness 曲线逻辑抽出，供 OnInspectorGUI 调用
+    /// <summary>
+    /// DrawBrightnessGraph
+    /// CN: 在 Inspector 中绘制最近 maxDuration 时间内的亮度（alpha）曲线，包含坐标轴与时间刻度。
+    /// EN: Draw brightness (alpha) trace for the recent maxDuration in the Inspector, with axes/time ticks.
+    /// JP: インスペクタに最近の maxDuration 内の輝度(alpha) トレースを軸付きで描画する。
+    /// </summary>
     void DrawBrightnessGraph(MoveCamera script)
     {
         GUILayout.Space(20);
@@ -228,7 +249,12 @@ public class MoveCameraEditor : Editor
         EditorGUILayout.LabelField($"最新5秒間のサンプル数: {count} ");
     }
 
-    // 画速度曲线 v(t) —— y 轴刻度与曲线完全对齐
+    /// <summary>
+    /// DrawVelocityGraph
+    /// CN: 在 Inspector 中绘制速度 v(t) 曲线，Y 轴为固定范围以便比较与视觉化（包含坐标轴标签）。
+    /// EN: Draw velocity v(t) trace in the Inspector. Y axis uses a fixed range for consistent visualization.
+    /// JP: インスペクタに速度 v(t) 曲線を描画。Y軸は比較しやすいよう固定レンジを使用。
+    /// </summary>
     void DrawVelocityGraph(MoveCamera script)
     {
         GUILayout.Space(20);
@@ -247,10 +273,9 @@ public class MoveCameraEditor : Editor
         float w = rect.width;
         float h = rect.height;
 
-        // ====== Y 轴固定范围 ======
+        // 固定 Y 范围（便于比较）
         float minV = -2f, maxV = 3f;
 
-        // ------- Y ticks -------
         Handles.color = Color.gray;
         int yTicks = 5;
         for (int i = 0; i <= yTicks; i++)
@@ -302,7 +327,12 @@ public class MoveCameraEditor : Editor
 
 
 
-    // 绘制线段（Bresenham風）
+    /// <summary>
+    /// DrawLineOnTexture
+    /// CN: 在指定纹理上画像素线段（Bresenham 风格），用于离屏绘制（目前未被频繁使用）。
+    /// EN: Draw a pixel line on a texture (Bresenham-like), used for offscreen drawing.
+    /// JP: テクスチャ上にピクセル線を描画（Bresenham風）。オフスクリーン描画用。
+    /// </summary>
     void DrawLineOnTexture(Texture2D tex, int x0, int y0, int x1, int y1, Color col)
     {
         int dx = Mathf.Abs(x1 - x0), dy = Mathf.Abs(y1 - y0);
@@ -322,6 +352,12 @@ public class MoveCameraEditor : Editor
         }
     }
 
+    /// <summary>
+    /// MakeColoredTexture
+    /// CN: 生成 1x1 单色纹理（常用于 GUI 背景）。
+    /// EN: Create a 1x1 colored texture (useful for GUI backgrounds).
+    /// JP: 1x1 の単色テクスチャを生成（GUI 背景などに利用）。
+    /// </summary>
     private Texture2D MakeColoredTexture(Color col)
     {
         Texture2D tex = new Texture2D(1, 1);
@@ -329,12 +365,24 @@ public class MoveCameraEditor : Editor
         tex.Apply();
         return tex;
     }
+
+    /// <summary>
+    /// Round3
+    /// CN: 将浮点数保留三位小数（用于 UI 显示与微调）。
+    /// EN: Round float to 3 decimal places (for UI display / tidy values).
+    /// JP: 小数点以下3桁に丸める（UI表示や微調整用）。
+    /// </summary>
     private static float Round3(float x)
     {
         return Mathf.Round(x * 1000f) / 1000f; // 三位小数
     }
 
-    // 可复用：大号标签 + 水平滑条 + 彩色大号数值框
+    /// <summary>
+    /// DrawBigSliderWithNumber
+    /// CN: 在 Inspector 中绘制“大号”标签、水平滑条和显眼数值框。用于突出当前聚焦参数。
+    /// EN: Draw a large label + horizontal slider + prominent numeric field in Inspector (highlighted parameter).
+    /// JP: インスペクタに大きなラベル、水平スライダ、目立つ数値フィールドを描画（注目パラメータ用）。
+    /// </summary>
     private static void DrawBigSliderWithNumber(
         SerializedProperty sp, string label,
         float min, float max,
@@ -344,7 +392,6 @@ public class MoveCameraEditor : Editor
     {
         EditorGUILayout.BeginHorizontal();
 
-        // 标签
         var bigLabel = new GUIStyle(EditorStyles.label)
         {
             fontSize = labelFontSize,
@@ -378,7 +425,12 @@ public class MoveCameraEditor : Editor
 
         EditorGUILayout.EndHorizontal();
     }
-    // 重载：用于普通 float 值（返回新值）
+    /// <summary>
+    /// DrawBigSliderWithNumberFloat
+    /// CN: 上述 DrawBigSlider 的重载版本，接收并返回普通 float 值（便于脚本端调用）。
+    /// EN: Overload of DrawBigSliderWithNumber that accepts and returns a float value (convenient for code usage).
+    /// JP: DrawBigSliderWithNumber のオーバーロード。通常の float 値を受け取り返す形式。
+    /// </summary>
     private static float DrawBigSliderWithNumberFloat(
         string label, float value, float min, float max,
         int labelFontSize = 26, int valueFontSize = 30,
@@ -417,8 +469,4 @@ public class MoveCameraEditor : Editor
         EditorGUILayout.EndHorizontal();
         return v;
     }
-
-
-
-
 }
