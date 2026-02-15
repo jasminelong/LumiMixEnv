@@ -194,25 +194,41 @@ https://github.com/maeda-lab/LumiMixEnvData/blob/master/public/py/gauss/analyze_
 
 **English**
 
-The grouped bar chart shows the **RMSE of perceived speed fluctuation**  
-for each participant under **linear mixing** and **Gaussian temporal weighting**.  
-Gaussian weighting generally produces **lower RMSE values**, indicating  
-reduced perceived speed non-uniformity and improved motion consistency.
+The grouped bar chart presents the **RMSE of perceived speed fluctuation**  
+for each participant under **linear mixing** and **Gaussian temporal weighting**.
+
+For the **majority of participants**, Gaussian weighting yields  
+**smaller RMSE values** than linear mixing, indicating a tendency toward  
+reduced perceived speed non-uniformity and improved motion stability.
+
+However, this trend is **not universal**, and individual differences  
+in motion perception remain evident.
 
 ---
 
 **日本語**
 
 本図は，各被験者における**主観的速度ムラの RMSE**を  
-**線形混合**と**ガウス時間重み付け**で比較したものである。  
-ガウス条件は全体として**RMSE を低減**し，  
-運動知覚の安定化を示唆する。
+**線形混合**と**ガウス時間重み付け**で比較したものである。
+
+**多くの被験者**において，ガウス条件は線形混合よりも  
+**RMSE が小さい傾向**を示し，  
+主観的速度非一様性の低減および運動知覚の安定化を示唆する。
+
+ただし，この傾向は**全被験者に共通するものではなく**，  
+運動知覚には**個人差**が存在する。
 
 ---
 
 **中文**
 
-该图比较了各被试在**线性混合**与**高斯时间加权**条件下的  
-**主观速度波动 RMSE**。  
-总体来看，高斯条件表现出**更低 RMSE**，说明  
-速度非均匀性降低、运动知觉更加稳定。
+该图展示了各被试在**线性混合**与**高斯时间加权**条件下的  
+**主观速度波动 RMSE**。
+
+在**大多数被试**中，高斯条件表现出  
+**更小的 RMSE 值**，表明其在降低速度非均匀性、  
+提升运动稳定性方面具有一定趋势。
+
+但该趋势**并非普遍存在**，  
+仍可观察到明显的**个体差异**。
+
