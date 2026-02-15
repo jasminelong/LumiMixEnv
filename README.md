@@ -201,9 +201,6 @@ For the **majority of participants**, Gaussian weighting yields
 **smaller RMSE values** than linear mixing, indicating a tendency toward  
 reduced perceived speed non-uniformity and improved motion stability.
 
-However, this trend is **not universal**, and individual differences  
-in motion perception remain evident.
-
 ---
 
 **日本語**
@@ -214,9 +211,6 @@ in motion perception remain evident.
 **多くの被験者**において，ガウス条件は線形混合よりも  
 **RMSE が小さい傾向**を示し，  
 主観的速度非一様性の低減および運動知覚の安定化を示唆する。
-
-ただし，この傾向は**全被験者に共通するものではなく**，  
-運動知覚には**個人差**が存在する。
 
 ---
 
@@ -229,6 +223,4 @@ in motion perception remain evident.
 **更小的 RMSE 值**，表明其在降低速度非均匀性、  
 提升运动稳定性方面具有一定趋势。
 
-但该趋势**并非普遍存在**，  
-仍可观察到明显的**个体差异**。
 
