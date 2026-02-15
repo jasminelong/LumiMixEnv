@@ -113,48 +113,50 @@ https://github.com/jasminelong/LumiMixEnv/blob/brightness_function_mixing/Assets
 
 ---
 
-5. Psychophysics Reading Path｜読書ガイド｜阅读路线
-Introductory Conceptual Foundation
+# 5. Psychophysics Reading Path｜読書ガイド｜阅读路线
 
-Sensation and Perception (10th Ed.) — Goldstein & Brockmole
+## Introductory Conceptual Foundation
 
-EN: Provides a systematic conceptual overview of sensation and perception,
-helping situate psychophysical research questions within the broader field.
+**Sensation and Perception (10th Ed.) — Goldstein & Brockmole**
 
-JP: 感覚・知覚研究の全体像を体系的に理解するための入門書。
+* **EN:** Provides a **systematic conceptual overview** of sensation and perception,
+  helping situate psychophysical research questions within the broader field.
+* **JP:** 感覚・知覚研究の**全体像を体系的に理解するための入門書**。
+* **ZH:** 用于建立感觉与知觉研究**整体框架认知**的基础教材。
 
-ZH: 用于建立感觉与知觉研究整体框架认知的基础教材。
+➡ **Role:** theoretical orientation rather than experimental methodology.
 
-➡ Role: theoretical orientation rather than experimental methodology.
+---
 
-Core Methodology (Most Important)
+## Core Methodology (Most Important)
 
-Psychophysics (2nd Ed.) — Kingdom & Prins
+**Psychophysics (2nd Ed.) — Kingdom & Prins**
 
-EN: Explains how psychophysical experiments are actually designed, conducted,
-analyzed, and interpreted, forming the primary methodological foundation
-for perception research.
+* **EN:** Explains **how psychophysical experiments are actually designed, conducted,
+  analyzed, and interpreted**, forming the **primary methodological foundation**
+  for perception research.
+* **JP:** 心理物理実験を**設計・実施・解析・解釈するための中核的方法論書**。
+* **ZH:** 系统讲解心理物理实验**从设计到数据分析与解释**的全过程，
+  是开展实验研究的**最核心方法论基础**。
 
-JP: 心理物理実験を設計・実施・解析・解釈するための中核的方法論書。
+➡ **Role:** indispensable practical guide for conducting real psychophysical studies.
 
-ZH: 系统讲解心理物理实验从设计到数据分析与解释的全过程，
-是开展实验研究的最核心方法论基础。
+---
 
-➡ Role: indispensable practical guide for conducting real psychophysical studies.
+## Advanced Theoretical Connection
 
-Advanced Theoretical Connection
+**Visual Psychophysics — Lu & Dosher**
 
-Visual Psychophysics — Lu & Dosher
+* **EN:** Connects **experimental measurements** with
+  **computational and theoretical observer models**,
+  enabling interpretation beyond descriptive results.
+* **JP:** 実験結果を**理論的観測者モデル**へ結びつける発展的内容。
+* **ZH:** 将实验测量结果提升到**视觉计算与理论模型解释层面**的进阶著作。
 
-EN: Connects experimental measurements with
-computational and theoretical observer models,
-enabling interpretation beyond descriptive results.
+➡ **Role:** transition from **experimental execution → theoretical interpretation**.
 
-JP: 実験結果を理論的観測者モデルへ結びつける発展的内容。
 
-ZH: 将实验测量结果提升到视觉计算与理论模型解释层面的进阶著作。
 
-➡ Role: transition from experimental execution → theoretical interpretation.
 ---
 
 # 6. Related Learning Links｜関連リンク｜相关链接
