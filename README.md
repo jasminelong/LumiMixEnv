@@ -184,3 +184,35 @@ https://github.com/maeda-lab/LumiMixEnvData/blob/master/public/py/gauss/analyze_
 
 ---
 
+# 6. Results / 実験結果 / 实验结果
+
+## RMSE by Participant
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/maeda-lab/LumiMixEnvData/master/public/py/gauss/mse_by_subject_grouped_bar_paper.png" width="720">
+</p>
+
+**English**
+
+The grouped bar chart shows the **RMSE of perceived speed fluctuation**  
+for each participant under **linear mixing** and **Gaussian temporal weighting**.  
+Gaussian weighting generally produces **lower RMSE values**, indicating  
+reduced perceived speed non-uniformity and improved motion consistency.
+
+---
+
+**日本語**
+
+本図は，各被験者における**主観的速度ムラの RMSE**を  
+**線形混合**と**ガウス時間重み付け**で比較したものである。  
+ガウス条件は全体として**RMSE を低減**し，  
+運動知覚の安定化を示唆する。
+
+---
+
+**中文**
+
+该图比较了各被试在**线性混合**与**高斯时间加权**条件下的  
+**主观速度波动 RMSE**。  
+总体来看，高斯条件表现出**更低 RMSE**，说明  
+速度非均匀性降低、运动知觉更加稳定。
