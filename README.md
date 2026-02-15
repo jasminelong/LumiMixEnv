@@ -157,6 +157,9 @@ https://github.com/jasminelong/LumiMixEnv/blob/brightness_function_mixing/Assets
 ---
 
 # 6. Related Learning Links｜関連リンク｜相关链接
+### Foundations of Vision (1995)
+
+https://wandell.github.io/FOV-1995/?utm_source=chatgpt.com
 
 ### Binocular Disparity & Depth
 
