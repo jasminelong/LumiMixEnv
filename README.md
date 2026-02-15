@@ -122,9 +122,8 @@ https://github.com/jasminelong/LumiMixEnv/blob/brightness_function_mixing/Assets
 * **EN:** Provides a **systematic conceptual overview** of sensation and perception,
   helping situate psychophysical research questions within the broader field.
 * **JP:** 感覚・知覚研究の**全体像を体系的に理解するための入門書**。
-* **ZH:** 用于建立感觉与知觉研究**整体框架认知**的基础教材。
+* **ZH:** 用于建立感觉与知觉研究**整体框架认知**的基础教材，有中文版-感觉与知觉（第十版）。
 
-➡ **Role:** theoretical orientation rather than experimental methodology.
 
 ---
 
@@ -139,7 +138,6 @@ https://github.com/jasminelong/LumiMixEnv/blob/brightness_function_mixing/Assets
 * **ZH:** 系统讲解心理物理实验**从设计到数据分析与解释**的全过程，
   是开展实验研究的**最核心方法论基础**。
 
-➡ **Role:** indispensable practical guide for conducting real psychophysical studies.
 
 ---
 
@@ -153,7 +151,6 @@ https://github.com/jasminelong/LumiMixEnv/blob/brightness_function_mixing/Assets
 * **JP:** 実験結果を**理論的観測者モデル**へ結びつける発展的内容。
 * **ZH:** 将实验测量结果提升到**视觉计算与理论模型解释层面**的进阶著作。
 
-➡ **Role:** transition from **experimental execution → theoretical interpretation**.
 
 
 
